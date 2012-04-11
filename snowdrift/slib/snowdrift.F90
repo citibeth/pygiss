@@ -5,7 +5,7 @@ module snowdrift_mod
 use ncoverlap_mod
 use ncutil_mod
 use HSL_ZD11_double
-use sparsematrix_mod
+use sparsebuilder_mod
 
 implicit none
 
