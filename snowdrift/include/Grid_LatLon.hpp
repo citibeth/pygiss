@@ -17,7 +17,7 @@ public:
 
 	bool south_pole, north_pole;
 
-	Grid_LatLon() : Grid("latlon") {}
+	Grid_LatLon(std::string const &name) : Grid("latlon", name) {}
 
 
 	/**
@@ -35,18 +35,20 @@ public:
 
 
 	static std::unique_ptr<Grid_LatLon> new_grid_4x5(
+		std::string const &name,
 		Proj &&proj,
 		int points_in_side,
 		boost::function<bool(double, double, double, double)> const &spherical_clip,
 		boost::function<bool(gc::Polygon_2 const &)> const &euclidian_clip);
 
 	static std::unique_ptr<Grid_LatLon> new_grid_2x2_5(
+		std::string const &name,
 		Proj &&proj,
 		int points_in_side,
 		boost::function<bool(double, double, double, double)> const &spherical_clip,
 		boost::function<bool(gc::Polygon_2 const &)> const &euclidian_clip);
 
-	 virtual boost::function<void()> netcdf_define(NcFile &nc, std::string const &generic_name, std::string const &specific_name);
+	 virtual boost::function<void()> netcdf_define(NcFile &nc, std::string const &generic_name) const;
 
 		
 };

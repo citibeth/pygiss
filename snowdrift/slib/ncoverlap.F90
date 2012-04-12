@@ -107,8 +107,9 @@ end subroutine ncgrid_read
 
 ! Reads entire overlap.nc file
 ! @param nc netCDF file handle
-subroutine ncoverlap_read(fname, ncoverlap)
-	character(*), intent(in) :: fname
+subroutine ncoverlap_read(fname, fname_len, ncoverlap)
+	character(fname_len), intent(in) :: fname
+	integer, intent(in) :: fname_len
 	type(ncoverlap_t), intent(inout) :: ncoverlap
 
 	integer :: nc
@@ -134,7 +135,7 @@ program test
 use ncoverlap_mod
 
 	type(ncoverlap_t) :: nco
-	call ncoverlap_read('overlap.nc', nco)
+	call ncoverlap_read('overlap.nc', 10, nco)
 !	call ncoverlap_read('overlap.nc')
 
 	print *,nco%grid1%grid_index(1:5)

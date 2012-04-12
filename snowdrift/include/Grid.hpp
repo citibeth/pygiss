@@ -10,7 +10,6 @@ namespace giss {
 
 class Grid {
 
-
 	std::map<int, GridCell> _cells;
 
 	// Bounding box for overall grid after all cells have been added
@@ -19,11 +18,13 @@ class Grid {
 	bool _bounding_box_valid;
 
 
-	void netcdf_write(NcFile *nc, std::string const &generic_name);
+	void netcdf_write(NcFile *nc, std::string const &generic_name) const;
 
 public:
 //	enum class Type { XY, LATLON };
 	// ---------------------------------------------------
+
+	std::string const name;	/// Name of this grid instance (eg: "ice", "gcm", etc)
 
 	/** Type string identifying this kind of grid */
 	std::string const stype;
@@ -31,9 +32,10 @@ public:
 	virtual ~Grid() {}
 
 
-	virtual boost::function<void()> netcdf_define(NcFile &nc, std::string const &generic_name, std::string const &specific_name);
+	virtual boost::function<void()> netcdf_define(NcFile &nc, std::string const &generic_name) const;
 
-	Grid(std::string _stype) : stype(_stype), _bounding_box_valid(false) {}
+	Grid(std::string const &_stype, std::string const &_name) :
+		stype(_stype), name(_name), _bounding_box_valid(false) {}
 
 	size_t size() const { return _cells.size(); }
 

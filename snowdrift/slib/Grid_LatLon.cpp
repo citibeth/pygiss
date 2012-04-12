@@ -160,7 +160,7 @@ boost::function<bool(gc::Polygon_2 const &)> const &euclidian_clip)
 
 static void Grid_LatLon_netcdf_write(
 	boost::function<void()> const &parent,
-	NcFile *nc, Grid_LatLon *grid, std::string const &generic_name)
+	NcFile *nc, Grid_LatLon const *grid, std::string const &generic_name)
 {
 	parent();
 
@@ -182,9 +182,9 @@ static void Grid_LatLon_netcdf_write(
 
 }
 
-boost::function<void ()> Grid_LatLon::netcdf_define(NcFile &nc, std::string const &generic_name, std::string const &specific_name)
+boost::function<void ()> Grid_LatLon::netcdf_define(NcFile &nc, std::string const &generic_name) const
 {
-	auto parent = Grid::netcdf_define(nc, generic_name, specific_name);
+	auto parent = Grid::netcdf_define(nc, generic_name);
 
 //	NcDim *oneDim = nc.get_dim("one");
 //	nc.add_var((generic_name + ".south_pole").c_str(), ncInt, oneDim);
@@ -220,12 +220,13 @@ const std::vector<double> lonb_4x5 = {-180,-175,-170,-165,-160,-155,-150,-145,-1
 const std::vector<double> latb_4x5 = {-88,-84,-80,-76,-72,-68,-64,-60,-56,-52,-48,-44,-40,-36,-32,-28,-24,-20,-16,-12,-8,-4,0,4,8,12,16,20,24,28,32,36,40,44,48,52,56,60,64,68,72,76,80,84,88};
 
 std::unique_ptr<Grid_LatLon> Grid_LatLon::new_grid_4x5(
+std::string const &name,
 Proj &&proj,
 int points_in_side,
 boost::function<bool(double, double, double, double)> const &spherical_clip,
 boost::function<bool(gc::Polygon_2 const &)> const &euclidian_clip)
 {
-	std::unique_ptr<Grid_LatLon> grid(new Grid_LatLon());
+	std::unique_ptr<Grid_LatLon> grid(new Grid_LatLon(name));
 	grid->init(
 		lonb_4x5, latb_4x5, true, true,
 		std::move(proj), points_in_side,
@@ -237,6 +238,7 @@ boost::function<bool(gc::Polygon_2 const &)> const &euclidian_clip)
 // Latitude and longitude gridcell boundaries for the 2x2.5 grid
 
 std::unique_ptr<Grid_LatLon> Grid_LatLon::new_grid_2x2_5(
+std::string const &name,
 Proj &&proj,
 int points_in_side,
 boost::function<bool(double, double, double, double)> const &spherical_clip,
@@ -260,7 +262,7 @@ boost::function<bool(gc::Polygon_2 const &)> const &euclidian_clip)
 //for (double lon : lonb_2x2_5) printf("%f\n", lon);
 
 
-	std::unique_ptr<Grid_LatLon> grid(new Grid_LatLon());
+	std::unique_ptr<Grid_LatLon> grid(new Grid_LatLon(name));
 	grid->init(
 		lonb_2x2_5, latb_2x2_5, true, true,
 		std::move(proj), points_in_side,

@@ -54,9 +54,9 @@ gc::Polygon_2 const &Grid::bounding_box() {		// lazy eval
 	return _bounding_box;
 }
 
-void Grid::netcdf_write(NcFile *nc, std::string const &generic_name)
+void Grid::netcdf_write(NcFile *nc, std::string const &generic_name) const
 {
-	Grid *grid = this;
+	Grid const *grid = this;
 	double const nan = std::numeric_limits<double>::quiet_NaN();
 
 	// Write out the polygons
@@ -91,17 +91,17 @@ void Grid::netcdf_write(NcFile *nc, std::string const &generic_name)
 	}
 }
 
-boost::function<void ()> Grid::netcdf_define(NcFile &nc, std::string const &generic_name, std::string const &specific_name)
+boost::function<void ()> Grid::netcdf_define(NcFile &nc, std::string const &generic_name) const
 {
 	auto oneDim = get_or_add_dim(nc, "one", 1);
 	NcVar *infoVar = nc.add_var((generic_name + ".info").c_str(), ncInt, oneDim);
-		infoVar->add_att("name", specific_name.c_str());
+		infoVar->add_att("name", name.c_str());
 
 	infoVar->add_att("type", stype.c_str());
 
 	// Allocate for the polygons
 	int nvert = 0;
-	for (std::map<int, GridCell>::iterator ii = _cells.begin(); ii != _cells.end(); ++ii) {
+	for (std::map<int, GridCell>::const_iterator ii = _cells.begin(); ii != _cells.end(); ++ii) {
 		GridCell const &gc(ii->second);
 
 		// One extra vertex to close the polygon.  One extra vertex for nan spacer

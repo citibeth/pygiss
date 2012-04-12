@@ -125,18 +125,21 @@ subroutine build_overlap(nco, L, grid1_total_coverage, grid2_total_coverage)
 	call sparsebuilder_delete(LB)
 end subroutine build_overlap
 ! ------------------------------------------------------------
-subroutine snowdrift_init(snowdrift, fname)
-	character(*), intent(in) :: fname
+subroutine snowdrift_init(snowdrift, fname, fname_len)
+	integer, intent(in), value :: fname_len
+	character(fname_len), intent(in) :: fname
 	type(snowdrift_t), target, intent(out) :: snowdrift
 
 	type(sparsebuilder_t), pointer :: QB
 	type(ncoverlap_t), pointer :: nco   ! Name shortener
 	! integer :: nc
 
+print *,fname
+
 	nco => snowdrift%overlap
 
 	!call check(nf90_open(trim(fname), NF90_NOWRITE, nc))
-	call ncoverlap_read(fname, nco)
+	call ncoverlap_read(fname, fname_len, nco)
 	!call check(nf90_close(nc))
 
 	call build_overlap(nco, snowdrift%L, snowdrift%grid1_total_coverage, snowdrift%grid2_total_coverage)
@@ -172,14 +175,16 @@ subroutine snowdrift_init(snowdrift, fname)
 	call sparsebuilder_delete(QB)
 
 end subroutine snowdrift_init
+
 ! --------------------------------------------------------------
 ! Moves data from grid1 to grid2
-function snowdrift_downgrid(sd, Z1, Z2)
+function snowdrift_downgrid(sd, Z1, Z1_stride, Z2, Z2_stride)
 	USE GALAHAD_QP_double
 	USE GALAHAD_QPT_double		! Debugging
 
 	type(snowdrift_t) :: sd
-	real*8, dimension(:) :: Z1, Z2
+	real*8, dimension(*) :: Z1, Z2
+	integer, intent(in), value :: Z1_stride, Z2_stride
 	logical :: snowdrift_downgrid
 
 	integer :: nz1, nz2, index, j
@@ -210,7 +215,7 @@ function snowdrift_downgrid(sd, Z1, Z2)
 		pp = sd%overlap%grid1%proj_area(j)
 		nn = sd%overlap%grid1%native_area(j)
 
-		Z1_sub(j) = (nn/pp) * Z1(index)	! Scale to correct for area errors in projection
+		Z1_sub(j) = (nn/pp) * Z1(index * Z1_stride)	! Scale to correct for area errors in projection
 	end do
 
 	! start problem data
@@ -306,12 +311,12 @@ print *,'H%m,H%n,H%ne',p%H%m,p%H%n,p%H%ne
 			oo = sd%grid2_total_coverage(j)		! overlap area of this grid cell (in projected space)
 			pp = sd%overlap%grid2%proj_area(j)
 			nn = sd%overlap%grid2%native_area(j)
-			X0 = Z2(index)		! Original value
+			X0 = Z2(index * Z2_stride)		! Original value
 			X1 = p%X(j)			! Result of regridding
 
 			oo_by_pp = oo/pp
 			X2 = (1-oo_by_pp) * X0 + (pp/nn) * oo_by_pp * X1
-			Z2(index) = X2		! Put back final value
+			Z2(index * Z2_stride) = X2		! Put back final value
 		end do
 	end if
 	CALL QP_terminate( data, control, inform) ! delete internal workspace
@@ -322,10 +327,11 @@ print *,'H%m,H%n,H%ne',p%H%m,p%H%n,p%H%ne
 
 end function snowdrift_downgrid
 
-subroutine snowdrift_upgrid(sd, Z2_1d, Z1_1d)
+subroutine snowdrift_upgrid(sd, Z2_1d, Z2_stride, Z1_1d, Z1_stride)
 	type(snowdrift_t), intent(in) :: sd
-	real*8, dimension(:), intent(in) :: Z2_1d
-	real*8, dimension(:), intent(out) :: Z1_1d
+	real*8, dimension(*), intent(in) :: Z2_1d
+	real*8, dimension(*), intent(out) :: Z1_1d
+	integer, intent(in), value :: Z2_stride, Z1_stride
 
 	real*8 :: nn, oo, pp, oo_by_pp
 	real*8 :: X0, X1, X2
@@ -368,112 +374,57 @@ subroutine snowdrift_upgrid(sd, Z2_1d, Z1_1d)
 
 end subroutine snowdrift_upgrid
 
-
-subroutine write_downgrid_solution(fname, ZG1, ZG2, ZG1b)
-use netcdf
-
-character(*), intent(in) :: fname
-real*8,dimension(:,:) :: ZG1
-real*8,dimension(:,:) :: ZG2
-real*8,dimension(:,:) :: ZG1b
-
-	integer, dimension(2) :: ZG1_dims, ZG2_dims
-	integer :: ZG1_var, ZG1b_var, ZG2_var
-	integer :: nc
-
-	call check(nf90_create(trim(fname), NF90_64BIT_OFFSET, nc))
-
-	! ---------- Define
-	call check(nf90_def_dim(nc, 'ZG1.nx', size(ZG1,1), ZG1_dims(1)))
-	call check(nf90_def_dim(nc, 'ZG1.ny', size(ZG1,2), ZG1_dims(2)))
-	call check(nf90_def_var(nc, 'ZG1', NF90_DOUBLE, ZG1_dims, ZG1_var))
-
-	call check(nf90_def_dim(nc, 'ZG2.nx', size(ZG2,1), ZG2_dims(1)))
-	call check(nf90_def_dim(nc, 'ZG2.ny', size(ZG2,2), ZG2_dims(2)))
-	call check(nf90_def_var(nc, 'ZG2', NF90_DOUBLE, ZG2_dims, ZG2_var))
-
-	call check(nf90_def_var(nc, 'ZG1b', NF90_DOUBLE, ZG1_dims, ZG1b_var))
-
-	! ----------- Write
-	call check(nf90_enddef(nc))
-	call check(nf90_put_var(nc, ZG1_var, ZG1))
-	call check(nf90_put_var(nc, ZG2_var, ZG2))
-	call check(nf90_put_var(nc, ZG1b_var, ZG1b))
-
-	call check(nf90_close(nc))
-end subroutine write_downgrid_solution
-
-
-
 end module snowdrift_mod
 
-program test
+! --------------------------------------------------------------
+! This is for C interfacing
+
+function snowdrift_new_c(fname, fname_len)
 	use snowdrift_mod
 
-	integer :: nx1, ny1
-	real*8, dimension(:,:), allocatable, target :: ZG1
-	real*8, dimension(:), pointer :: ZG1_1d
-	! Reconstructed coarse grid
-	real*8, dimension(:,:), allocatable, target :: ZG1b
-	real*8, dimension(:), pointer :: ZG1b_1d
+	integer, intent(in), value :: fname_len
+	character(fname_len), intent(in) :: fname
+	type(c_ptr) :: snowdrift_new
 
-	integer :: nx2, ny2
-	real*8, dimension(:,:), allocatable, target :: ZG2
-	real*8, dimension(:), pointer :: ZG2_1d
+	type(snowdrift_t), pointer :: sd
 
+	allocate(sd)
+	call snowdrift_init(sd, fname, fname_len)
+	snowdrift_new = c_loc(sd)
+end function snowdrift_new_c
 
-	integer :: ix, iy
-	logical :: ok
-	type(snowdrift_t) :: sd
+subroutine snowdrift_delete_c(sd_c)
+	use snowdrift_mod
+	type(c_ptr), value :: sd_c
 
-	! Write output at end
-	integer :: nc
+	type(snowdrift_t), pointer :: sd
 
-	! ----------- Set up snowdrift regridding
-	call snowdrift_init(sd, 'xy-overlap.nc')
+	call c_f_pointer(sd_c, sd)
+	deallocate(sd)
+end subroutine snowdrift_delete_c
 
+function snowdrift_downgrid_c(sd_c, Z1, Z1_stride, Z2, Z2_stride)
+	use snowdrift_mod
+	type(c_ptr), value :: sd_c
+	real*8, dimension(*) :: Z1, Z2
+	integer, intent(in), value :: Z1_stride, Z2_stride
+	logical :: snowdrift_downgrid_c
 
-	! Changing native area has no effect (it should not)
-	sd%overlap%grid1%native_area = sd%overlap%grid1%native_area * 1.1
-	sd%overlap%grid2%native_area = sd%overlap%grid2%native_area * 1.1
+	type(snowdrift_t), pointer :: sd
 
-	! ---------- Define a function on G1
-	! (this doesn't happen in real life, it's already defined)
-	nx1 = size(sd%overlap%grid1%xy%x_boundaries) - 1
-	ny1 = size(sd%overlap%grid1%xy%y_boundaries) - 1
-	print *,'nx1,ny1',nx1,ny1
-	allocate(ZG1(nx1,ny1))
-	allocate(ZG1b(nx1,ny1))
-	do iy=1,nx1
-		do ix=1,nx1
-			ZG1(ix,iy) = -iy * 1.8d0 + ix
-		end do
-	end do
+	call c_f_pointer(sd_c, sd)
+	snowdrift_downgrid_c = snowdrift_downgrid(sd, Z1, Z1_stride, Z2, Z2_stride)
+end function snowdrift_downgrid_c
 
-!	ZG1(1,1) = 10
-!	ZG1(2,1) = 10
-!	ZG1(1,2) = 11
-!	ZG1(2,2) = 11
+subroutine snowdrift_upgrid_c(sd_c, Z2, Z2_stride, Z1, Z1_stride)
+	use snowdrift_mod
+	type(c_ptr), value :: sd_c
+	real*8, dimension(*) :: Z2, Z1
+	integer, intent(in), value :: Z2_stride, Z1_stride
 
-	! ----------- Allocate for G2 (regridded hi-res values)
-	nx2 = size(sd%overlap%grid2%xy%x_boundaries) - 1
-	ny2 = size(sd%overlap%grid2%xy%y_boundaries) - 1
-	print *,'nx2,ny2',nx2,ny2
-	allocate(ZG2(nx2,ny2))
+	type(snowdrift_t), pointer :: sd
 
-	! ---------- Regrid!
-	call c_f_pointer(c_loc(ZG1), ZG1_1d, (/ nx1 * ny1 /))
-	call c_f_pointer(c_loc(ZG1b), ZG1b_1d, (/ nx1 * ny1 /))
-	call c_f_pointer(c_loc(ZG2), ZG2_1d, (/ nx2 * ny2 /))
-
-!	print *,ZG1_1d
-	ok = snowdrift_downgrid(sd, ZG1_1d, ZG2_1d)
-
-	if (ok) then
-		call snowdrift_upgrid(sd, ZG2_1d, ZG1b_1d)
-!print *,'ZG2',ZG2_1d
-!print *,'ZG1b',ZG1b_1d
-		call write_downgrid_solution('out.nc', ZG1, ZG2, ZG1b)
-	end if
-
-end program test
+	call c_f_pointer(sd_c, sd)
+	call snowdrift_upgrid(sd, Z2, Z2_stride, Z1, Z1_stride)
+end subroutine snowdrift_upgrid_c
+! --------------------------------------------------------------

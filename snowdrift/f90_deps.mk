@@ -14,3 +14,9 @@ snowdrift_mod.mod slib/snowdrift.o: slib/snowdrift.F90 ncoverlap_mod.mod ncutil_
 sparsebuilder_mod.mod slib/sparsebuilder.o: slib/sparsebuilder.F90 hsl_zd11_double.mod
 	$(FORTRAN_COMMAND_LINE) $<
 
+smain/test.o: smain/test.f90 
+	$(FORTRAN_COMMAND_LINE) $<
+
+smain/xy_snowdrift.o: smain/xy_snowdrift.f90 snowdrift_mod.mod ncutil_mod.mod
+	$(FORTRAN_COMMAND_LINE) $<
+

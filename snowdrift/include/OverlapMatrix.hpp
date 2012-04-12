@@ -7,9 +7,6 @@
 /// Should we use Rtrees to speed up overlap matrix computation?
 #define USE_RTREE 1
 
-/// Should we be paranoid in checking things in our overlap matrix?
-#define PARANOID_OVERLAP 1
-
 
 namespace giss {
 
@@ -46,13 +43,11 @@ public:
 		{ return index < b.index; }
 };
 
-class OverlapMatrix_NC_Overlap;
-
 class OverlapMatrix {
 
 	typedef RTree<GridCell const *, double, 2, double> MyRTree;
 
-	Grid const *grid1;		// One of the two grids
+	Grid const *grid1, *grid2;
 	MyRTree rtree;
 
 	/** Index of the grid cells that have actually
@@ -62,12 +57,19 @@ class OverlapMatrix {
 	std::vector<GridCellOverlap> overlaps;
 
 public :
-	void set_grid1(Grid const *grid1);
+	void set_grids(Grid const *grid1, Grid const *grid2)
+	{
+		set_grid2(grid2);
+		add_all(grid1);
+	}
+
+
+	void set_grid2(Grid const *grid2);
 
 	/** Computes the overlap matrix! */
-	void add_all(Grid const &grid0);
+	void add_all(Grid const *grid1);
 
-	/** Computes one row of overlap matrix --- useful if grid0 is too large
+	/** Computes one row of overlap matrix --- useful if grid1 is too large
 	to store in memory all at once. */
 	void add_row(GridCell const &gc0);
 
@@ -76,48 +78,19 @@ public :
 	// =============================================================
 	// NetCDF Stuff...
 
-	std::unique_ptr<OverlapMatrix_NC_Overlap> netcdf_define(
-		NcFile &nc);
+private:
 
-//	static void netcdf_write(OverlapMatrix_NC_Overlap &);
+	void netcdf_write(NcFile *nc,
+		boost::function<void ()> const &nc_used_write0,
+		boost::function<void ()> const &nc_used_write1);
 
+public:
+	boost::function<void ()> netcdf_define(NcFile &nc);
+
+	/** Easy all-in-one function to write this out to a netCDF File */
+	void to_netcdf(std::string const &fname);
 
 };	// class OverlapMatrix
-
-
-// =============================================================
-	struct OverlapMatrix_NC_Used {	// A little closure
-		NcFile &nc;
-		std::set<UsedGridCell> const &used;
-
-		NcDim *lenDim;
-		NcVar *indexVar;
-		NcVar *native_areaVar;
-		NcVar *proj_areaVar;
-
-		// Define variables in NetCDF
-		OverlapMatrix_NC_Used(NcFile &_nc, std::set<UsedGridCell> &_used, std::string const &name);
-
-		// Write data to NetCDF
-		void write();
-
-	};
-
-	struct OverlapMatrix_NC_Overlap { // closure
-		std::vector<GridCellOverlap> const *overlaps;
-
-		std::unique_ptr<OverlapMatrix_NC_Used> nc_used[2];
-
-		NcDim *lenDim;
-		NcDim *num_gridsDim;
-		NcVar *grid_indexVar;
-		NcVar *areaVar;
-
-		void write();
-	};
-
-
-
 
 
 

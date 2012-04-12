@@ -6,8 +6,8 @@ all : snowdrift.so
 deps : f90_deps.mk
 .PHONY : all deps
 
-f90_deps.mk : $(SNOWDRIFT_LIB_SRC_F90)
-	f90_mod_deps.py $(SNOWDRIFT_LIB_SRC_F90) >f90_deps.mk
+f90_deps.mk : $(SNOWDRIFT_LIB_SRC_F90) $(wildcard smain/*.f90 smain/*.F90)
+	f90_mod_deps.py $(SNOWDRIFT_LIB_SRC_F90) $(wildcard smain/*.f90 smain/*.F90) >f90_deps.mk
 
 # ==============================================
 # Third Party Library Dependencies
@@ -57,6 +57,15 @@ test :
 
 snowdrift.so : $(SNOWDRIFT_LIB_OBJ)
 	gfortran -shared -Wl -o snowdrift.so $(SNOWDRIFT_LIB_OBJ) $(SNOWDRIFT_LIB_LIBS) -lstdc++
+
+searise_ll_overlap : smain/searise_ll_overlap.o snowdrift.so
+	g++ -o $@ $^ $(SNOWDRIFT_LIB_LIBS)
+
+xy_overlap : smain/xy_overlap.o snowdrift.so
+	g++ -o $@ $^ $(SNOWDRIFT_LIB_LIBS)
+
+xy_snowdrift : smain/xy_snowdrift.o snowdrift.so
+	gfortran -o $@ $^ $(SNOWDRIFT_LIB_LIBS) -lstdc++
 
 
 

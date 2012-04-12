@@ -10,12 +10,13 @@ namespace giss {
 @var clip_poly Only realize grid cells that intersect with this polygon (on the map)
 */
 std::unique_ptr<Grid_XY> Grid_XY::new_grid(
+	std::string const &name,
 	std::vector<double> const &xb,
 	std::vector<double> const &yb,
 	boost::function<bool(gc::Polygon_2 const &)> const &euclidian_clip)
 
 {
-	std::unique_ptr<Grid_XY> grid(new Grid_XY());
+	std::unique_ptr<Grid_XY> grid(new Grid_XY(name));
 	grid->x_boundaries = xb;
 	grid->y_boundaries = yb;
 
@@ -61,6 +62,7 @@ std::unique_ptr<Grid_XY> Grid_XY::new_grid(
 
 /** @var nx Number of grid cells in x direction */
 std::unique_ptr<Grid_XY> Grid_XY::new_grid(
+	std::string const &name,
 	double x0, double x1, double dx,
 	double y0, double y1, double dy,
 	boost::function<bool(gc::Polygon_2 const &)> const &euclidian_clip)
@@ -84,12 +86,12 @@ std::unique_ptr<Grid_XY> Grid_XY::new_grid(
 		yb.push_back(y0 + (y1 - y0) * (double)i * ny_inv);
 	yb.push_back(y1);
 
-	return new_grid(xb, yb, euclidian_clip);
+	return new_grid(name, xb, yb, euclidian_clip);
 }
 
 static void Grid_XY_netcdf_write(
 	boost::function<void()> const &parent,
-	NcFile *nc, Grid_XY *grid, std::string const &generic_name)
+	NcFile *nc, Grid_XY const *grid, std::string const &generic_name)
 {
 	parent();
 
@@ -100,9 +102,9 @@ static void Grid_XY_netcdf_write(
 	ybVar->put(&grid->y_boundaries[0], grid->y_boundaries.size());
 }
 
-boost::function<void ()> Grid_XY::netcdf_define(NcFile &nc, std::string const &generic_name, std::string const &specific_name)
+boost::function<void ()> Grid_XY::netcdf_define(NcFile &nc, std::string const &generic_name) const
 {
-	auto parent = Grid::netcdf_define(nc, generic_name, specific_name);
+	auto parent = Grid::netcdf_define(nc, generic_name);
 
 	NcDim *xbDim = nc.add_dim((generic_name + ".x_boundaries.length").c_str(),
 		this->x_boundaries.size());
