@@ -153,18 +153,12 @@ void OverlapMatrix::add_row(GridCell const &gc0)
 void nc_used_netcdf_write(
 	NcFile *nc, std::set<UsedGridCell> *used, std::string const name)
 {
-	NcVar *indexVar = nc->get_var((name + ".grid_index").c_str());
-	NcVar *native_areaVar = nc->get_var((name + ".native_area").c_str());
-	NcVar *proj_areaVar = nc->get_var((name + ".proj_area").c_str());
+	NcVar *indexVar = nc->get_var((name + ".overlap_cells").c_str());
 
 	int i=0;
 	for (auto ugc = used->begin(); ugc != used->end(); ++ugc) {
 		indexVar->set_cur(i);
 		indexVar->put(&ugc->index, 1);
-		native_areaVar->set_cur(i);
-		native_areaVar->put(&ugc->native_area, 1);
-		proj_areaVar->set_cur(i);
-		proj_areaVar->put(&ugc->proj_area, 1);
 
 		++i;
 	}
@@ -173,10 +167,15 @@ void nc_used_netcdf_write(
 boost::function<void ()> nc_used_netcdf_define(
 	NcFile &nc, std::set<UsedGridCell> *used, std::string const &name)
 {
-	auto lenDim = nc.add_dim((name + ".overlap_grid_cells").c_str(), used->size());
-	nc.add_var((name + ".grid_index").c_str(), ncInt, lenDim);
-	nc.add_var((name + ".native_area").c_str(), ncDouble, lenDim);
-	nc.add_var((name + ".proj_area").c_str(), ncDouble, lenDim);
+	auto lenDim = nc.add_dim((name + ".num_overlap_cells").c_str(), used->size());
+	auto var = nc.add_var((name + ".overlap_cells").c_str(), ncInt, lenDim);
+	var->add_att("description",
+		"Index of each grid cell that participates in overlap with"
+		" the other grid.  Subset of realized_cells");
+
+//	nc.add_var((name + ".grid_index").c_str(), ncInt, lenDim);
+//	nc.add_var((name + ".native_area").c_str(), ncDouble, lenDim);
+//	nc.add_var((name + ".proj_area").c_str(), ncDouble, lenDim);
 
 	return boost::bind(&nc_used_netcdf_write, &nc, used, name);
 }

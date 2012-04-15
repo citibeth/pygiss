@@ -1,6 +1,7 @@
 #include <Python.h>
 #include <arrayobject.h>
 #include <math.h>
+#include "snowdrift.h"
 
 /// Classmembers of the Python class
 typedef struct {
@@ -15,6 +16,7 @@ static PyObject *Snowdrift_new(PyTypeObject *type, PyObject *args, PyObject *kwd
 {
 	SnowdriftDict *self;
 
+printf("Snowdrift_new() called\n");
 	self = (SnowdriftDict *)type->tp_alloc(type, 0);
 
     if (self != NULL) {
@@ -22,30 +24,40 @@ static PyObject *Snowdrift_new(PyTypeObject *type, PyObject *args, PyObject *kwd
     }
 
     return (PyObject *)self;
+}
 
 static int Snowdrift_init(SnowdriftDict *self, PyObject *args, PyObject *kwds)
 {
-	self->dict = PyDict_New();
-	self->count = 0;
 
+	// Get arguments
 	const char *fname;
-	if (!PyArg_ParseTuple(args, "s", &fname)) return NULL;
+	if (!PyArg_ParseTuple(args, "s", &fname)) {
+		// Throw an exception...
+		PyErr_SetString(PyExc_ValueError,
+			"Snowdrift_init() called without a valid string as argument.");
+		return 0;
+	}
 
-	if (self->snowdrift_f) snowdrift_delete_c(self->snowdrift_f);
+printf("Snowdrift_init(%s) called, snowdrift_f=%p\n", fname, self->snowdrift_f);
 
-	self->snowdrift_f = snowdrift_new_c(fname, strlen(fname));
+	// Instantiate pointer
+	if (self->snowdrift_f) snowdrift_delete_c_(self->snowdrift_f);
+	self->snowdrift_f = snowdrift_new_c_(fname, strlen(fname));
+
+
+printf("snowdrift_f = %p\n", self->snowdrift_f);
+
 	return 0;
 }
 
 static void Snowdrift_dealloc(SnowdriftDict *self)
 {
-	Py_XDECREF(self->dict);
-	if (self->snowdritf_f) snowdrift_delete_c(self->snowdrift_f);
+	if (self->snowdrift_f) snowdrift_delete_c_(self->snowdrift_f);
 	self->snowdrift_f = NULL;
 	self->ob_type->tp_free((PyObject *)self);
 }
 
-static PyMemberDef SnowdriftDict_members[] = {{NULL}};
+//static PyMemberDef Snowdrift_members[] = {{NULL}};
 
 
 /** Check that PyArrayObject is a double (Float) type and a vector
@@ -60,35 +72,67 @@ int is_doublevector(PyArrayObject *vec)  {
 }
 
 
+
+
+static PyObject * Snowdrift_downgrid(SnowdriftDict *self, PyObject *args)
+{
+	// Get Arguments
+	PyArrayObject *Z1;
+	PyArrayObject *Z2;
+// For some reason, this didn't work.  Maybe a reference count problem.
+//	if (!PyArg_ParseTuple(args, "O!O!",
+//		&PyArray_Type, &Z1,
+//		&PyArray_Type, &Z2))
+	if (!PyArg_ParseTuple(args, "OO", &Z1, &Z2))
+	{
+		return NULL;
+	}
+
+
+	// if (NULL == Z1)  return NULL;
+	// if (NULL == Z2)  return NULL;
+	
+	/* Check that objects are 'double' type and vectors */
+	if (!is_doublevector(Z1)) return NULL;
+	if (!is_doublevector(Z2)) return NULL;
+
+double *z1 = (double *)Z1->data;
+int dim = Z1->dimensions[0];
+printf("z1[%d] = %f %f %f...\n", dim, z1[0], z1[1], z1[2]);
+printf("snowdrift_f = %p\n", self->snowdrift_f);
+	
+	int ret = snowdrift_downgrid_c_(self->snowdrift_f,
+		(double *)Z1->data, 1, // Z1->dimensions[0],
+		(double *)Z2->data, 1); //Z2->dimensions[0]);
+
+	return Py_BuildValue("i", ret);
+}
+
 static PyObject * Snowdrift_upgrid(SnowdriftDict *self, PyObject *args)
 {
-	PyArrayObject *vecin, *vecout;  // The python objects to be extracted from the args
-	double *cin, *cout;             // The C vectors to be created to point to the 
-	                                //   python vectors, cin and cout point to the row
-	                                //   of vecin and vecout, respectively
-	int i,j,n;
-	const char *str;
-	double dfac;
+	// Arguments from Python
+	PyArrayObject *Z2;
+	PyArrayObject *Z1;
 	
 	/* Parse tuples separately since args will differ between C fcns */
+#if 0
 	if (!PyArg_ParseTuple(args, "O!O!",
 		&PyArray_Type, &Z2,
 		&PyArray_Type, &Z1)) return NULL;
-	if (NULL == Z2)  return NULL;
-	if (NULL == Z1)  return NULL;
-	
-	// Print out input string
-	printf("Input string: %s\n", str);
+#endif
+	if (!PyArg_ParseTuple(args, "OO", &Z2, &Z1)) return NULL;
 	
 	/* Check that objects are 'double' type and vectors */
 	if (!is_doublevector(Z2)) return NULL;
 	if (!is_doublevector(Z1)) return NULL;
 	
-	snowdrift_upgrid_c(self->snowdrift_f,
-		Z2->data, Z2->dimensions[0],
-		Z1->data, Z1->dimensions[0]);
+	snowdrift_upgrid_c_(self->snowdrift_f,
+		(double *)Z2->data, 1, //Z2->dimensions[0],
+		(double *)Z1->data, 1); //, Z1->dimensions[0]);
 
-	return NULL;
+	// Returns a Python None value
+	// http://stackoverflow.com/questions/8450481/method-without-return-value-in-python-c-extension-module
+	return Py_BuildValue("");
 }
 
 static PyMethodDef Snowdrift_methods[] = {
@@ -105,7 +149,7 @@ SnowdriftType = {
    PyObject_HEAD_INIT(NULL)
    0,                         /* ob_size */
    "Snowdrift",               /* tp_name */
-   sizeof(Snowdrift),         /* tp_basicsize */
+   sizeof(SnowdriftDict),     /* tp_basicsize */
    0,                         /* tp_itemsize */
    (destructor)Snowdrift_dealloc, /* tp_dealloc */
    0,                         /* tp_print */
@@ -131,7 +175,8 @@ SnowdriftType = {
    0,                         /* tp_iter */
    0,                         /* tp_iternext */
    Snowdrift_methods,         /* tp_methods */
-   Snowdrift_members,         /* tp_members */
+//   Snowdrift_members,         /* tp_members */
+   0,                         /* tp_members */
    0,                         /* tp_getset */
    0,                         /* tp_base */
    0,                         /* tp_dict */
@@ -140,7 +185,7 @@ SnowdriftType = {
    0,                         /* tp_dictoffset */
    (initproc)Snowdrift_init,  /* tp_init */
    0,                         /* tp_alloc */
-   (newproc)Snowdrift_new,    /* tp_new */
+   (newfunc)Snowdrift_new    /* tp_new */
 };
 
 
@@ -156,7 +201,7 @@ initsnowdrift(void)
    }
 
    // Fill in some slots in the type, and make it ready
-   SnowdriftType.tp_new = PyType_GenericNew;
+//   SnowdriftType.tp_new = PyType_GenericNew;
    if (PyType_Ready(&SnowdriftType) < 0) {
       return;
    }

@@ -121,7 +121,7 @@ boost::function<bool(gc::Polygon_2 const &)> const &euclidian_clip)
 			// Figure out how to number this grid cell
 			int j_base0 = ilat + south_pole_offset;	// 0-based 2-D index
 			int i_base0 = ilon;						// 0-based 2-D index
-			int index = (j_base0 * IM + i_base0) + 1;	// 1-based 1-D index
+			int index = (j_base0 * IM + i_base0) + index_base;
 			grid->add_cell(GridCell(poly, index,
 				graticule_area_exact(lat0,lat1,lon0,lon1)));
 		}
@@ -139,7 +139,8 @@ boost::function<bool(gc::Polygon_2 const &)> const &euclidian_clip)
 			ll2xy_latitude(llproj, proj, pole, points_in_side, lon0,lon1, lat);
 		}
 		if (euclidian_clip(pole)) grid->add_cell(
-			GridCell(pole, IM*JM, polar_graticule_area_exact(90.0 - lat)));
+			GridCell(pole, IM*JM - 1 + index_base,
+			polar_graticule_area_exact(90.0 - lat)));
 	}
 
 	// South Pole cap
@@ -152,7 +153,7 @@ boost::function<bool(gc::Polygon_2 const &)> const &euclidian_clip)
 			ll2xy_latitude(llproj, proj, pole, points_in_side, lon0,lon1, lat);
 		}
 		if (euclidian_clip(pole)) grid->add_cell(
-			GridCell(pole, 0, polar_graticule_area_exact(90.0 + lat)));
+			GridCell(pole, 0 + index_base, polar_graticule_area_exact(90.0 + lat)));
 	}
 }
 
@@ -226,7 +227,7 @@ int points_in_side,
 boost::function<bool(double, double, double, double)> const &spherical_clip,
 boost::function<bool(gc::Polygon_2 const &)> const &euclidian_clip)
 {
-	std::unique_ptr<Grid_LatLon> grid(new Grid_LatLon(name));
+	std::unique_ptr<Grid_LatLon> grid(new Grid_LatLon(name, 1));
 	grid->init(
 		lonb_4x5, latb_4x5, true, true,
 		std::move(proj), points_in_side,
@@ -262,7 +263,7 @@ boost::function<bool(gc::Polygon_2 const &)> const &euclidian_clip)
 //for (double lon : lonb_2x2_5) printf("%f\n", lon);
 
 
-	std::unique_ptr<Grid_LatLon> grid(new Grid_LatLon(name));
+	std::unique_ptr<Grid_LatLon> grid(new Grid_LatLon(name, 1));
 	grid->init(
 		lonb_2x2_5, latb_2x2_5, true, true,
 		std::move(proj), points_in_side,

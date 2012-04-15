@@ -16,7 +16,7 @@ std::unique_ptr<Grid_XY> Grid_XY::new_grid(
 	boost::function<bool(gc::Polygon_2 const &)> const &euclidian_clip)
 
 {
-	std::unique_ptr<Grid_XY> grid(new Grid_XY(name));
+	std::unique_ptr<Grid_XY> grid(new Grid_XY(name, 1));
 	grid->x_boundaries = xb;
 	grid->y_boundaries = yb;
 

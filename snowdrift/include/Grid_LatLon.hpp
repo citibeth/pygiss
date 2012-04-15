@@ -17,7 +17,7 @@ public:
 
 	bool south_pole, north_pole;
 
-	Grid_LatLon(std::string const &name) : Grid("latlon", name) {}
+	Grid_LatLon(std::string const &name, int index_base) : Grid("latlon", name, index_base) {}
 
 
 	/**

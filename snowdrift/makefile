@@ -18,17 +18,23 @@ CGAL_HOME=/opt/local
 BOOST_HOME=/opt/local
 GALAHAD=$(HOME)/qp/galahad/galahad
 GALAHAD_ARCH=mac.osx.gfo
-
+PYTHON_HOME=/opt/local/Library/Frameworks/Python.framework/Versions/2.7
+PYTHON_INCLUDE=$(PYTHON_HOME)/include/python2.7
+NUMPY_INCLUDE = $(PYTHON_HOME)/lib/python2.7/site-packages/numpy/core/include/numpy
 
 # ==============================================
 # Compilation Rules
 
-FORTRAN_COMMAND_LINE = gfortran $(FFLAGS) -c -o $(basename $<).o
+FORTRAN_COMMAND_LINE = gfortran $(FFLAGS) -g -c -o $(basename $<).o
 FORTRAN_INCLUDES = -I$(GALAHAD)/modules/$(GALAHAD_ARCH)/double -I$(NETCDF_HOME)/include -I.
-FFLAGS = -shared -fPIC -g $(FORTRAN_INCLUDES)
+FFLAGS = -shared -fPIC $(FORTRAN_INCLUDES)
 
-CPP_INCLUDES = -Iinclude
-CPPFLAGS = -shared -fPIC -MD -g -frounding-math --std=c++0x $(CPP_INCLUDES)
+CXX_INCLUDES = -Iinclude
+CXXFLAGS = -shared -fPIC -MD -g -frounding-math --std=c++0x $(CXX_INCLUDES)
+C_INCLUDES = -Iinclude -I$(PYTHON_INCLUDE) -I$(NUMPY_INCLUDE)
+CFLAGS = -shared -fPIC -MD -g -frounding-math $(C_INCLUDES)
+
+CC = gcc
 
 #%.o : %.F90
 #	gfortran $(FFLAGS) -c $<
@@ -56,7 +62,7 @@ test :
 -include $(SNOWDRIFT_LIB_OBJ:.o=.d)
 
 snowdrift.so : $(SNOWDRIFT_LIB_OBJ)
-	gfortran -shared -Wl -o snowdrift.so $(SNOWDRIFT_LIB_OBJ) $(SNOWDRIFT_LIB_LIBS) -lstdc++
+	gfortran -shared -Wl -o snowdrift.so $(SNOWDRIFT_LIB_OBJ) $(SNOWDRIFT_LIB_LIBS) -lstdc++ -lpython2.7
 
 searise_ll_overlap : smain/searise_ll_overlap.o snowdrift.so
 	g++ -o $@ $^ $(SNOWDRIFT_LIB_LIBS)

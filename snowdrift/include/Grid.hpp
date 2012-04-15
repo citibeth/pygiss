@@ -24,6 +24,9 @@ public:
 //	enum class Type { XY, LATLON };
 	// ---------------------------------------------------
 
+	// Array base used for index numbers in _cells
+	int const index_base;
+
 	std::string const name;	/// Name of this grid instance (eg: "ice", "gcm", etc)
 
 	/** Type string identifying this kind of grid */
@@ -34,8 +37,8 @@ public:
 
 	virtual boost::function<void()> netcdf_define(NcFile &nc, std::string const &generic_name) const;
 
-	Grid(std::string const &_stype, std::string const &_name) :
-		stype(_stype), name(_name), _bounding_box_valid(false) {}
+	Grid(std::string const &_stype, std::string const &_name, int _index_base) :
+		stype(_stype), name(_name), _bounding_box_valid(false), index_base(_index_base) {}
 
 	size_t size() const { return _cells.size(); }
 
