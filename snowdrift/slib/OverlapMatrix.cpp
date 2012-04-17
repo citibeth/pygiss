@@ -1,40 +1,8 @@
 #include <boost/bind.hpp>
 #include "OverlapMatrix.hpp"
-#include "RTree.h"
 #include <algorithm>
 
 namespace giss {
-
-
-// ---------------------------------------------------------
-void OverlapMatrix::add_all(Grid const *_grid1)
-{
-	grid1 = _grid1;
-	int i=0;
-	for (auto ii0=grid1->cells().begin(); ii0 != grid1->cells().end(); ++ii0) {
-		GridCell const &gc0 = ii0->second;
-
-
-//		if (overlaps.size() % 1000 == 1)
-//			printf("%d overlaps, Looking at index=%d (%d of %d) on grid 0\n",
-//				overlaps.size(), gc0.index, i+1, grid1->cells().size());
-//		std::cout << "i0=" << gc0.index << "   gc0 = " << gc0.poly << std::endl;
-//		std::cout << "gc0 bounding box = " << gc0.bounding_box << std::endl;
-
-		add_row(gc0);
-
-		// Logging
-		++i;
-		if (i % 1000 == 0) {
-			printf("Processed %d of %d from grid1, total overlaps = %d\n", i+1, grid1->cells().size(), overlaps.size());
-		}
-
-	}
-
-	// Sort the matrix
-	std::sort(overlaps.begin(), overlaps.end());
-}
-
 
 
 /** Always returns true */
@@ -43,16 +11,6 @@ bool OverlapMatrix::add_pair(GridCell const *gc0_p, GridCell const *gc1_p)
 	// Rename vars
 	GridCell const &gc0(*gc0_p);
 	GridCell const &gc1(*gc1_p);
-
-#if !USE_RTREE
-	// Quick test to see if they might overlap
-	// (This is not needed in the RTree version)
-	if (!CGAL::do_intersect(gc0.bounding_box, gc1.bounding_box)) {
-//		printf("Unexpected bounding box intersection!\n");
-		return true;
-	}
-#endif
-
 
 	// Adding this check increases time requirements :-(
 	// if (!CGAL::do_intersect(gc0.poly, gc1.poly)) return true;
@@ -65,86 +23,53 @@ bool OverlapMatrix::add_pair(GridCell const *gc0_p, GridCell const *gc1_p)
 	used[1].insert(UsedGridCell(gc1));
 	overlaps.push_back(GridCellOverlap(gc0.index, gc1.index, area));
 
-#if 0
-if (!(		// If gc1 is NOT fully contained in gc0 (in bounding box)
-gc0.bounding_box.xmin() < gc1.bounding_box.xmin() && gc0.bounding_box.xmax() > gc1.bounding_box.xmax() &&
-gc0.bounding_box.ymin() < gc1.bounding_box.ymin() && gc0.bounding_box.ymax() > gc1.bounding_box.ymax())) {
-	std::cout << "gc1 not contained in gc0: " << gc0.bounding_box << " **** " << gc1.bounding_box << std::endl;
-}
-#endif
-
 	return true;
 }
 
-
-#if USE_RTREE
-
-// This REALLY speeds things up a lot
-// New Version: use RTrees
-/** Creates an RTree out of grid1 */
-void OverlapMatrix::set_grid2(Grid const *_grid2)
+static bool add_pair_x(OverlapMatrix *om, GridCell const **gc1, GridCell const *gc2)
 {
-	grid2 = _grid2;
-
-	rtree.RemoveAll();
-	double min[2];
-	double max[2];
-	for (auto ii1=grid2->cells().begin(); ii1 != grid2->cells().end(); ++ii1) {
-		GridCell const &gc1 = ii1->second;
-
-		min[0] = CGAL::to_double(gc1.bounding_box.xmin());
-		min[1] = CGAL::to_double(gc1.bounding_box.ymin());
-		max[0] = CGAL::to_double(gc1.bounding_box.xmax());
-		max[1] = CGAL::to_double(gc1.bounding_box.ymax());
-
-		// Deal with floating point...
-		const double eps = 1e-7;
-		double epsilon_x = eps * std::abs(max[0] - min[0]);
-		double epsilon_y = eps * std::abs(max[1] - min[1]);
-		min[0] -= epsilon_x;
-		min[1] -= epsilon_y;
-		max[0] += epsilon_x;
-		max[1] += epsilon_y;
-
-//std::cout << gc1.poly << std::endl;
-//std::cout << gc1.bounding_box << std::endl;
-//printf("(%g,%g) -> (%g,%g)\n", min[0], min[1], max[0], max[1]);
-		rtree.Insert(min, max, &gc1);
-	}
+	return om->add_pair(*gc1, gc2);
 }
 
-/** Adds a contribution from everything in grid2 that intersects with gc0 */
-void OverlapMatrix::add_row(GridCell const &gc0)
+
+void OverlapMatrix::set_grids(Grid *_grid1, Grid *_grid2)
 {
-	double min[2];
-	double max[2];
-
-	min[0] = CGAL::to_double(gc0.bounding_box.xmin());
-	min[1] = CGAL::to_double(gc0.bounding_box.ymin());
-	max[0] = CGAL::to_double(gc0.bounding_box.xmax());
-	max[1] = CGAL::to_double(gc0.bounding_box.ymax());
-
-	int nfound = rtree.Search(min, max,
-		boost::bind(&OverlapMatrix::add_pair, this, &gc0, _1));
-//	printf("RTree.Search() found %d entries, %d called, %d added\n", nfound, add_called, added_in_row);
-}
-
-#else	// !USE_RTREE
-// Old version: n^2 search
-void OverlapMatrix::set_grid2(Grid const *_grid2)
-{
+	this->grid1 = _grid1;
 	this->grid2 = _grid2;
+
+
+	int i=0;
+
+	GridCell const *gc1;
+	auto callback = boost::bind(&add_pair_x, this, &gc1, _1);
+
+	for (auto ii1=grid1->cells().begin(); ii1 != grid1->cells().end(); ++ii1) {
+		gc1 = &ii1->second;
+
+		double min[2];
+		double max[2];
+
+		min[0] = CGAL::to_double(gc1->bounding_box.xmin());
+		min[1] = CGAL::to_double(gc1->bounding_box.ymin());
+		max[0] = CGAL::to_double(gc1->bounding_box.xmax());
+		max[1] = CGAL::to_double(gc1->bounding_box.ymax());
+
+		int nfound = grid2->rtree().Search(min, max, callback);
+
+		// Logging
+		++i;
+		if (i % 1000 == 0) {
+			printf("Processed %d of %d from grid1, total overlaps = %d\n", i+1, grid1->cells().size(), overlaps.size());
+		}
+
+	}
+
+	// Sort the matrix
+	std::sort(overlaps.begin(), overlaps.end());
+
+
 }
 
-/** Adds a contribution from everything in grid2 that intersects with gc0 */
-void OverlapMatrix::add_row(GridCell const &gc0)
-{
-	for (auto ii1=grid2->cells().begin(); ii1 != grid2->cells().end(); ++ii1) {
-		GridCell const &gc1 = ii1->second;
-		add_pair(&gc0, &gc1);
-	}
-}
-#endif
 // -----------------------------------------------------------
 // ===========================================================
 // NetCDF Stuff

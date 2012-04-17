@@ -2,16 +2,19 @@
 #include <arrayobject.h>
 #include <math.h>
 #include "snowdrift.h"
+#include "pyutil.hpp"
 
+using namespace giss;
+
+// ========================================================================
 /// Classmembers of the Python class
 typedef struct {
 	PyObject_HEAD
 	void *snowdrift_f;	// Fortran-allocated snowdrift pointer
 } SnowdriftDict;
 
+// ========= class snowdrift.Snowdrift :
 
-
-// ============================ The functions
 static PyObject *Snowdrift_new(PyTypeObject *type, PyObject *args, PyObject *kwds)
 {
 	SnowdriftDict *self;
@@ -58,20 +61,6 @@ static void Snowdrift_dealloc(SnowdriftDict *self)
 }
 
 //static PyMemberDef Snowdrift_members[] = {{NULL}};
-
-
-/** Check that PyArrayObject is a double (Float) type and a vector
-@return 0 if not a double vector, and also raise exception. */
-int is_doublevector(PyArrayObject *vec)  {
-	if (vec->descr->type_num != NPY_DOUBLE || vec->nd != 1)  {
-		PyErr_SetString(PyExc_ValueError,
-			"In is_doublevector: array must be of type Float and 1 dimensional (n).");
-		return 0;
-	}
-	return 1;
-}
-
-
 
 
 static PyObject * Snowdrift_downgrid(SnowdriftDict *self, PyObject *args)
@@ -144,8 +133,7 @@ static PyMethodDef Snowdrift_methods[] = {
 	{NULL}     /* Sentinel - marks the end of this structure */
 };
 
-static PyTypeObject
-SnowdriftType = {
+PyTypeObject SnowdriftType = {
    PyObject_HEAD_INIT(NULL)
    0,                         /* ob_size */
    "Snowdrift",               /* tp_name */
@@ -188,60 +176,3 @@ SnowdriftType = {
    (newfunc)Snowdrift_new    /* tp_new */
 };
 
-
-void
-initsnowdrift(void)
-{
-   PyObject* mod;
-
-   // Create the module
-   mod = Py_InitModule3("snowdrift", NULL, "Snowdrift Regridding Interface");
-   if (mod == NULL) {
-      return;
-   }
-
-   // Fill in some slots in the type, and make it ready
-//   SnowdriftType.tp_new = PyType_GenericNew;
-   if (PyType_Ready(&SnowdriftType) < 0) {
-      return;
-   }
-
-   // Add the type to the module.
-   Py_INCREF(&SnowdriftType);
-   PyModule_AddObject(mod, "Snowdrift", (PyObject*)&SnowdriftType);
-}
-     
-
-// ========================================================================
-// /* ==== Set up the methods table ====================== */
-// 
-// static PyMethodDef ModuleMethods[] = { {NULL} };
-// 
-// /* ==== Initialize the C_test functions ====================== */
-// // Module name must be _C_snowdrift in compile and linked 
-// EXTERN_C PyMODINIT_FUNC initsnowdrift()
-// {
-//     // create a new module
-//     PyObject *module = Py_InitModule("snowdrift", ModuleMethods);
-// 	import_array();  // Must be present for NumPy.  Called first after above line.
-//     PyObject *moduleDict = PyModule_GetDict(module);
-// 
-// 	// Create a new class
-//     PyObject *classDict = PyDict_New();
-//     PyObject *className = PyString_FromString("Snowdrift");
-//     PyObject *snowdriftClass = PyClass_New(NULL, classDict, className);
-//     PyDict_SetItemString(moduleDict, "Snowdrift", snowdriftClass);
-//     Py_DECREF(classDict);
-//     Py_DECREF(className);
-//     Py_DECREF(snowdriftClass);
-//     
-//     /* add methods to class */
-//     for (PyMethodDef *def = SnowdriftMethods; def->ml_name != NULL; def++) {
-// 		PyObject *func = PyCFunction_New(def, NULL);
-// 		PyObject *method = PyMethod_New(func, NULL, snowdriftClass);
-// 		PyDict_SetItemString(classDict, def->ml_name, method);
-// 		Py_DECREF(func);
-// 		Py_DECREF(method);
-//     }
-// }
-// 

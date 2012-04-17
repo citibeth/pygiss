@@ -82,7 +82,7 @@ subroutine ncgrid_read(nc, name0, name_len, ncgrid)
 
 	name(:) = name0(1:name_len)
 
-	name(name_len+1:) = '.grid_index '
+	name(name_len+1:) = '.overlap_cells '
 	call nc_read_1d_array_int(nc, name, ncgrid%grid_index)
 	name(name_len+1:) = '.native_area '
 	call nc_read_1d_array_double(nc, name, ncgrid%native_area)

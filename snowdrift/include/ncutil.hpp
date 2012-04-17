@@ -26,4 +26,25 @@ inline NcDim *get_or_add_dim(NcFile &nc, std::string const &dim_name, long dim_s
 	return nc.add_dim(dim_name.c_str(), dim_size);
 }
 
+std::vector<double> read_double_vector(NcFile &nc, std::string const &var_name)
+{
+	// Read points vector
+	NcVar *vpoints = nc.get_var(var_name.c_str());
+	long npoints = vpoints->get_dim(0)->size();
+	std::vector<double> points(npoints);
+	vpoints->get(&points[0], npoints);
+	return points;
+}
+
+std::vector<int> read_int_vector(NcFile &nc, std::string const &var_name)
+{
+	// Read points vector
+	NcVar *vpoints = nc.get_var(var_name.c_str());
+	long npoints = vpoints->get_dim(0)->size();
+	std::vector<int> points(npoints);
+	vpoints->get(&points[0], npoints);
+	return points;
+}
+
+
 }

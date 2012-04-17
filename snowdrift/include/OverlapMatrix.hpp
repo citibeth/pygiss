@@ -4,9 +4,6 @@
 #include "Grid.hpp"
 #include "RTree.h"
 
-/// Should we use Rtrees to speed up overlap matrix computation?
-#define USE_RTREE 1
-
 
 namespace giss {
 
@@ -45,10 +42,7 @@ public:
 
 class OverlapMatrix {
 
-	typedef RTree<GridCell const *, double, 2, double> MyRTree;
-
-	Grid const *grid1, *grid2;
-	MyRTree rtree;
+	Grid *grid1, *grid2;
 
 	/** Index of the grid cells that have actually
 	overlapped in the two grids. */
@@ -57,21 +51,8 @@ class OverlapMatrix {
 	std::vector<GridCellOverlap> overlaps;
 
 public :
-	void set_grids(Grid const *grid1, Grid const *grid2)
-	{
-		set_grid2(grid2);
-		add_all(grid1);
-	}
+	void set_grids(Grid *grid1, Grid *grid2);
 
-
-	void set_grid2(Grid const *grid2);
-
-	/** Computes the overlap matrix! */
-	void add_all(Grid const *grid1);
-
-	/** Computes one row of overlap matrix --- useful if grid1 is too large
-	to store in memory all at once. */
-	void add_row(GridCell const &gc0);
 
 	bool add_pair(GridCell const *gc0, GridCell const *gc1);
 

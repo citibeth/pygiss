@@ -213,6 +213,14 @@ function snowdrift_downgrid(sd, Z1, Z1_stride, Z2, Z2_stride)
 	do j=1,nz1
 		index = sd%overlap%grid1%grid_index(j)
 		pp = sd%overlap%grid1%proj_area(j)
+The problem here... no easy way to index into proj_area and native_area without setting up a std::map
+Options:
+ a) Re-do more code in C/C++, leave only the QP core in Fortran
+ b) Add a "# cells in complete grid" dimension to the netCDF file, then use that to do a look-up array for native_area, etc. by index, no need for std::map
+ c) Write out native_area arrays indexed by overlap cells
+
+I like (b) the best...
+
 		nn = sd%overlap%grid1%native_area(j)
 
 		Z1_sub(j) = (nn/pp) * Z1(index * Z1_stride)	! Scale to correct for area errors in projection

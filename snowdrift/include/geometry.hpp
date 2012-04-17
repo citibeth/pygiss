@@ -31,9 +31,9 @@ overlap_area(const CGAL::Polygon_2<Kernel, Container> &P,
 	CGAL_precondition(P.is_simple());
 	CGAL_precondition(Q.is_simple());
 
-	typedef typename CGAL::Polygon_2<Kernel, Container>::FT						FT;
-	typedef CGAL::Polygon_with_holes_2<Kernel, Container>						Polygon_with_holes_2;
-	typedef std::list<Polygon_with_holes_2>										Pol_list;
+	typedef typename CGAL::Polygon_2<Kernel, Container>::FT FT;
+	typedef CGAL::Polygon_with_holes_2<Kernel, Container> Polygon_with_holes_2;
+	typedef std::list<Polygon_with_holes_2> Pol_list;
 	Pol_list overlap;
 	CGAL::intersection(P, Q, std::back_inserter(overlap));
 	if (overlap.empty())

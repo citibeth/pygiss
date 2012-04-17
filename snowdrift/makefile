@@ -29,7 +29,7 @@ FORTRAN_COMMAND_LINE = gfortran $(FFLAGS) -g -c -o $(basename $<).o
 FORTRAN_INCLUDES = -I$(GALAHAD)/modules/$(GALAHAD_ARCH)/double -I$(NETCDF_HOME)/include -I.
 FFLAGS = -shared -fPIC $(FORTRAN_INCLUDES)
 
-CXX_INCLUDES = -Iinclude
+CXX_INCLUDES = -Iinclude -I$(PYTHON_INCLUDE) -I$(NUMPY_INCLUDE)
 CXXFLAGS = -shared -fPIC -MD -g -frounding-math --std=c++0x $(CXX_INCLUDES)
 C_INCLUDES = -Iinclude -I$(PYTHON_INCLUDE) -I$(NUMPY_INCLUDE)
 CFLAGS = -shared -fPIC -MD -g -frounding-math $(C_INCLUDES)

@@ -227,7 +227,8 @@ int points_in_side,
 boost::function<bool(double, double, double, double)> const &spherical_clip,
 boost::function<bool(gc::Polygon_2 const &)> const &euclidian_clip)
 {
-	std::unique_ptr<Grid_LatLon> grid(new Grid_LatLon(name, 1));
+	int max_index = (lonb_4x5.size()-1) * (latb_4x5.size()-1);
+	std::unique_ptr<Grid_LatLon> grid(new Grid_LatLon(name, 1, max_index));
 	grid->init(
 		lonb_4x5, latb_4x5, true, true,
 		std::move(proj), points_in_side,
@@ -263,7 +264,8 @@ boost::function<bool(gc::Polygon_2 const &)> const &euclidian_clip)
 //for (double lon : lonb_2x2_5) printf("%f\n", lon);
 
 
-	std::unique_ptr<Grid_LatLon> grid(new Grid_LatLon(name, 1));
+	int max_index = (lonb_2x2_5.size()-1) * (latb_2x2_5.size()-1);
+	std::unique_ptr<Grid_LatLon> grid(new Grid_LatLon(name, 1, max_index));
 	grid->init(
 		lonb_2x2_5, latb_2x2_5, true, true,
 		std::move(proj), points_in_side,
