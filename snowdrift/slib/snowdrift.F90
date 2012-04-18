@@ -1,3 +1,5 @@
+! TODO: 
+! 1. Strides are not correctly used everywhere
 
 module snowdrift_mod
 
@@ -87,6 +89,7 @@ subroutine add_smoothness_XY(Q, x_boundaries, y_boundaries, active_cells)
 			err = sparsebuilder_add_byindex(Q, index0, index0, weight)
 !print *,'err',err
 			err = sparsebuilder_add_byindex(Q, index1, index1, weight)
+			! The off-diagonal value is doubled...
 			err = sparsebuilder_add_byindex(Q, index0, index1, -1d0 * weight)
 		end do
 
@@ -108,12 +111,16 @@ subroutine build_overlap(nco, L, grid1_total_coverage, grid2_total_coverage)
 	logical :: err
 
 	call sparsebuilder_new(LB, &
-		size(nco%grid1%grid_index), size(nco%grid2%grid_index), 1, &
+		size(nco%grid1%overlap_cells), size(nco%grid2%overlap_cells), 1, &
 		0,0,0)
-	call sparsebuilder_setindices(LB, nco%grid1%grid_index, nco%grid2%grid_index)
+	call sparsebuilder_setindices(LB, nco%grid1%overlap_cells, nco%grid2%overlap_cells)
 	do i=1,size(nco%area)
-		err = sparsebuilder_add_byindex(LB, &
-			nco%grid_index(1,i), nco%grid_index(2,i), nco%area(i))
+! See if maybe having widely varying coefficients in the matrix was
+! the problem.  It was not.
+!		if (nco%area(i) > ((5000*5000) * 1d-10)) then
+			err = sparsebuilder_add_byindex(LB, &
+				nco%overlap_cells(1,i), nco%overlap_cells(2,i), nco%area(i))
+!		end if
 	end do
 	call sparsebuilder_render_coo_zd11(LB, L)
 !print *,'XX3',size(L%val), L%m, L%n, L%ne,size(nco%area)
@@ -154,9 +161,9 @@ print *,fname
 
 	! -------- Build the quadratic matrix to minimize
 	call sparsebuilder_new(QB, &
-		size(nco%grid2%grid_index), size(nco%grid2%grid_index), 1, &
+		size(nco%grid2%overlap_cells), size(nco%grid2%overlap_cells), 1, &
 		MS_TRIANGULAR, TT_LOWER, 0)
-	call sparsebuilder_setindices(QB, nco%grid2%grid_index, nco%grid2%grid_index)
+	call sparsebuilder_setindices(QB, nco%grid2%overlap_cells, nco%grid2%overlap_cells)
 
 	! --------- Smoothness condition is specific to ice grid type
 	select case(nco%grid2%type)
@@ -164,7 +171,7 @@ print *,fname
 			print *, 'Grid2 is of type GT_XY'
 			call add_smoothness_XY(QB, &
 				nco%grid2%xy%x_boundaries, nco%grid2%xy%y_boundaries, &
-				nco%grid2%grid_index)
+				nco%grid2%overlap_cells)
 	end select
 
 	call sparsebuilder_render_coo_zd11(QB, snowdrift%Q)
@@ -178,19 +185,22 @@ end subroutine snowdrift_init
 
 ! --------------------------------------------------------------
 ! Moves data from grid1 to grid2
-function snowdrift_downgrid(sd, Z1, Z1_stride, Z2, Z2_stride)
+function snowdrift_downgrid_snowdrift(sd, Z1, Z1_stride, Z2, Z2_stride)
 	USE GALAHAD_QP_double
 	USE GALAHAD_QPT_double		! Debugging
 
 	type(snowdrift_t) :: sd
 	real*8, dimension(*) :: Z1, Z2
 	integer, intent(in), value :: Z1_stride, Z2_stride
-	logical :: snowdrift_downgrid
+	logical :: snowdrift_downgrid_snowdrift
 
 	integer :: nz1, nz2, index, j
 	integer :: errcode
 	real*8 :: nn, oo, pp, oo_by_pp, X0, X1, X2	! Temporary for back-filling data
 	real*8, dimension(:), allocatable :: Z1_sub, Z2_sub
+	real*8 :: val, epsilon
+	integer :: time0_ms, time1_ms
+	real*8 :: delta_time
 
 	! --- Galahad Stuff
 	INTEGER, PARAMETER :: wp = KIND( 1.0D+0 ) ! set precision
@@ -203,24 +213,16 @@ function snowdrift_downgrid(sd, Z1, Z1_stride, Z2, Z2_stride)
 
 	! --------------------------------
 
-	nz1 = size(sd%overlap%grid1%grid_index)		! # grid cells from grid1
-	nz2 = size(sd%overlap%grid2%grid_index)		! # grid cells from grid2
+	nz1 = size(sd%overlap%grid1%overlap_cells)		! # grid cells from grid1
+	nz2 = size(sd%overlap%grid2%overlap_cells)		! # grid cells from grid2
 	p%m = nz1		! # of rows in constraints matrix
 	p%n = nz2		! H is square
 
 	! Select out the items from Z1 that participate in downscaling
 	allocate(Z1_sub(nz1))
 	do j=1,nz1
-		index = sd%overlap%grid1%grid_index(j)
+		index = sd%overlap%grid1%overlap_cells(j)
 		pp = sd%overlap%grid1%proj_area(j)
-The problem here... no easy way to index into proj_area and native_area without setting up a std::map
-Options:
- a) Re-do more code in C/C++, leave only the QP core in Fortran
- b) Add a "# cells in complete grid" dimension to the netCDF file, then use that to do a look-up array for native_area, etc. by index, no need for std::map
- c) Write out native_area arrays indexed by overlap cells
-
-I like (b) the best...
-
 		nn = sd%overlap%grid1%native_area(j)
 
 		Z1_sub(j) = (nn/pp) * Z1(index * Z1_stride)	! Scale to correct for area errors in projection
@@ -247,10 +249,18 @@ I like (b) the best...
 	p%G(:) = 0d0		! Linear term of objective function = 0
 
 
-	! Constraints
-	p%C_l(:) = Z1_sub(:) * sd%grid1_total_coverage(:)
-	p%C_u(:) = p%C_l(:)
-
+	! Constraints (rhs of p%A / sd%E)
+	! If GALAHAD needs epsilon <> 0, then this will introduce
+	! non-conservation.  If small enough, conservation can be
+	! re-established through post-processing fudging.
+	do j=1,nz1
+		! Z1_sub is already in proj_area scaling
+		val = Z1_sub(j) * sd%grid1_total_coverage(j)
+		!epsilon = abs(p%C_l(j)) * 1d-20
+		epsilon = 0
+		p%C_l(j) = val - epsilon
+		p%C_u(j) = val + epsilon
+	end do
 
 	! --------------- Set up the QP problem
 	! constraint upper bound
@@ -260,15 +270,27 @@ I like (b) the best...
 	! variable upper bound
 	p%X = 0.0_wp ; p%Y = 0.0_wp ; p%Z = 0.0_wp ! start from zero
 
+	! Start from (approx) result of simple reg
+	call zd11_multiply_T(sd%L, Z1_sub, p%X)
+	do j=1,nz2
+		oo = sd%grid2_total_coverage(j)		! overlap area of this grid cell (in projected space)
+		pp = sd%overlap%grid2%proj_area(j)
+		nn = sd%overlap%grid2%native_area(j)
+		p%X(j) = p%X(j) * pp / (oo * nn) !/ sd%overlap%grid2%native_area(j)
+	end do
+
 	! ------------ problem data complete, set up control
 	CALL QP_initialize( data, control, inform ) ! Initialize control parameters
 	control%infinity = infinity
 
 	! Set infinity
-	control%quadratic_programming_solver = 'qpa' ! use QPA
-	! control%scale = 7		! Sinkhorn-Knopp scaling: Breaks things!
-	control%scale = 1		! Fast and accurate for regridding
-	! control%scale = 0		! No scaling: slow with proper derivative weights
+	control%quadratic_programming_solver = 'qpa' ! use QPA.  (This is important in getting it to work at all).
+!	control%scale = 7		! Sinkhorn-Knopp scaling: Breaks things!
+!	control%scale = 1		! Fast and accurate for regridding
+!	control%scale = 0		! No scaling: slow with proper derivative weights
+	control%scale = 1
+
+	control%generate_sif_file = .TRUE.
 
 print *,'m,n,A%m,A%n,A%ne',p%m,p%n,p%A%m,p%A%n,p%A%ne
 !print *,'p%A%row',p%A%row
@@ -284,12 +306,20 @@ print *,'H%m,H%n,H%ne',p%H%m,p%H%n,p%H%ne
 !print *,'p%H%val',p%H%val
 
 
-	control%presolve = .TRUE.
-	!control%presolve = .FALSE.
+	! Causes error on samples with lat/lon and cartesian grid
+	!control%presolve = .TRUE.
+	control%presolve = .FALSE.
 
+	call system_clock(time0_ms)
 	CALL QP_solve( p, data, control, inform, C_stat, B_stat ) ! Solve
+	call system_clock(time1_ms)
+	delta_time = time1_ms - time0_ms
+	delta_time = delta_time * 1d-3
+	write(6, "( 'QP_Solve took ', F6.3, ' seconds')") delta_time
+
+!	inform%status = 0
 	IF ( inform%status /= 0 ) THEN	! Error
-		snowdrift_downgrid = .false.
+		snowdrift_downgrid_snowdrift = .false.
 		WRITE( 6, "( ' QP_solve exit status = ', I6 ) " ) inform%status
 		select case(inform%status)
 			case(-32)
@@ -311,11 +341,11 @@ print *,'H%m,H%n,H%ne',p%H%m,p%H%n,p%H%ne
 
 
 
-		snowdrift_downgrid = .true.		
+		snowdrift_downgrid_snowdrift = .true.		
 
 		! Merge result into Z2
 		do j=1,nz2
-			index = sd%overlap%grid2%grid_index(j)
+			index = sd%overlap%grid2%overlap_cells(j)
 			oo = sd%grid2_total_coverage(j)		! overlap area of this grid cell (in projected space)
 			pp = sd%overlap%grid2%proj_area(j)
 			nn = sd%overlap%grid2%native_area(j)
@@ -333,54 +363,131 @@ print *,'H%m,H%n,H%ne',p%H%m,p%H%n,p%H%ne
 !	print *
 !	print *,'Z2',Z2
 
-end function snowdrift_downgrid
+end function snowdrift_downgrid_snowdrift
 
-subroutine snowdrift_upgrid(sd, Z2_1d, Z2_stride, Z1_1d, Z1_stride)
+! @param merge_or_replace For GCM grid cells partially covered by ice cells:
+!        1 = Merge upgrid value into GCM grid cell.
+!        0 = Completely replace GCM grid cell value, scaling mass by
+!            appropriate area
+subroutine snowdrift_upgrid(sd, merge_or_replace, &
+Z2_1d, Z2_stride, Z1_1d, Z1_stride)
 	type(snowdrift_t), intent(in) :: sd
+	integer, intent(in), value :: merge_or_replace
 	real*8, dimension(*), intent(in) :: Z2_1d
 	real*8, dimension(*), intent(out) :: Z1_1d
 	integer, intent(in), value :: Z2_stride, Z1_stride
 
 	real*8 :: nn, oo, pp, oo_by_pp
-	real*8 :: X0, X1, X2
+	real*8 :: X0, X1
 	real*8 :: Lval, native_area_2
 	integer :: nz1, nz2, index, j
-	real*8, dimension(:), allocatable :: Stuff1_sub, Stuff2_sub
+	real*8, dimension(:), allocatable :: Stuff1_sub, Z2_sub
 
-	nz1 = size(sd%overlap%grid1%grid_index)		! # grid cells from grid1
-	nz2 = size(sd%overlap%grid2%grid_index)		! # grid cells from grid2
+	nz1 = size(sd%overlap%grid1%overlap_cells)		! # grid cells from grid1
+	nz2 = size(sd%overlap%grid2%overlap_cells)		! # grid cells from grid2
 
 	! Select out the items from Z2 that participate in downscaling
-	allocate(Stuff2_sub(nz2))
+	allocate(Z2_sub(nz2))
 	do j=1,nz2
-		index = sd%overlap%grid2%grid_index(j)
+		index = sd%overlap%grid2%overlap_cells(j)
 		pp = sd%overlap%grid2%proj_area(j)
 		nn = sd%overlap%grid2%native_area(j)
 
 		! Amount of stuff in each gridcell of grid2
-		Stuff2_sub(j) = (nn/pp) * Z2_1d(index)
+		Z2_sub(j) = (nn/pp) * Z2_1d(index)
 	end do
 
-	! Multiply Stuff1_sub = L * Stuff2_sub
+	! Multiply Stuff1_sub = L * Z2_sub
 	allocate(Stuff1_sub(nz1))
-	call zd11_multiply(sd%L, Stuff2_sub, Stuff1_sub)
+	call zd11_multiply(sd%L, Z2_sub, Stuff1_sub)
 
 	
 	! Merge result into Z1
+write (6,*) 'merge_or_repalce = ',merge_or_replace
 	do j=1,nz1
-		index = sd%overlap%grid1%grid_index(j)
+		index = sd%overlap%grid1%overlap_cells(j)
 		oo = sd%grid1_total_coverage(j)		! overlap area of this grid cell (in projected space)
 		pp = sd%overlap%grid1%proj_area(j)
 		nn = sd%overlap%grid1%native_area(j)
 		X0 = Z1_1d(index) 		! Original value (amount of stuff = X0*nn)
-		X1 = Stuff1_sub(j)		! Regridded amount of stuff
 
-		oo_by_pp = oo/pp		! Fraction of this gridcell participating
-		X2 = (1-oo_by_pp) * X0 + oo_by_pp * X1 / nn
-		Z1_1d(index) = X2		! Put back final value
+		select case (merge_or_replace)
+		case (0)		! Replace
+			Z1_1d(index) = Stuff1_sub(j) * pp / (oo * nn)	! Stuff1_sub(j) * (pp/oo) / nn
+		case (1)		! Merge
+			oo_by_pp = oo/pp		! Fraction of this gridcell participating
+			X1 = (1-oo_by_pp) * X0 + Stuff1_sub(j) / nn
+			Z1_1d(index) = X1		! Put back final value
+		end select
 	end do
 
 end subroutine snowdrift_upgrid
+
+
+
+
+
+
+! @param merge_or_replace For GCM grid cells partially covered by ice cells:
+!        1 = Merge upgrid value into GCM grid cell.
+!        0 = Completely replace GCM grid cell value, scaling mass by
+!            appropriate area
+subroutine snowdrift_downgrid(sd, merge_or_replace, &
+Z1_1d, Z1_stride, Z2_1d, Z2_stride)
+	type(snowdrift_t), intent(in) :: sd
+	integer, intent(in), value :: merge_or_replace
+	real*8, dimension(*), intent(in) :: Z1_1d
+	real*8, dimension(*), intent(out) :: Z2_1d
+	integer, intent(in), value :: Z1_stride, Z2_stride
+
+	real*8 :: nn, oo, pp, oo_by_pp
+	real*8 :: X0, X1
+	real*8 :: Lval, native_area_2
+	integer :: nz2, nz1, index, j
+	real*8, dimension(:), allocatable :: Stuff2_sub, Z1_sub
+
+	nz2 = size(sd%overlap%grid2%overlap_cells)		! # grid cells from grid2
+	nz1 = size(sd%overlap%grid1%overlap_cells)		! # grid cells from grid1
+
+	! Select out the items from Z1 that participate in downscaling
+	allocate(Z1_sub(nz1))
+	do j=1,nz1
+		index = sd%overlap%grid1%overlap_cells(j)
+		pp = sd%overlap%grid1%proj_area(j)
+		nn = sd%overlap%grid1%native_area(j)
+
+		! Amount of stuff in each gridcell of grid1
+		Z1_sub(j) = (nn/pp) * Z1_1d(index)
+	end do
+
+	! Multiply Stuff2_sub = L * Z1_sub
+	allocate(Stuff2_sub(nz2))
+	call zd11_multiply_t(sd%L, Z1_sub, Stuff2_sub)
+
+	
+	! Merge result into Z2
+write (6,*) 'merge_or_repalce = ',merge_or_replace
+	do j=1,nz2
+		index = sd%overlap%grid2%overlap_cells(j)
+		oo = sd%grid2_total_coverage(j)		! overlap area of this grid cell (in projected space)
+		pp = sd%overlap%grid2%proj_area(j)
+		nn = sd%overlap%grid2%native_area(j)
+		X0 = Z2_1d(index) 		! Original value (amount of stuff = X0*nn)
+
+		select case (merge_or_replace)
+		case (0)		! Replace
+			Z2_1d(index) = Stuff2_sub(j) * pp / (oo * nn)	! Stuff1_sub(j) * (pp/oo) / nn
+		case (1)		! Merge
+			oo_by_pp = oo/pp		! Fraction of this gridcell participating
+			X1 = (1-oo_by_pp) * X0 + Stuff2_sub(j) / nn
+			Z2_1d(index) = X1		! Put back final value
+		end select
+	end do
+
+end subroutine snowdrift_downgrid
+
+
+
 
 end module snowdrift_mod
 
@@ -411,28 +518,72 @@ subroutine snowdrift_delete_c(sd_c)
 	deallocate(sd)
 end subroutine snowdrift_delete_c
 
-function snowdrift_downgrid_c(sd_c, Z1, Z1_stride, Z2, Z2_stride)
+function snowdrift_downgrid_snowdrift_c(sd_c, Z1, Z1_stride, Z2, Z2_stride)
 	use snowdrift_mod
 	type(c_ptr), value :: sd_c
 	real*8, dimension(*) :: Z1, Z2
 	integer, intent(in), value :: Z1_stride, Z2_stride
-	logical :: snowdrift_downgrid_c
+	logical :: snowdrift_downgrid_snowdrift_c
 
 	type(snowdrift_t), pointer :: sd
 
 	call c_f_pointer(sd_c, sd)
-	snowdrift_downgrid_c = snowdrift_downgrid(sd, Z1, Z1_stride, Z2, Z2_stride)
-end function snowdrift_downgrid_c
+	snowdrift_downgrid_snowdrift_c = snowdrift_downgrid_snowdrift(sd, Z1, Z1_stride, Z2, Z2_stride)
+end function snowdrift_downgrid_snowdrift_c
 
-subroutine snowdrift_upgrid_c(sd_c, Z2, Z2_stride, Z1, Z1_stride)
+subroutine snowdrift_upgrid_c(sd_c, merge_or_replace, Z2, Z2_stride, Z1, Z1_stride)
 	use snowdrift_mod
 	type(c_ptr), value :: sd_c
+	integer, intent(in), value :: merge_or_replace
 	real*8, dimension(*) :: Z2, Z1
 	integer, intent(in), value :: Z2_stride, Z1_stride
 
 	type(snowdrift_t), pointer :: sd
 
 	call c_f_pointer(sd_c, sd)
-	call snowdrift_upgrid(sd, Z2, Z2_stride, Z1, Z1_stride)
+	call snowdrift_upgrid(sd, merge_or_replace, Z2, Z2_stride, Z1, Z1_stride)
 end subroutine snowdrift_upgrid_c
+
+subroutine snowdrift_downgrid_c(sd_c, merge_or_replace, Z1, Z1_stride, Z2, Z2_stride)
+	use snowdrift_mod
+	type(c_ptr), value :: sd_c
+	integer, intent(in), value :: merge_or_replace
+	real*8, dimension(*) :: Z1, Z2
+	integer, intent(in), value :: Z1_stride, Z2_stride
+
+	type(snowdrift_t), pointer :: sd
+
+	call c_f_pointer(sd_c, sd)
+	call snowdrift_downgrid(sd, merge_or_replace, Z1, Z1_stride, Z2, Z2_stride)
+end subroutine snowdrift_downgrid_c
+
+
 ! --------------------------------------------------------------
+
+! Renders overlap matrix to a dense matrix
+subroutine snowdrift_overlap_c(sd_c, densemat, row_stride, col_stride)
+use snowdrift_mod
+type(c_ptr), value :: sd_c
+real*8, dimension(*) :: densemat
+integer :: row_stride, col_stride
+
+#if 0
+	integer :: i
+	integer :: index
+	type(snowdrift_t), pointer :: sd
+
+	call c_f_pointer(sd_c, sd)
+	select case(STRING_get(sd%L%type))
+		case('COORDINATE')
+			ret(:) = 0
+			do i=1,sd%L%ne
+				index = row_stride * sd%L%row(i) + col_stride * sd%L%col(i)
+				densemat(index) = sd%L%val(i)
+			end do
+		case DEFAULT
+			write(6,*) 'hsl_zd11d.f90 only knows how to multiply by matrices of type COORDINATE'
+			stop
+	end select
+#endif
+
+end subroutine snowdrift_overlap_c

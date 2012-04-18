@@ -56,6 +56,7 @@ integer, dimension(NF90_MAX_VAR_DIMS) :: dims
 
 	integer :: varid
 
+!	write (6,*) 'Reading variable',name
 	call check(nf90_inq_varid(nc, name, varid))
 	call check(nf90_inquire_variable(nc, varid, &
 		ndims=ndims, dimids=dimids))
@@ -84,6 +85,7 @@ integer, dimension(NF90_MAX_VAR_DIMS) :: dims
 
 	integer :: varid
 
+!	write (6,*) 'Reading variable',name
 	call check(nf90_inq_varid(nc, name, varid))
 	call check(nf90_inquire_variable(nc, varid, &
 		ndims=ndims, dimids=dimids))
@@ -112,6 +114,7 @@ integer, dimension(NF90_MAX_VAR_DIMS) :: dims
 
 	integer :: varid
 
+!	write (6,*) 'Reading variable',name
 	call check(nf90_inq_varid(nc, name, varid))
 	call check(nf90_inquire_variable(nc, varid, &
 		ndims=ndims, dimids=dimids))

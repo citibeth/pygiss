@@ -21,7 +21,7 @@ public:
 //	gc::Point_2
 
 
-	Grid_XY(std::string const &name, int index_base) : Grid("xy", name, index_base) {}
+	Grid_XY(std::string const &name, int index_base, int max_index) : Grid("xy", name, index_base, max_index) {}
 
 	/**
 	@var xb x-axis boundaries of grid cells --- last one is 360 + first.

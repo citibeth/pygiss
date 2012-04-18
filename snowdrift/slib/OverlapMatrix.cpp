@@ -113,7 +113,7 @@ void OverlapMatrix::netcdf_write(NcFile *nc,
 	nc_used_write0();
 	nc_used_write1();
 
-	NcVar *grid_indexVar = nc->get_var("overlap.grid_index");
+	NcVar *grid_indexVar = nc->get_var("overlap.overlap_cells");
 	NcVar *areaVar = nc->get_var("overlap.area");
 
 	int i=0;
@@ -138,7 +138,7 @@ NcFile &nc)
 
 	auto lenDim = nc.add_dim("overlap.num_overlaps", overlaps.size());
 	auto num_gridsDim = nc.add_dim("overlap.num_grids", 2);
-	auto grid_indexVar = nc.add_var("overlap.grid_index", ncInt, lenDim, num_gridsDim);
+	auto grid_indexVar = nc.add_var("overlap.overlap_cells", ncInt, lenDim, num_gridsDim);
 	auto areaVar = nc.add_var("overlap.area", ncDouble, lenDim);
 
 	return boost::bind(&OverlapMatrix::netcdf_write, this, &nc,

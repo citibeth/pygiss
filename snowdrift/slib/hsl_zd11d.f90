@@ -125,6 +125,30 @@ real*8, dimension(mat%n), intent(out) :: ret
 end subroutine zd11_multiply_T
 
 
+! ! Renders to a dense matrix
+! subroutine zd11_to_dense(mat, densemat, row_stride, col_stride)
+! type(zd11_type), intent(in) :: mat
+! real*8, dimension(*) :: densemat
+! integer :: row_stride, col_stride
+! 
+! 	integer :: i
+! 	integer :: index
+! 
+! 	select case(STRING_get(mat%type))
+! 		case('COORDINATE')
+! 			ret(:) = 0
+! 			do i=1,mat%ne
+! 				index = row_stride * mat%row(i) + col_stride * mat%col(i)
+! 				densemat(index) = mat%val(i)
+! 			end do
+! 		case DEFAULT
+! 			write(6,*) 'hsl_zd11d.f90 only knows how to multiply by matrices of type COORDINATE'
+! 			stop
+! 	end select
+! 
+! end subroutine zd11_to_dense
+
+
 END MODULE HSL_ZD11_double
 
 

@@ -204,12 +204,14 @@ static bool rasterize_point(
 GridCell const *gc,			// Candidate grid cell to contain our x/y location
 gc::Point_2 const *point,	// x/y location we're rasterizing
 double **out_loc,			// Where to place the rasterized value
-double const *data, int data_stride, int index_base)	// Where we read our values from
+double const *data, int data_stride, int index_base,	// Where we read our values from
+GridCell const **last_match)	// OUTPUT: Store here if we matched
 {
 	switch(gc->poly.oriented_side(*point)) {
 		case CGAL::ON_POSITIVE_SIDE :
 		case CGAL::ON_ORIENTED_BOUNDARY :
 			**out_loc = data[(gc->index - index_base) * data_stride];
+			*last_match = gc;
 			return false;		// Stop searching
 	}
 	return true;		// Continue searching
@@ -233,33 +235,41 @@ void Grid::rasterize(
 	// Set up callback to call repeatedly
 	char point_mem[sizeof(gc::Point_2)];
 	double *out_loc;
+	GridCell const *last_match = &_cells.begin()->second;
 	auto callback = boost::bind(&rasterize_point, _1,
 		(gc::Point_2 *)point_mem, &out_loc,
-		data, data_stride, index_base);
+		data, data_stride, index_base,
+		&last_match);
 
 	Grid::RTree &rtree = this->rtree();
 
 	double min[2];
 	double max[2];
-//printf("Grid.cpp strides = %d %d\n", xstride, ystride);
 	for (int iy=0; iy < ny; ++iy) {
 		const int indexy = iy * ystride;
 		double y = y0 + (y1-y0) * ((double)iy / (double)(ny-1));
 		min[1] = y; max[1] = y;
 		for (int ix=0; ix < nx; ++ix) {
-//fprintf(stderr, "(ix,iy) = %d %d, ystride=%d\n", ix, iy, ystride);
 			const int index = indexy + (ix * xstride);
 			double x = x0 + (x1-x0) * ((double)ix / (double)(nx-1));
 			min[0] = x; max[0] = x;
 
-//fprintf(stderr, "index=%d\n", index);
 			out_loc = &out[index];
 			*out_loc = nan;
 
 			// Figure out which grid cell we're in
+			// Try the last grid cell we matched to
 			gc::Point_2 *point = new (point_mem) gc::Point_2(x,y);
-//printf("rtree.Search((%f %f), (%f %f))\n", min[0], min[1], max[0]+10, max[1]+10);
-			rtree.Search(min, max, callback);
+			switch(last_match->poly.oriented_side(*point)) {
+				case CGAL::ON_POSITIVE_SIDE :
+				case CGAL::ON_ORIENTED_BOUNDARY :
+					*out_loc = data[(last_match->index - index_base) * data_stride];
+				break;
+				default :
+					// No easy match, gotta go search the tree again.
+					rtree.Search(min, max, callback);
+				break;
+			}
 			point->~Point_2();
 		}
 	}
@@ -295,14 +305,16 @@ std::string const &vname)
 	std::vector<int> polygons(read_int_vector(nc, vname + ".polygons"));
 	int npoly = (int)polygons.size() - 1;
 	NcVar *vpolygons = nc.get_var((vname + ".polygons").c_str());
-	max_index = vpolygons->get_att("index_base")->as_int(0);
+	int poly_index_base = vpolygons->get_att("index_base")->as_int(0);
 
 	std::vector<double> native_area(read_double_vector(nc, vname + ".native_area"));
 	std::vector<int> indices(read_int_vector(nc, vname + ".realized_cells"));
-	int index_base = nc.get_var((vname + ".info").c_str())->get_att("index_base")->as_int(0);
+	auto infoVar = nc.get_var((vname + ".info").c_str());
+	int index_base = infoVar->get_att("index_base")->as_int(0);
+	int max_index = infoVar->get_att("max_index")->as_int(0);
 
 	// Convert it into grid
-	std::unique_ptr<Grid> grid(new Grid("generic", "noname", index_base));
+	std::unique_ptr<Grid> grid(new Grid("generic", "noname", index_base, max_index));
 	for (int i=0; i<npoly; ++i) {
 		gc::Polygon_2 poly;
 //fprintf(stderr, "Poly %d\n", i);
