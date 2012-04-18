@@ -186,8 +186,9 @@ end subroutine snowdrift_init
 ! --------------------------------------------------------------
 ! Moves data from grid1 to grid2
 function snowdrift_downgrid_snowdrift(sd, Z1, Z1_stride, Z2, Z2_stride)
-	USE GALAHAD_QP_double
-	USE GALAHAD_QPT_double		! Debugging
+!	USE GALAHAD_QP_double
+!	USE GALAHAD_QPT_double		! Debugging
+	USE GALAHAD_EQP_double
 
 	type(snowdrift_t) :: sd
 	real*8, dimension(*) :: Z1, Z2
@@ -205,11 +206,11 @@ function snowdrift_downgrid_snowdrift(sd, Z1, Z1_stride, Z2, Z2_stride)
 	! --- Galahad Stuff
 	INTEGER, PARAMETER :: wp = KIND( 1.0D+0 ) ! set precision
 	REAL ( KIND = wp ), PARAMETER :: infinity = 10.0_wp ** 20
-	TYPE ( QP_control_type ) :: control
-	TYPE ( QP_inform_type ) :: inform
-	INTEGER, ALLOCATABLE, DIMENSION( : ) :: C_stat, B_stat
+!	INTEGER, ALLOCATABLE, DIMENSION( : ) :: C_stat, B_stat
 	TYPE ( QPT_problem_type ) :: p
-	TYPE ( QP_data_type ) :: data	! Used as tmp storage, we don't touch it.
+	TYPE ( EQP_data_type ) :: data	! Used as tmp storage, we don't touch it.
+	TYPE ( EQP_control_type ) :: control
+	TYPE ( EQP_inform_type ) :: inform
 
 	! --------------------------------
 
@@ -232,16 +233,11 @@ function snowdrift_downgrid_snowdrift(sd, Z1, Z1_stride, Z2, Z2_stride)
 	ALLOCATE( p%G( nz2 ), p%X_l( nz2 ), p%X_u( nz2 ) )
 	ALLOCATE( p%C( nz1 ), p%C_l( nz1 ), p%C_u( nz1 ) )
 	ALLOCATE( p%X( nz2 ), p%Y( nz1 ), p%Z( nz2 ) )
-	ALLOCATE( B_stat( nz2 ), C_stat( nz1 ) )
+!	ALLOCATE( B_stat( nz2 ), C_stat( nz1 ) )
 	p%new_problem_structure = .TRUE.
 
 	! Set up Matrices
 	p%A = sd%E		! Equality constraints.  Jacobian
-
-
-!print *,'XX1',size(sd%E%val), sd%E%m, sd%E%n, sd%E%ne
-!print *,'XX1',size(p%A%val), p%A%m, p%A%n, p%A%ne
-
 	p%H = sd%Q			! Quadratic term of objective function (Hessian)
 
 	! Objective Function
@@ -256,10 +252,9 @@ function snowdrift_downgrid_snowdrift(sd, Z1, Z1_stride, Z2, Z2_stride)
 	do j=1,nz1
 		! Z1_sub is already in proj_area scaling
 		val = Z1_sub(j) * sd%grid1_total_coverage(j)
-		!epsilon = abs(p%C_l(j)) * 1d-20
-		epsilon = 0
-		p%C_l(j) = val - epsilon
-		p%C_u(j) = val + epsilon
+		! We have "-val" here because the constraint is phrased as "Ax + c = 0"
+		! See the GALAHAD documentation eqp.pdf
+		p%C(j) = -val
 	end do
 
 	! --------------- Set up the QP problem
@@ -280,17 +275,17 @@ function snowdrift_downgrid_snowdrift(sd, Z1, Z1_stride, Z2, Z2_stride)
 	end do
 
 	! ------------ problem data complete, set up control
-	CALL QP_initialize( data, control, inform ) ! Initialize control parameters
-	control%infinity = infinity
+	CALL EQP_initialize( data, control, inform ) ! Initialize control parameters
+!	control%infinity = infinity
 
 	! Set infinity
-	control%quadratic_programming_solver = 'qpa' ! use QPA.  (This is important in getting it to work at all).
-!	control%scale = 7		! Sinkhorn-Knopp scaling: Breaks things!
-!	control%scale = 1		! Fast and accurate for regridding
-!	control%scale = 0		! No scaling: slow with proper derivative weights
-	control%scale = 1
+!	control%quadratic_programming_solver = 'qpa' ! use QPA.  (This is important in getting it to work at all).
+!!	control%scale = 7		! Sinkhorn-Knopp scaling: Breaks things!
+!!	control%scale = 1		! Fast and accurate for regridding
+!!	control%scale = 0		! No scaling: slow with proper derivative weights
+!	control%scale = 1
 
-	control%generate_sif_file = .TRUE.
+!	control%generate_sif_file = .TRUE.
 
 print *,'m,n,A%m,A%n,A%ne',p%m,p%n,p%A%m,p%A%n,p%A%ne
 !print *,'p%A%row',p%A%row
@@ -307,26 +302,26 @@ print *,'H%m,H%n,H%ne',p%H%m,p%H%n,p%H%ne
 
 
 	! Causes error on samples with lat/lon and cartesian grid
-	!control%presolve = .TRUE.
-	control%presolve = .FALSE.
+	!!control%presolve = .TRUE.
+	!control%presolve = .FALSE.
 
 	call system_clock(time0_ms)
-	CALL QP_solve( p, data, control, inform, C_stat, B_stat ) ! Solve
+	CALL EQP_solve( p, data, control, inform) ! Solve
 	call system_clock(time1_ms)
 	delta_time = time1_ms - time0_ms
 	delta_time = delta_time * 1d-3
-	write(6, "( 'QP_Solve took ', F6.3, ' seconds')") delta_time
+	write(6, "( 'EQP_Solve took ', F6.3, ' seconds')") delta_time
 
 !	inform%status = 0
 	IF ( inform%status /= 0 ) THEN	! Error
 		snowdrift_downgrid_snowdrift = .false.
 		WRITE( 6, "( ' QP_solve exit status = ', I6 ) " ) inform%status
-		select case(inform%status)
-			case(-32)
-				write(6, "( ' inform%PRESOLVE_inform%status = ', I6 ) " ) inform%PRESOLVE_inform%status
-			case(-35)
-				write(6, "( ' inform%QPC_inform%status = ', I6 ) " ) inform%QPC_inform%status
-		end select
+!		select case(inform%status)
+!			case(-32)
+!				write(6, "( ' inform%PRESOLVE_inform%status = ', I6 ) " ) inform%PRESOLVE_inform%status
+!			case(-35)
+!				write(6, "( ' inform%QPC_inform%status = ', I6 ) " ) inform%QPC_inform%status
+!		end select
 	else
 		! ----------- Good return
 		print *,'Successful QP Solve!'
@@ -334,7 +329,7 @@ print *,'H%m,H%n,H%ne',p%H%m,p%H%n,p%H%ne
 		WRITE( 6, "( ' QP: ', I0, ' QPA iterations ', /, &
 			' Optimal objective value =', &
 			ES12.4  )" ) &
-			inform%QPA_inform%iter, inform%obj
+			inform%cg_iter, inform%obj
 
 !		WRITE( 6, "( ' Optimal solution = ', ( 5ES12.4 ) )" ) p%X
 
@@ -357,7 +352,7 @@ print *,'H%m,H%n,H%ne',p%H%m,p%H%n,p%H%ne
 			Z2(index * Z2_stride) = X2		! Put back final value
 		end do
 	end if
-	CALL QP_terminate( data, control, inform) ! delete internal workspace
+	CALL EQP_terminate( data, control, inform) ! delete internal workspace
 
 !	print *,'Z1',Z1
 !	print *
