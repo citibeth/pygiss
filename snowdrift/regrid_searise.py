@@ -1,6 +1,7 @@
 # Set up a sample function on the ice grid, upgrids to the GCM grid,
 # and then plot it (rasterized) on the GCM grid
 
+import matplotlib
 import matplotlib.pyplot as plt
 import numpy as np
 import snowdrift
@@ -11,7 +12,6 @@ import time
 
 import array
 import re
-import collections
 
 # Image plot
 #Acceptable values are None, 'none', 'nearest', 'bilinear', 'bicubic', 'spline16', 'spline36', 'hanning', 'hamming', 'hermite', 'kaiser', 'quadric', 'catrom', 'gaussian', 'bessel', 'mitchell', 'sinc', 'lanczos'
@@ -21,7 +21,9 @@ def plot_image(ax, Z, extent) :
 
 	return ax.imshow(Zmasked, origin='lower',
 		interpolation='bilinear',
-		extent=np.array([x0,x1,y0,y1])/km, vmin=0,vmax=105)
+		#cmap='afmhot',
+		cmap='spectral',
+		extent=np.array([x0,x1,y0,y1])/km, vmin=0,vmax=4.5)
 
 # Contour plot
 #	cax = ax.contour(ZG0_r.transpose(), interpolation='nearest', origin='lower')
@@ -47,54 +49,14 @@ def read_coastline(fname) :
 
 	return (np.array(xdata),np.array(ydata))
 
-def sum_nonan(vec) :
-	v = vec
-	v[np.isnan(vec)] = 0
-	return sum(v)
-
-# -------------------------------------------------------------------
-# Reads info we need about each grid to test conservation
-def read_grid_info(nc, gname) :
-	ret = collections.namedtuple('Grid', 'index_base max_index total_coverage proj_area native_area')
-	gvar = nc.variables[gname + '.info']
-	ret.index_base = gvar.__dict__['index_base']
-	ret.max_index = gvar.__dict__['max_index']
-	ret.total_coverage = np.zeros(ret.max_index - ret.index_base + 1)
-	ret.proj_area = np.zeros(ret.max_index - ret.index_base + 1)
-	ret.native_area = np.zeros(ret.max_index - ret.index_base + 1)
-
-	realized = np.array(nc.variables[gname + '.realized_cells'])
-	proj_area = np.array(nc.variables[gname + '.proj_area'])
-	native_area = np.array(nc.variables[gname + '.native_area'])
-	for i in range(0, realized.shape[0]) :
-		ret.proj_area[realized[i] - ret.index_base] = proj_area[i]
-		ret.native_area[realized[i] - ret.index_base] = native_area[i]
-
-	return ret
-
-# Reads info we need about the overlap matrix, to test conservation
-def read_overlap_info(nc) :
-	print 'Reading Grid1'
-	grid1 = read_grid_info(nc, 'grid1')
-	print 'Reading Grid2'
-	grid2 = read_grid_info(nc, 'grid2')
-
-	print 'Reading Overlap Info'
-	cells = np.array(nc.variables['overlap.overlap_cells'])
-	area = np.array(nc.variables['overlap.area'])
-
-	print 'Processing Overlap Info'
-	for i in range(0,area.shape[0]) :
-		grid1.total_coverage[cells[i,0] - grid1.index_base] += area[i]
-		grid2.total_coverage[cells[i,1] - grid2.index_base] += area[i]
-
-	return (grid1, grid2)
-# -------------------------------------------------------------------
 
 km=1000.0
 
 overlap_fname = sys.argv[1]
+field_name = 'presprcp'
 
+fig = plt.figure(figsize=(1000/80,400/80))	# Size of figure (inches)
+curplot = 1
 
 # ============= Read info from netCDF file
 nc = netCDF4.Dataset(overlap_fname, 'r')
@@ -104,6 +66,12 @@ x0 = xb[0]
 x1 = xb[-1]
 y0 = yb[0]
 y1 = yb[-1]
+ice_nx = xb.shape[0]-1
+ice_ny = yb.shape[0]-1
+
+
+raster_x = 400
+raster_y = 800
 
 
 # =========== Read Greenland
@@ -121,15 +89,35 @@ llproj = pyproj.Proj(sllproj);
 lons, lats = read_coastline('data/18969-greenland-coastline.dat')
 greenland_xy = pyproj.transform(llproj, proj, lons, lats)
 
-# =============== Make a hi-res function on the ice grid
-ice_nx = xb.shape[0]-1
-ice_ny = yb.shape[0]-1
-ZH0 = np.zeros(ice_nx * ice_ny)
-for ix in range(0,ice_nx) :
-	for iy in range(0,ice_ny) :
-#		ZH0[iy * ice_nx + ix] = (ix+1) * 1.8
-		ZH0[iy * ice_nx + ix] = (ix+1) * 1.8 + (iy+1)
-#		ZH0[iy * ice_nx + ix] = 1
+# Decide what to remove
+#greenland_x = np.array(greenland_xy[0])
+clip_out = (greenland_xy[0] < -800*km) | (greenland_xy[0] > 681*km)
+greenland_xy[0][clip_out] = np.nan
+#greenland_y = np.array(greenland_xy[1])
+greenland_xy[1][clip_out] = np.nan
+
+# =============== Read a hi-res function on the ice grid
+searise_nc = netCDF4.Dataset('Greenland_5km_v1.1.nc')
+#ZH0 = np.ndarray.flatten(np.array(searise_nc.variables[field_name], dtype='d'))
+ZH0 = np.array(searise_nc.variables[field_name], dtype='d').flatten('C')
+print 'ZH0 has %d elements, vs (%d x %d) = %d' % (ZH0.shape[0], ice_nx, ice_ny, ice_nx * ice_ny)
+
+ZH0_r = np.zeros((raster_x, raster_y))
+ZH0_r[:] = np.nan
+grid2 = snowdrift.Grid(overlap_fname, 'grid2')
+grid2.rasterize(x0,x1,raster_x, y0,y1,raster_y, ZH0, ZH0_r)
+
+ax = fig.add_subplot(1,3,curplot)
+ax.set_xlim((x0/km, x1/km))
+ax.set_ylim((y0/km, y1/km))
+ax.set_xlabel('km')
+ax.set_ylabel('km')
+curplot += 1
+ax.set_title(field_name)
+
+cax2 = plot_image(ax, ZH0_r, np.array([x0,x1,y0,y1])/km)
+fig.colorbar(cax2)
+ax.plot(greenland_xy[0]/km, greenland_xy[1]/km, 'black', alpha=.5)
 
 # ================ Upgrid it to the GCM Grid
 sd = snowdrift.Snowdrift(overlap_fname)
@@ -143,8 +131,6 @@ sd.upgrid(0, ZH0, ZG0)		# 0 = Replace, 1 = Merge
 # Rasterize it over same region as ice grid
 grid1 = snowdrift.Grid(overlap_fname, 'grid1')
 
-raster_x = 100
-raster_y = 200
 ZG0_r = np.zeros((raster_x, raster_y))
 ZG0_r[:] = np.nan
 print 'BEGIN Rasterize'
@@ -153,17 +139,19 @@ print 'END Rasterize'
 print 'Rasterized to array of shape ', ZG0_r.shape
 
 # ================ Plot it!
-fig = plt.figure()
 
-ax = fig.add_subplot(1,2,1)
-ax.set_title('GCM')
+ax = fig.add_subplot(1,3,curplot)
+ax.set_xlim((x0/km, x1/km))
+ax.set_ylim((y0/km, y1/km))
+curplot += 1
+ax.set_title('Upscaled')
 ax.set_xlabel('km')
 ax.set_ylabel('km')
 
 cax1 = plot_image(ax, ZG0_r, np.array([x0,x1,y0,y1])/km)
 fig.colorbar(cax1)
 
-# ax.plot(greenland_xy[0]/km, greenland_xy[1]/km, 'b', alpha=.7)
+ax.plot(greenland_xy[0]/km, greenland_xy[1]/km, 'black', alpha=.5)
 
 # ================ Downgrid to the ice grid
 ZH1 = np.zeros(ice_nx*ice_ny)
@@ -173,32 +161,25 @@ sd.downgrid_snowdrift(ZG0, ZH1)
 time1 = time.time()
 print ZH1[1:200]
 print 'Finished with Downgrid, took %f seconds' % (time1-time0,)
-grid2 = snowdrift.Grid(overlap_fname, 'grid2')
 ZH1_r = np.zeros((raster_x, raster_y))
 ZH1_r[:] = np.nan
 print 'BEGIN Rasterize'
 grid2.rasterize(x0,x1,raster_x, y0,y1,raster_y, ZH1, ZH1_r)
 print 'END Rasterize'
 
-ax = fig.add_subplot(1,2,2)
-ax.set_title('Ice')
+ax = fig.add_subplot(1,3,curplot)
+ax.set_xlim((x0/km, x1/km))
+ax.set_ylim((y0/km, y1/km))
+curplot += 1
+ax.set_title('Downscaled')
 ax.set_xlabel('km')
 ax.set_ylabel('km')
 
 cax2 = plot_image(ax, ZH1_r, np.array([x0,x1,y0,y1])/km)
 fig.colorbar(cax2)
 
-#ax.plot(greenland_xy[0]/km, greenland_xy[1]/km, 'b', alpha=.7)
+ax.plot(greenland_xy[0]/km, greenland_xy[1]/km, 'black', alpha=.5)
 
-
-# ========================================================
-# Test conservation (slow in Python)
-grid1, grid2 = read_overlap_info(nc)
-ZH0_sum = sum(ZH0 * grid2.native_area * (grid2.total_coverage / grid2.proj_area))
-ZG0_sum = sum_nonan(ZG0 * grid1.native_area * (grid1.total_coverage / grid1.proj_area))
-ZH1_sum = sum(ZH1 * grid2.native_area * (grid2.total_coverage / grid2.proj_area))
-
-print 'Conservation: ', ZH0_sum, (ZG0_sum - ZH0_sum)/ZH0_sum, (ZH1_sum - ZH0_sum)/ZH0_sum
 
 # # =======================================================
 # # =========== Read and plot Greenland
