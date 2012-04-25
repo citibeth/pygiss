@@ -119,6 +119,61 @@ boost::function<void ()> Grid_XY::netcdf_define(NcFile &nc, std::string const &g
 	return boost::bind(&Grid_XY_netcdf_write, parent, &nc, this, generic_name);
 }
 
+const int derivative_x[4] = {-1, 1, 0, 0};
+const int derivative_y[4] = {0, 0, -1, 1};
+
+/** @param mask[size()] >=0 if we want to include this grid cell */
+std::unique_ptr<MapSparseMatrix> Grid_XY::get_smoothing_matrix(int *mask)
+{
+	// Allocate the matrix
+	int nx = x_boundaries.size() - 1;
+	int ny = y_boundaries.size() - 1;
+	int nxy = nx * ny;
+	std::unique_ptr<MapSparseMatrix> H(
+		SparseDescr(nxy, nxy, index_base,
+		MatrixStructure::SYMMETRIC, TriangularType::LOWER, 0,
+		DuplicatePolicy::BOTH));
+
+	for (size_t index0=0; index0<size(); ++index0) {
+		if (mask[index0] < 0) continue;		// Skip inactive cells
+
+		int y0i = index0 / nx;
+		int x0i = index0 - y0i*nx;
+
+		for (int di=0; int di < 4; ++di) {
+			int x1i = x0i + derivative_x[di];
+			if (x1i < 0 || x1i >= nx) continue;
+			int y1i = y0i + derivative_y[di];
+			if (y1i < 0 || y1i >= ny) continue;
+			if (mask[index1] < 0) continue;		// Neighbor is inactive, skip
+
+			// Get distance between centers of the two gridcells
+			double deltax_x2 =
+				(x_boundaries[x1i+1] + x_boundaries[x1i]) -
+				(x_boundaries[x0i+1] + x_boundaries[x0i]);
+			double deltay_x2 =
+				(y_boundaries[y1i+1] + y_boundaries[y1i]) -
+				(y_boundaries[y0i+1] + y_boundaries[y0i]);
+
+			// weight = 1 / |(x1,y1) - (x0,y0)|
+			double weight = 4.0 / (deltax_x2*deltax_x2 + deltay_x2*deltay_x2);
+
+            // Add (Z1 - Z0)^2 to our objective function
+            // (But the calls to sparsebuilder won't add anything if
+            // index0 and index1 aren't both active cells.)
+			int index1 = y1i*nx + x1i;
+
+			// Add it to our matrix
+			H.add(index0+index_base, index0+index_base, weight);
+			H.add(index1+index_base, index1+index_base, weight);
+			H.add(index0+index_base, index1+index_base, -weight);
+		}
+	}
+
+	return H;
+}
+
+
 
 
 }

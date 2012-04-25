@@ -26,6 +26,12 @@ struct GridCell {
 	@param _native_area Area of this grid cell in its native (un-projected) geometry.
 	@param _index Canonical identifier for this grid cell in its grid. */
 	GridCell(gc::Polygon_2 const &_poly, double _index, double _native_area);
+
+	/** Some grid cells we know their area, etc. but we don't have a polygon
+	for them.  This is the case when doing elevation classes (although we
+	COULD know the polygon if we really wanted to. */
+	GridCell(double _index, double _native_area, double _proj_area);
+
 };
 
 }

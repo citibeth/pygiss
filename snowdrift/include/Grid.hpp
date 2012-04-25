@@ -19,9 +19,6 @@ class Grid {
 	gc::Polygon_2 _bounding_box;
 	bool _bounding_box_valid;
 
-
-
-
 	void netcdf_write(NcFile *nc, std::string const &generic_name) const;
 
 	/** Used to do geometry calculations quickly on polygons in this grid */
@@ -67,11 +64,28 @@ public:
 
 	static std::unique_ptr<Grid> from_netcdf(std::string const &fname, std::string const &grid_var_name);
 
+	/** Prepare for display of a function on this grid. */
 	void rasterize(
 		double x0, double x1, int nx,
 		double y0, double y1, int ny,
 		double const *data, int data_stride,
 		double *out, int xstride, int ystride);
+
+	/** @param mask[size()] >=0 if we want to include this grid cell */
+	virtual std::unique_ptr<MapSparseMatrix> void get_smoothing_matrix(int *mask) {}
+
+
+
+	/** Used to divide up a grid cell in the face of elevation classes */
+	GridCell sub_by_elevation_class(
+		GridCell const &gc0,
+		int elevation_class,
+		int min_elevation_class, int max_elevation_class)
+	{
+		int num_elevation_class = max_elevation_class - min_elevation_class + 1;
+		int index1 = (gc0.index - index_base) * num_elevation_class
+			+ (elevation_class - min_elevation_class) + index_base;
+	}
 
 
 };

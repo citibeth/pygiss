@@ -9,5 +9,10 @@ GridCell::GridCell(gc::Polygon_2 const &_poly, double _index, double _native_are
 	proj_area(CGAL::to_double(poly.area()))
 {}
 
+GridCell::GridCell(double _index, double _native_area, double _proj_area) :
+	index(_index), native_area(_native_area),
+	proj_area(_proj_area)
+{}
+
 
 }

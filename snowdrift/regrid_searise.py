@@ -12,6 +12,7 @@ import time
 
 import array
 import re
+import giss.plotutil
 
 # Image plot
 #Acceptable values are None, 'none', 'nearest', 'bilinear', 'bicubic', 'spline16', 'spline36', 'hanning', 'hamming', 'hermite', 'kaiser', 'quadric', 'catrom', 'gaussian', 'bessel', 'mitchell', 'sinc', 'lanczos'
@@ -19,11 +20,17 @@ def plot_image(ax, Z, extent) :
 	Zt = Z.transpose()
 	Zmasked = np.ma.array(Zt, mask=np.isnan(Zt))
 
+	# For SMB
+	cmap = 'bwr'
+	norm = giss.plotutil.AsymmetricNormalize(vmin=-2.45,vmax=3.3)
+#		vmin=0,vmax=4.5)	# For precipitation
+
 	return ax.imshow(Zmasked, origin='lower',
-		interpolation='bilinear',
-		#cmap='afmhot',
-		cmap='spectral',
-		extent=np.array([x0,x1,y0,y1])/km, vmin=0,vmax=4.5)
+		interpolation='nearest',
+		extent=np.array([x0,x1,y0,y1])/km,
+		cmap=cmap, norm=norm)
+#		cmap='bwr', vmin=-3.4,vmax=3.4)		# For SMB
+#		cmap='spectral', vmin=0,vmax=4.5)	# For precipitation
 
 # Contour plot
 #	cax = ax.contour(ZG0_r.transpose(), interpolation='nearest', origin='lower')
@@ -53,7 +60,7 @@ def read_coastline(fname) :
 km=1000.0
 
 overlap_fname = sys.argv[1]
-field_name = 'presprcp'
+field_name = sys.argv[2]
 
 fig = plt.figure(figsize=(1000/80,400/80))	# Size of figure (inches)
 curplot = 1
@@ -70,8 +77,8 @@ ice_nx = xb.shape[0]-1
 ice_ny = yb.shape[0]-1
 
 
-raster_x = 400
-raster_y = 800
+raster_x = 100
+raster_y = 200
 
 
 # =========== Read Greenland

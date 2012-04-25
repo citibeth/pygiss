@@ -18,6 +18,8 @@ MODULE HSL_ZD11_double
 
 CONTAINS
 
+
+
    SUBROUTINE ZD11_put(array,string,stat)
      CHARACTER, allocatable :: array(:)
      CHARACTER(*), intent(in) ::  string
@@ -82,47 +84,6 @@ CONTAINS
 ! ---------------------------------------------------------
 ! Code below by Bob Fischer
 
-! Computes mat * vec
-subroutine zd11_multiply(mat, vec, ret)
-type(zd11_type), intent(in) :: mat
-real*8, dimension(mat%n), intent(in) :: vec
-real*8, dimension(mat%m), intent(out) :: ret
-
-	integer :: i
-
-	select case(STRING_get(mat%type))
-		case('COORDINATE')
-			ret(:) = 0
-			do i=1,mat%ne
-				ret(mat%row(i)) = ret(mat%row(i)) + vec(mat%col(i)) * mat%val(i)
-			end do
-		case DEFAULT
-			write(6,*) 'hsl_zd11d.f90 only knows how to multiply by matrices of type COORDINATE'
-			stop
-	end select
-
-end subroutine zd11_multiply
-
-! Computes mat^(transpose) * vec
-subroutine zd11_multiply_T(mat, vec, ret)
-type(zd11_type), intent(in) :: mat
-real*8, dimension(mat%m), intent(in) :: vec
-real*8, dimension(mat%n), intent(out) :: ret
-
-	integer :: i
-
-	select case(STRING_get(mat%type))
-		case('COORDINATE')
-			ret(:) = 0
-			do i=1,mat%ne
-				ret(mat%col(i)) = ret(mat%col(i)) + vec(mat%row(i)) * mat%val(i)
-			end do
-		case DEFAULT
-			write(6,*) 'hsl_zd11d.f90 only knows how to multiply by matrices of type COORDINATE'
-			stop
-	end select
-
-end subroutine zd11_multiply_T
 
 
 ! ! Renders to a dense matrix

@@ -290,10 +290,11 @@ void Grid_rasterize(
 /** @param fname Name of file to load from (eg, an overlap matrix file)
 @param vname Eg: "grid1" or "grid2" */
 std::unique_ptr<Grid> Grid::from_netcdf(
-std::string const &fname,
+//std::string const &fname,
+NcFile &nc,
 std::string const &vname)
 {
-	NcFile nc(fname.c_str(), NcFile::ReadOnly);
+//	NcFile nc(fname.c_str(), NcFile::ReadOnly);
 
 	// Read points 2-d array as single vector
 	NcVar *vpoints = nc.get_var((vname + ".points").c_str());

@@ -10,7 +10,7 @@ using namespace giss;
 /// Classmembers of the Python class
 typedef struct {
 	PyObject_HEAD
-	void *snowdrift_f;	// Fortran-allocated snowdrift pointer
+	giss::Snowdrift *snowdrift_f;	// Fortran-allocated snowdrift pointer
 } SnowdriftDict;
 
 // ========= class snowdrift.Snowdrift :
@@ -19,7 +19,6 @@ static PyObject *Snowdrift_new(PyTypeObject *type, PyObject *args, PyObject *kwd
 {
 	SnowdriftDict *self;
 
-printf("Snowdrift_new() called\n");
 	self = (SnowdriftDict *)type->tp_alloc(type, 0);
 
     if (self != NULL) {
