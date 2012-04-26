@@ -1,17 +1,27 @@
+#include <map>
+#include <boost/function.hpp>
+#include <boost/bind.hpp>
+#include "hsl_zd11_x.hpp"
+#include "ncutil.hpp"
+
+class NcFile;
+
 namespace giss {
 
 // ------------------------------------------------------------
-enum class MatrixStructure {GENERAL, SYMMETRIC, HERMETIAN, TRIANGULAR, ANTI_SYMMETRIC, DIAGONAL};
-enum class TriangularType {GENERAL, LOWER, UPPER};
-enum class MainDiagonalType {NON_UNIT, UNIT};
-//enum class DuplicatePolicy {UNDEFINED, REPLACE, ADD, BOTH};
 
 // ------------------------------------------------------------
+
 
 // Matches up with Fortran's sparsecoord_t
 class SparseDescr {
 public:
-	virtual ~SparseDescr() {}
+
+enum class MatrixStructure {GENERAL, SYMMETRIC, HERMETIAN, TRIANGULAR, ANTI_SYMMETRIC, DIAGONAL};
+enum class TriangularType {GENERAL, LOWER, UPPER};
+enum class MainDiagonalType {NON_UNIT, UNIT};
+enum class DuplicatePolicy {REPLACE, ADD};
+enum class SortOrder {ROW_MAJOR, COLUMN_MAJOR};
 
 	// From the DESCRA array in NIST Sparse BLAS proposal
 	MatrixStructure matrix_structure;
@@ -26,11 +36,10 @@ public:
 	// int const nnz;
 
 	SparseDescr(
-		int const _nrow, int const _ncol, int index_base = 0,
-		MatrixStructure matrix_structure = MatrixStructure::GENERAL,
-		TriangularType triangular_type = TriangularType::GENERAL,
-		MainDiagonalType main_diagonal_type = MainDiagonalType::NON_UNIT) :
-//		DuplicatePolicy _duplicate_policy) :
+		int const _nrow, int const _ncol, int _index_base = 0,
+		MatrixStructure _matrix_structure = MatrixStructure::GENERAL,
+		TriangularType _triangular_type = TriangularType::GENERAL,
+		MainDiagonalType _main_diagonal_type = MainDiagonalType::NON_UNIT) :
 
 		nrow(_nrow),
 		ncol(_ncol),
@@ -38,145 +47,282 @@ public:
 		matrix_structure(_matrix_structure),
 		triangular_type(_triangular_type),
 		main_diagonal_type(_main_diagonal_type)
-//		duplicate_policy(_duplicate_policy)
 	{}
+};
 
-
-	void _set(int row, int col, double const val) {
-		fprintf("set() operation not implemented\n");
-		throw std::exeption();
-	}
-	void _add(int row, int col, double const val) {
-		fprintf("add() operation not implemented\n");
-		throw std::exeption();
-	}
-
-	virtual size_t size();
-
-private:
-	void netcdf_write(NcFile *nc, std::string const &vname)
-	{
-		NcVar *grid_indexVar = nc->get_var((vname + ".num_elements").c_str());
-		NcVar *areaVar = nc->get_var((vname + ".val").c_str());
-
-		int i=0;
-		for (auto ov = begin(); ov != end(); ++ov) {
-			grid_indexVar->set_cur(i,0);
-			int index[2] = {ov.row() + index_base, ov.col() + index_base};
-			grid_indexVar->put(index, 1,2);
-
-			areaVar->set_cur(i);
-			areaVar->put(&ov->val(), 1);
-
-			++i;
-		}
-	}
-
+class SparseMatrix : public SparseDescr {
 public:
-	boost::function<void ()> netcdf_define(std::string const &vname, NcFile &nc)
-	{
-		auto lenDim = nc.add_dim((vname + ".num_elements").c_str(), size());
-		auto num_gridsDim = nc.add_dim((vname + ".rank").c_str(), 2);
-		auto grid_indexVar = nc.add_var((vname + ".index").c_str(), ncInt, lenDim, num_gridsDim);
-		auto areaVar = nc.add_var((vname + ".val").c_str(), ncDouble, lenDim);
+	SparseMatrix(SparseDescr const &descr) : SparseDescr(descr) {}
 
-		return boost::bind(&SparseDescr::netcdf_write, this, &nc, vname);
-	}
+	virtual ~SparseMatrix() {}
+	virtual size_t size() = 0;
+	virtual void set(int row, int col, double const val, DuplicatePolicy dups = DuplicatePolicy::REPLACE) = 0;
+	void add(int row, int col, double const val)
+		{ set(row, col, val, DuplicatePolicy::ADD); }
 
+	virtual boost::function<void ()> netcdf_define(NcFile &nc, std::string const &vname);
 
+	virtual void multiply(double const * x, double *y, bool clear_y = true);
+	virtual std::vector<double> sum_per_row();
+	virtual std::vector<double> sum_per_col();
+	virtual std::map<int,double> sum_per_row_map();
+	virtual std::map<int,double> sum_per_col_map();
 
 };
+
+// =================================================================
+// Mix-ins common to all sparse matrix types
+
+template<class SparseMatrix0T>
+class SparseMatrix1 : public SparseMatrix0T
+{
+protected:
+	SparseMatrix1(SparseDescr const &descr) :
+		SparseMatrix0T(descr) {}
+public:
+	void set(int row, int col, double const val, SparseMatrix::DuplicatePolicy dups);
+	boost::function<void ()> netcdf_define(NcFile &nc, std::string const &vname);
+
+	void multiply(double const * x, double *y, bool clear_y = true);
+	std::vector<double> sum_per_row();
+	std::vector<double> sum_per_col();
+	std::map<int,double> sum_per_row_map();
+	std::map<int,double> sum_per_col_map();
+
+private:
+	void netcdf_write(NcFile *nc, std::string const &vname);
+};
+
+
+template<class SparseMatrix0T>
+void SparseMatrix1<SparseMatrix0T>::set(int row, int col, double const val, SparseMatrix::DuplicatePolicy dups)
+{
+	// Fix row and col for possible triangular type
+	switch(this->triangular_type) {
+		case SparseMatrix::TriangularType::UPPER :
+			if (row > col) std::swap(row, col);
+		break;
+		case SparseMatrix::TriangularType::LOWER :
+			if (row < col) std::swap(row, col);
+		break;
+	}
+
+	// Adjust for index_base
+	row += this->index_base;
+	col += this->index_base;
+
+	this->_set(row, col, val, dups);
+}
+
+
+template<class SparseMatrix0T>
+void SparseMatrix1<SparseMatrix0T>::netcdf_write(NcFile *nc, std::string const &vname)
+{
+	NcVar *grid_indexVar = nc->get_var((vname + ".num_elements").c_str());
+	NcVar *areaVar = nc->get_var((vname + ".val").c_str());
+
+	int i=0;
+	for (typename SparseMatrix1<SparseMatrix0T>::iterator ov = this->begin(); ov != this->end(); ++ov) {
+		grid_indexVar->set_cur(i,0);
+		int index[2] = {ov.row() + this->index_base, ov.col() + this->index_base};
+		grid_indexVar->put(index, 1,2);
+
+		areaVar->set_cur(i);
+		areaVar->put(&ov.val(), 1);
+
+		++i;
+	}
+}
+
+
+template<class SparseMatrix0T>
+boost::function<void ()> SparseMatrix1<SparseMatrix0T>::netcdf_define(
+	NcFile &nc, std::string const &vname)
+{
+	auto lenDim = nc.add_dim((vname + ".num_elements").c_str(), this->size());
+	auto num_gridsDim = nc.add_dim((vname + ".rank").c_str(), 2);
+	auto grid_indexVar = nc.add_var((vname + ".index").c_str(), ncInt, lenDim, num_gridsDim);
+	auto areaVar = nc.add_var((vname + ".val").c_str(), ncDouble, lenDim);
+
+	auto oneDim = get_or_add_dim(nc, "one", 1);
+	auto descrVar = nc.add_var((vname + ".descr").c_str(), ncInt, oneDim);
+	descrVar->add_att("nrow", this->nrow);
+	descrVar->add_att("ncol", this->ncol);
+	descrVar->add_att("index_base", this->index_base);
+	descrVar->add_att("matrix_structure", (int)this->matrix_structure);
+	descrVar->add_att("triangular_type", (int)this->triangular_type);
+	descrVar->add_att("main_diagonal_type", (int)this->main_diagonal_type);
+
+	return boost::bind(&SparseMatrix1<SparseMatrix0T>::netcdf_write,
+		this, &nc, vname);
+}
+
+/// Computes y = A * x
+template<class SparseMatrix0T>
+void SparseMatrix1<SparseMatrix0T>::multiply(double const * x, double *y, bool clear_y)
+{
+	int nx = this->ncol;
+	int ny = this->nrow;
+	if (clear_y) for (int iy = 0; iy < ny; ++iy) y[iy] = 0;
+	for (auto ii = this->begin(); ii != this->end(); ++ii) {
+		int ix = ii.col();
+		int iy = ii.row();
+		y[iy] += ii.val() * x[ix];
+	}
+}
+
+// ------------------------------------------------------------
+template<class SparseMatrix0T>
+std::vector<double> SparseMatrix1<SparseMatrix0T>::sum_per_row() {
+	std::vector<double> ret(this->nrow);
+	for (auto ii = this->begin(); ii != this->end(); ++ii) {
+		ret[ii.row()] += ii.val();
+	}
+	return ret;
+}
+
+template<class SparseMatrix0T>
+std::vector<double> SparseMatrix1<SparseMatrix0T>::sum_per_col() {
+	std::vector<double> ret(this->ncol);
+	for (auto ii = this->begin(); ii != this->end(); ++ii) {
+		ret[ii.col()] += ii.val();
+	}
+	return ret;
+}
+
+
+template<class SparseMatrix0T>
+std::map<int,double> SparseMatrix1<SparseMatrix0T>::sum_per_row_map() {
+	std::map<int,double> ret;
+	for (auto ii = this->begin(); ii != this->end(); ++ii) {
+		auto f = ret.find(ii.row());
+		if (f == ret.end()) {
+			ret.insert(std::make_pair(ii.row(), ii.val()));
+		} else {
+			f->second += ii.val();
+		}
+	}
+	return ret;
+}
+
+template<class SparseMatrix0T>
+std::map<int,double> SparseMatrix1<SparseMatrix0T>::sum_per_col_map() {
+	std::map<int,double> ret;
+	for (auto ii = this->begin(); ii != this->end(); ++ii) {
+		auto f = ret.find(ii.col());
+		if (f == ret.end()) {
+			ret.insert(std::make_pair(ii.col(), ii.val()));
+		} else {
+			f->second += ii.val();
+		}
+	}
+	return ret;
+}
+
+// ------------------------------------------------------------
+
+
+
+
 // =================================================================
 // Three different kinds of Sparse matrices
 
 // ------------------------------------------------------------
 /** Matrix based on external Fortran HSL_ZD11 storage */
-class ZD11SparseMatrix : public SparseDescr
+class ZD11SparseMatrix0 : public SparseMatrix
 {
 protected:
 	// Current number of elements in matrix.  Matrix is not
 	// valid until this equals zd11.ne
 	int _nnz_cur;
 
+	// Pointers/references to main storage
+	ZD11 *_zd11;
+
+	ZD11SparseMatrix0(SparseDescr const &descr) : SparseMatrix(descr) {}
 public:
+
+	ZD11 &zd11() { return *_zd11; }
 
 	// --------------------------------------------------
 	class iterator {
 	protected:
-		ZD11 *zd11;
+		ZD11SparseMatrix0 *parent;
 		int i;
-		iterator(ZD11 *z, int _i) : zd11(z), i(_i) {}
 	public:
-		operator==(iterator const &rhs) { return i == rhs.i; }
-		operator!=(iterator const &rhs) { return i != rhs.i; }
-		operator++(iterator const &4hs) { ++i; }
-		int &row() { return zd11->row[i] - zd11->index_base; }
-		int &col() { return zd11->col[i] - zd11->index_base; }
-		double &val() { return zd11->val[i]; }
+		iterator(ZD11SparseMatrix0 *z, int _i) : parent(z), i(_i) {}
+		bool operator==(iterator const &rhs) { return i == rhs.i; }
+		bool operator!=(iterator const &rhs) { return i != rhs.i; }
+		void operator++() { ++i; }
+		int row() { return parent->zd11().row[i] - parent->index_base; }
+		int col() { return parent->zd11().col[i] - parent->index_base; }
+		double &val() { return parent->zd11().val[i]; }
 	};
-	iterator begin() { return iterator(0); }
-	iterator end() { return iterator(_nnz_cur); }
+	iterator begin() { return iterator(this, 0); }
+	iterator end() { return iterator(this, _nnz_cur); }
 	// --------------------------------------------------
-
-
-	// Pointers/references to main storage
-	ZD11 &zd11;
-
-
-	/** Call this after ZD11 has been initialized
-	@param _zd11 Pointer to Fortran structure. */
-	ZD11SparseMatrix(ZD11 &_zd11, int nnz_cur,
-		MatrixStructure matrix_structure,
-		TriangularType triangular_type,
-		MainDiagonalType main_diagonal_type)
-	: SparseDescr(_zd11.m, _zdll.n, 1,
-	matrix_structure, triangular_type, main_diagonal_type),
-	_nnz_cur(nnz_cur), zd11(_zd11)
-	{}
 
 	void clear() { _nnz_cur = 0; }
 
-	bool is_complete() { return _nnz_cur == zd11.ne; }
+	bool is_complete() { return _nnz_cur == zd11().ne; }
 
 	size_t size() { return _nnz_cur; }
 
-private:
-	void _set(int const row, int const col, double const val)
+protected:
+	void _set(int const row, int const col, double const val, DuplicatePolicy dups)
 	{
-		if (_nnz_cur >= zd11.ne) {
-			fprintf(stderr, "ZD11SparseMatrix is full with %d elements\n", zd11.ne);
+		if (_nnz_cur >= zd11().ne) {
+			fprintf(stderr, "ZD11SparseMatrix is full with %d elements\n", zd11().ne);
 			throw std::exception();
 		}
-		zd11.row[_nnz_cur] = row;
-		zd11.col[_nnz_cur] = col;
-		zd11.val[_nnz_cur] = val;
+		zd11().row[_nnz_cur] = row;
+		zd11().col[_nnz_cur] = col;
+		zd11().val[_nnz_cur] = val;
 		++_nnz_cur;
 	}
-
-#include "SparseMatrixMethods.cpp.hpp"
 };
+// -----------------------------------------------------------------
+class ZD11SparseMatrix : public SparseMatrix1<ZD11SparseMatrix0>
+{
+	/** Call this after ZD11 has been initialized
+	@param _zd11 Pointer to Fortran structure. */
+	ZD11SparseMatrix(ZD11 &__zd11, int nnz_cur,
+		MatrixStructure matrix_structure,
+		TriangularType triangular_type,
+		MainDiagonalType main_diagonal_type)
+	: SparseMatrix1<ZD11SparseMatrix0>(SparseDescr(__zd11.m, __zd11.n, 1,
+	matrix_structure, triangular_type, main_diagonal_type))
+	{
+		_nnz_cur = nnz_cur;
+		_zd11 = &__zd11;
+	}
+};
+// ==================================================================
 // ---------------------------------------------------------
 /** SparseMatrix as read out of a netCDF file in 3 parallel std::vector<> arrays */
-class VectorSparseMatrix : public SparseDescr
+class VectorSparseMatrix0 : public SparseMatrix
 {
 protected:
 	std::vector<int> indx;
 	std::vector<int> jndx;
 	std::vector<double> val;
+
+	VectorSparseMatrix0(SparseDescr const &descr) : SparseMatrix(descr) {}
+
 public:
 
 	// --------------------------------------------------
 	class iterator {
 	protected:
-		VectorSparseMatrix *parent;
+		VectorSparseMatrix0 *parent;
 		int i;
-		iterator(VectorSparseMatrix *p, int _i) : parent(p), i(_i) {}
 	public:
-		operator==(iterator const &rhs) { return i == rhs.i; }
-		operator!=(iterator const &rhs) { return i != rhs.i; }
-		operator++(iterator const &4hs) { ++i; }
-		int &row() { return parent->indx[i] - parent->index_base; }
-		int &col() { return parent->jndx[i] - parent->index_base; }
+		iterator(VectorSparseMatrix0 *p, int _i) : parent(p), i(_i) {}
+		bool operator==(iterator const &rhs) { return i == rhs.i; }
+		bool operator!=(iterator const &rhs) { return i != rhs.i; }
+		void operator++() { ++i; }
+		int row() { return parent->indx[i] - parent->index_base; }
+		int col() { return parent->jndx[i] - parent->index_base; }
 		double &val() { return parent->val[i]; }
 	};
 	iterator begin() { return iterator(this, 0); }
@@ -190,289 +336,99 @@ public:
 	}
 	size_t size() { return val.size(); }
 
-	/** Construct from existing vectors */
-	VectorSparseMatrix(SparseDescr const &descr,
-		std::vector<int> &&_indx,
-		std::vector<int> &&_jndx,
-		std::vector<double> &&_val) :
-	: SparseDescr(descr),
-	indx(std::move(_indx)), jndx(std::move(_jndx)), val(std::move(_val))
-	{}
-
-	/** Construct a new one */
-	VectorSparseMatrix(SparseDescr const &descr) : SparseDescr(descr) {}
-
-	void sort_row_major() {...}
-
 protected :
-	void _set(int row, int col, double _val)
+	void _set(int row, int col, double _val, DuplicatePolicy dups)
 	{
 		indx.push_back(row);
 		jndx.push_back(col);
 		val.push_back(_val);
 	}
+};
 
-#include "SparseMatrixMethods.cpp.hpp"
-}
+class VectorSparseMatrix : public SparseMatrix1<VectorSparseMatrix0>
+{
+	/** Construct from existing vectors */
+	VectorSparseMatrix(SparseDescr const &descr,
+		std::vector<int> &&_indx,
+		std::vector<int> &&_jndx,
+		std::vector<double> &&_val) :
+	SparseMatrix1<VectorSparseMatrix0>(descr)
+	{
+		indx = std::move(_indx);
+		jndx = std::move(_jndx);
+		val = std::move(_val);
+	}
+
+	void sort(SparseMatrix::SortOrder sort_order = SortOrder::ROW_MAJOR);
+
+	static std::unique_ptr<VectorSparseMatrix> netcdf_read(NcFile &nc, std::string const &vname);
+
+};
+// ====================================================================
 // ----------------------------------------------------------
-class MapSparseMatrix : public SparseDescr {
+class MapSparseMatrix0 : public SparseMatrix {
 protected :
 	std::map<std::pair<int,int>, double> _cells;
 	typedef std::map<std::pair<int,int>, double>::iterator ParentIterator;
+	MapSparseMatrix0(SparseDescr const &descr) : SparseMatrix(descr) {}
+
 public:
 
 	// --------------------------------------------------
-	class iterator : public ParentIterator {
+	class iterator {
+		ParentIterator ii;
+		MapSparseMatrix0 *parent;
 	public:
-		MapSparseMatrix *parent;
 
-		int &row() { return first.first - parent->index_base; }
-		int &col() { return first.second - parent->index_base; }
-		double &val() { return second; }
-
-		iterator(ParentIterator const &_i, MapSparseMatrix *p) : ParentIterator(_i), parent(p) {}
+		iterator(ParentIterator const &_i, MapSparseMatrix0 *p) : ii(_i), parent(p) {}
+		bool operator==(iterator const &rhs) { return ii == rhs.ii; }
+		bool operator!=(iterator const &rhs) { return ii != rhs.ii; }
+		void operator++() { ++ii; }
+		int row() { return ii->first.first - parent->index_base; }
+		int col() { return ii->first.second - parent->index_base; }
+		double &val() { return ii->second; }
 	};
-	iterator begin() { return _cells.begin(); }
-	iterator end() { return _cells.end(); }
+	iterator begin() { return iterator(_cells.begin(), this); }
+	iterator end() { return iterator(_cells.end(), this); }
 	// --------------------------------------------------
-
-	MapSparseMatrix(SparseDescr const &descr) :
-		SparseDescr(descr) {}
 
 	void clear() { _cells.clear(); }
 
 	size_t size() { return _cells.size(); }
 
-	void _set(int row, int col, double const val)
+protected :
+	void _set(int row, int col, double const val, DuplicatePolicy dups)
 	{
 		// Could make this find-insert operation a bit more efficient
 		// by only indexing into the std::map once...
-		auto ii = A->_cells.find(std::make_pair(row, col));
-		if (ii != A->_cells.end()) {
-			ii->second = val;
+		auto ii = _cells.find(std::make_pair(row, col));
+		if (ii != _cells.end()) {
+			if (dups == DuplicatePolicy::ADD) ii->second += val;
+			else ii->second = val;
 		} else {
-			A->_cells.insert(std::make_pair(std::make_pair(row, col), val));
+			_cells.insert(std::make_pair(std::make_pair(row, col), val));
 		}
 	}
-
-	void _add(int row, int col, double const val)
-	{
-		// Could make this find-insert operation a bit more efficient
-		// by only indexing into the std::map once...
-		auto ii = A->_cells.find(std::make_pair(row, col));
-		if (ii != A->_cells.end()) {
-			ii->second += val;
-		} else {
-			A->_cells.insert(std::make_pair(std::make_pair(row, col), val));
-		}
-	}
-
-#include "SparseMatrixMethods.cpp.hpp"
+};
+// ---------------------------------------------------------------
+class MapSparseMatrix : public SparseMatrix1<MapSparseMatrix0>
+{
+	MapSparseMatrix(SparseDescr const &descr) :
+		SparseMatrix1<MapSparseMatrix0>(descr) {}
 };
 // ============================================================
-// Helper Classes for building matrices with dictionaries
-
-// ------------------------------------------------------------
-/** Helper in creating matrices */
-template<class IndexT>
-class IndexMap {
-	std::map<IndexT, int> _map;
-public:
-
-	IndexMap(std::set<IndexT> const &indices)
-	{
-		int i=0;
-		for (auto ii = indices.begin(); ii != indices.end(); ++ii) {
-			_map.push_back(std::make_pair(*ii, i++));
-		}
-	}
-
-	int operator()(IndexT const &ix) const {
-		auto ii _map.find(ix);
-		if (ii == _map.end()) {
-			fprintf(stderr, "Index not in map: %d\n", ix);
-			throw std::exception();
-		}
-		return ii->second;
-	}
-};
 
 
-template<class SparseMatrixT, class IndexT>
-class IndexedMatrixBuilder
-{
-public :
-	IndexMap<IndexT> const rowi;
-	IndexMap<IndexT> const coli;
-	SparseMatrixT * const matrix;
-	
-	IndexedMatrixBuilder(SparseMatrixT *sm,
-		std::set<IndexT> const &rows,
-		std::set<IndexT> const &cols) :
-		matrix(sm), rowi(rows), coli(cols)
-	{}
-
-	void set(int const _row, int const _col, double const val)
-		{ sm->set(rowi(_row), coli(_col), val); }
-	void add(int const _row, int const _col, double const val) = 0;
-		{ sm->add(rowi(_row), coli(_col), val); }
-};
 // ------------------------------------------------------------
 /** Copy a to b.  Does not clear b */
-template<SparseMatrixT1, SparseMatrixT2>
-void copy_set(SparseMatrixT1 &a, SparseMatrixT2 &b)
+template<class SparseMatrixT1, class SparseMatrixT2>
+void copy(SparseMatrixT1 &a, SparseMatrixT2 &b, SparseMatrix::DuplicatePolicy dups)
 {
-	for (SparseMatrixT1::iterator ii = a.begin(); ii != a.end(); ++ii) {
-		b.set(ii.row(), ii.col(), ii.val());
-	}
-}
-
-/** Copy a to b.  Does not clear b */
-template<SparseMatrixT1, SparseMatrixT2>
-void copy_add(SparseMatrixT1 &a, SparseMatrixT2 &b)
-{
-	for (SparseMatrixT1::iterator ii = a.begin(); ii != a.end(); ++ii) {
-		b.add(ii.row(), ii.col(), ii.val());
+	for (typename SparseMatrixT1::iterator ii = a.begin(); ii != a.end(); ++ii) {
+		b.set(ii.row(), ii.col(), ii.val(), dups);
 	}
 }
 
 // ------------------------------------------------------------
 
-/// Computes y = A * x
-template<SparseMatrixT>
-void multiply(SparseMatrixT &A, double const * x, double *y)
-{
-	int nx = A.ncol;
-	int ny = A.nrow;
-	for (int iy = 0; iy < ny; ++iy) y[iy] = 0;
-	for (SparseMatrixT1::iterator ii = a.begin(); ii != a.end(); ++ii) {
-		int ix = ii.col();
-		int iy = ii.row();
-		y[iy] += ii.val() * x[ix];
-	}
-}
-
-
-
-
-
-
-
-template<SparseMatrixT>
-std::vector<double> sum_per_row(SparseMatrixT &M) {
-	std::vector<double> ret(nrow);
-	for (SparseMatrixT::iterator ii = begin(); ii != end(); ++ii) {
-		ret[ii.row()] += ii.val();
-	}
-	return ret;
-}
-
-template<SparseMatrixT>
-std::vector<double> sum_per_col(SparseMatrixT &M) {
-	std::vector<double> ret(ncol);
-	for (SparseMatrixT::iterator ii = begin(); ii != end(); ++ii) {
-		ret[ii.col()] += ii.val();
-	}
-	return ret;
-}
-
-
-template<SparseMatrixT>
-std::map<int,double> sum_per_row_map(SparseMatrixT &M) {
-	std::map<int,double> ret;
-	for (SparseMatrixT::iterator ii = begin(); ii != end(); ++ii) {
-		auto f = ret.find(ii.row());
-		if (f == ret.end()) {
-			ret.insert(std::make_pair(ii.row(), ii.val());
-		} else {
-			f->second += ii.val();
-		}
-	}
-	return ret;
-}
-
-template<SparseMatrixT>
-std::map<int,double> sum_per_col_map(SparseMatrixT &M) {
-	std::map<int,double> ret;
-	for (SparseMatrixT::iterator ii = begin(); ii != end(); ++ii) {
-		auto f = ret.find(ii.col());
-		if (f == ret.end()) {
-			ret.insert(std::make_pair(ii.col(), ii.val());
-		} else {
-			f->second += ii.val();
-		}
-	}
-	return ret;
-}
-
-
-
-
-
-
-
-
-
-
-
-
-
-// ------------------------------------------------------------
-// /** Describes a cell in a sparse matrix */
-// struct SparseCell {
-// 	int index[2];	// The cell index of gridcell in each grid that overlaps
-// 	double val;	// Area of overlap
-// 
-// 	SparseCell(int _index0, int _index1, double _val) :
-// 		index({_index0, _index1}), val(_val) {}
-// 
-// 	/** Sort overlap matrix in row major form, common for sparse matrix representations */
-// 	bool operator<(SparseCell const &b) const
-// 	{
-// 		if (index[0] < b.index[0]) return true;
-// 		if (index[0] > b.index[0]) return false;
-// 		return (index[1] < b.index[1]);
-// 	}
-// };
-// 
-// 
-// class VectorSparseMatrix : public SparseMatrix {
-// 	std::vector<SparseCell> _cells;
-// 
-// public:
-// 	SparseCell *cells()
-// 	{ return &_cells[0]; }
-// 
-// 	VectorSparseMatrix(SparseMatrix const &descr) :
-// 		this(descr) {}
-// 
-// 	int nnz() { return _cells.size(); }
-// 
-// 	void set(int const _row, int const _col, double const _val)
-// 		{ _cells.push_back(SparseCell(_row, _col, _val)); }
-// 
-// 	std::vector<double> sum_per_row() {
-// 		std::vector<double> ret(nrow);
-// 		for (auto ii = _cells.begin(); ii != _cells.end(); ++ii) {
-// 			ret[ii->index[0]] += ii->val;
-// 		}
-// 		return ret;
-// 	}
-// 
-// 	std::vector<double> sum_per_col() {
-// 		std::vector<double> ret(ncol);
-// 		for (auto ii = _cells.begin(); ii != _cells.end(); ++ii) {
-// 			ret[ii->index[1]] += ii->val;
-// 		}
-// 		return ret;
-// 	}
-// };
-// 
-// VectorSparseMatrix_cells_f(VectorSparseMatrix *M)
-// 	{ return &M->cells[0]; }
-
-
-
-
-
-}		// namespace giss
+}	// namespace giss

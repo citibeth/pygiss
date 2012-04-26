@@ -1,3 +1,5 @@
+#include <string>
+
 namespace giss {
 
 class ZD11_f;		// Fortran type, opaque
@@ -5,10 +7,8 @@ class ZD11;
 
 }
 
-extern "C" {
-	void ZD11_c_init_(ZD11 &, ZD11_f &, int m, int n, int ne);
-	int ZD11_put_type_c_(ZD11_f &, char *, int);
-}
+extern "C" int ZD11_c_init_(giss::ZD11 self, giss::ZD11_f &main, int m, int n, int ne);
+extern "C" int ZD11_put_type_c_(giss::ZD11_f &, char const *, int);
 
 namespace giss {
 

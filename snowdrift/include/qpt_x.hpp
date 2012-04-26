@@ -9,7 +9,7 @@ class QPT_problem;			// C++ class
 
 // =============== Fortran Subroutines
 extern "C" {
-	QPT_problem_f *QPT_problem_new_c_();
+	giss::QPT_problem_f *QPT_problem_new_c_();
 	void QPT_problem_delete_c_(giss::QPT_problem_f *ptr);
 	void QPT_problem_c_init_(
 		giss::QPT_problem *self, giss::QPT_problem_f *main,

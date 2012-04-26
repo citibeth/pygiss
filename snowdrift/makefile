@@ -14,6 +14,7 @@ f90_deps.mk : $(SNOWDRIFT_LIB_SRC_F90) $(wildcard smain/*.f90 smain/*.F90)
 
 # Must be Fortran-enabled
 NETCDF_HOME=$(HOME)/opt/netcdf-4.1.3
+BLITZ_HOME=$(HOME)/opt/blitz
 CGAL_HOME=/opt/local
 BOOST_HOME=/opt/local
 GALAHAD=$(HOME)/qp/galahad/galahad
@@ -29,7 +30,7 @@ FORTRAN_COMMAND_LINE = gfortran $(FFLAGS) -g -c -o $(basename $<).o
 FORTRAN_INCLUDES = -I$(GALAHAD)/modules/$(GALAHAD_ARCH)/double -I$(NETCDF_HOME)/include -I.
 FFLAGS = -shared -fPIC $(FORTRAN_INCLUDES)
 
-CXX_INCLUDES = -Iinclude -I$(PYTHON_INCLUDE) -I$(NUMPY_INCLUDE)
+CXX_INCLUDES = -Iinclude -I$(PYTHON_INCLUDE) -I$(NUMPY_INCLUDE) -I$(BLITZ_HOME)/include
 CXXFLAGS = -shared -fPIC -MD -g -frounding-math --std=c++0x $(CXX_INCLUDES)
 C_INCLUDES = -Iinclude -I$(PYTHON_INCLUDE) -I$(NUMPY_INCLUDE)
 CFLAGS = -shared -fPIC -MD -g -frounding-math $(C_INCLUDES)
@@ -52,7 +53,8 @@ SNOWDRIFT_LIB_LIBS = \
 	-lgalahad_lapack -lgalahad_blas -lgomp \
 	-L$(NETCDF_HOME)/lib -lnetcdff -lnetcdf -lnetcdf_c++ \
 	-L$(CGAL_HOME)/lib -lCGAL -lmpfr -lgmp -lproj \
-	-L$(BOOST_HOME)/lib -lboost_thread-mt
+	-L$(BOOST_HOME)/lib -lboost_thread-mt \
+	-L$(BLITZ_HOME)/lib -lblitz
 
 
 test :

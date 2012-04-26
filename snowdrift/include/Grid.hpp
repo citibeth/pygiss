@@ -62,7 +62,7 @@ public:
 	GridCell const &operator[](int index)
 		{ return _cells[index]; }
 
-	static std::unique_ptr<Grid> from_netcdf(std::string const &fname, std::string const &grid_var_name);
+	static std::unique_ptr<Grid> netcdf_read(NcFile &nc, std::string const &grid_var_name);
 
 	/** Prepare for display of a function on this grid. */
 	void rasterize(

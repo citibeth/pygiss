@@ -7,26 +7,11 @@
 
 namespace giss {
 
-
-class Overlap {
-public :
-//	int const index;
-
-	/// Total amount of this grid cell that participates in the overlap
-	double total_coverage;
-
-	Overlap(int _index) : index(_index), total_coverage(nan) {}
-};
-
+/** Used to generate the overlap matrix, not a data structure to read it back in. */
 class OverlapMatrix {
 
 	Grid *grid1, *grid2;
 
-//	/** Index of the grid cells that have actually
-//	overlapped in the two grids. */
-//	std::map<int, Overlap> used[2];
-//
-//	std::vector<SparseCell> overlaps;
 	VectorSparseMatrix overlaps;
 
 public :
