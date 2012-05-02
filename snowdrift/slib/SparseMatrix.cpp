@@ -88,5 +88,6 @@ std::unique_ptr<VectorSparseMatrix> VectorSparseMatrix::netcdf_read(
 	return std::unique_ptr<VectorSparseMatrix>(new VectorSparseMatrix(descr,
 		std::move(indx), std::move(jndx), std::move(val)));
 }
+// =====================================================================
 
-}
+}	// namespace giss

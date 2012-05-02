@@ -42,7 +42,8 @@ static int Grid_init(GridDict *self, PyObject *args, PyObject *kwds)
 
 	// Instantiate pointer
 	if (self->grid) delete self->grid;
-	self->grid = Grid::from_netcdf(std::string(fname), std::string(vname)).release();
+	NcFile nc(fname, NcFile::ReadOnly);
+	self->grid = Grid::netcdf_read(nc, std::string(vname)).release();
 fprintf(stderr, "Grid_new() returns %p\n", self->grid);
 
 	return 0;

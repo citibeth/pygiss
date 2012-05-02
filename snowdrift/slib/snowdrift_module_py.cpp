@@ -1,7 +1,6 @@
 #include <Python.h>
 #include <arrayobject.h>
 #include <math.h>
-#include "snowdrift.h"
 
 extern PyTypeObject SnowdriftType;
 extern PyTypeObject GridType;

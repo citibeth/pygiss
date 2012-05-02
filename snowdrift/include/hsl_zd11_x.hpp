@@ -1,3 +1,5 @@
+#pragma once
+
 #include <string>
 
 namespace giss {
@@ -24,6 +26,9 @@ public :
 	int * const row;		// int[m]
 	int * const col;		// int[n]
 	double * const val;		// double[ne]
+
+	ZD11() : main(*(ZD11_f *)0), m(*(int *)0), n(*(int *)0), ne(*(int *)0),
+		row(0), col(0), val(0) {}
 
 	// Set the type parameter in the ZD11 data structure
 	int put_type(std::string const &str)

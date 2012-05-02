@@ -1,3 +1,5 @@
+#pragma once 
+
 #include <map>
 #include <boost/function.hpp>
 #include <boost/bind.hpp>
@@ -60,13 +62,14 @@ public:
 	void add(int row, int col, double const val)
 		{ set(row, col, val, DuplicatePolicy::ADD); }
 
-	virtual boost::function<void ()> netcdf_define(NcFile &nc, std::string const &vname);
+	virtual boost::function<void ()> netcdf_define(NcFile &nc, std::string const &vname) = 0;
 
-	virtual void multiply(double const * x, double *y, bool clear_y = true);
-	virtual std::vector<double> sum_per_row();
-	virtual std::vector<double> sum_per_col();
-	virtual std::map<int,double> sum_per_row_map();
-	virtual std::map<int,double> sum_per_col_map();
+	virtual void multiply(double const * x, double *y, bool clear_y = true) = 0;
+	virtual void multiplyT(double const * x, double *y, bool clear_y = true) = 0;
+	virtual std::vector<double> sum_per_row() = 0;
+	virtual std::vector<double> sum_per_col() = 0;
+	virtual std::map<int,double> sum_per_row_map() = 0;
+	virtual std::map<int,double> sum_per_col_map() = 0;
 
 };
 
@@ -80,10 +83,11 @@ protected:
 	SparseMatrix1(SparseDescr const &descr) :
 		SparseMatrix0T(descr) {}
 public:
-	void set(int row, int col, double const val, SparseMatrix::DuplicatePolicy dups);
+	void set(int row, int col, double const val, SparseMatrix::DuplicatePolicy dups = SparseMatrix::DuplicatePolicy::REPLACE);
 	boost::function<void ()> netcdf_define(NcFile &nc, std::string const &vname);
 
 	void multiply(double const * x, double *y, bool clear_y = true);
+	void multiplyT(double const * x, double *y, bool clear_y = true);
 	std::vector<double> sum_per_row();
 	std::vector<double> sum_per_col();
 	std::map<int,double> sum_per_row_map();
@@ -170,6 +174,22 @@ void SparseMatrix1<SparseMatrix0T>::multiply(double const * x, double *y, bool c
 		y[iy] += ii.val() * x[ix];
 	}
 }
+
+/// Computes y = A^T * x
+template<class SparseMatrix0T>
+void SparseMatrix1<SparseMatrix0T>::multiplyT(double const * x, double *y, bool clear_y)
+{
+	int nx = this->nrow;
+	int ny = this->ncol;
+	if (clear_y) for (int iy = 0; iy < ny; ++iy) y[iy] = 0;
+	for (auto ii = this->begin(); ii != this->end(); ++ii) {
+		int iy = ii.col();
+		int ix = ii.row();
+		y[iy] += ii.val() * x[ix];
+	}
+}
+
+
 
 // ------------------------------------------------------------
 template<class SparseMatrix0T>
@@ -284,12 +304,13 @@ protected:
 // -----------------------------------------------------------------
 class ZD11SparseMatrix : public SparseMatrix1<ZD11SparseMatrix0>
 {
+public:
 	/** Call this after ZD11 has been initialized
 	@param _zd11 Pointer to Fortran structure. */
 	ZD11SparseMatrix(ZD11 &__zd11, int nnz_cur,
-		MatrixStructure matrix_structure,
-		TriangularType triangular_type,
-		MainDiagonalType main_diagonal_type)
+		MatrixStructure matrix_structure = MatrixStructure::GENERAL,
+		TriangularType triangular_type = TriangularType::GENERAL,
+		MainDiagonalType main_diagonal_type = MainDiagonalType::NON_UNIT)
 	: SparseMatrix1<ZD11SparseMatrix0>(SparseDescr(__zd11.m, __zd11.n, 1,
 	matrix_structure, triangular_type, main_diagonal_type))
 	{
@@ -347,6 +368,12 @@ protected :
 
 class VectorSparseMatrix : public SparseMatrix1<VectorSparseMatrix0>
 {
+public:
+	VectorSparseMatrix(SparseDescr const &descr) :
+	SparseMatrix1<VectorSparseMatrix0>(descr)
+	{}
+
+
 	/** Construct from existing vectors */
 	VectorSparseMatrix(SparseDescr const &descr,
 		std::vector<int> &&_indx,
@@ -413,6 +440,7 @@ protected :
 // ---------------------------------------------------------------
 class MapSparseMatrix : public SparseMatrix1<MapSparseMatrix0>
 {
+public:
 	MapSparseMatrix(SparseDescr const &descr) :
 		SparseMatrix1<MapSparseMatrix0>(descr) {}
 };

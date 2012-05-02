@@ -4,6 +4,7 @@
 #include <netcdfcpp.h>
 #include "GridCell.hpp"
 #include "RTree.h"
+#include "SparseMatrix.hpp"
 
 class NcFile;
 
@@ -11,8 +12,10 @@ namespace giss {
 
 
 class Grid {
+public:
 	typedef ::RTree<GridCell const *, double, 2, double> RTree;
 
+private:
 	std::map<int, GridCell> _cells;
 
 	// Bounding box for overall grid after all cells have been added
@@ -72,10 +75,10 @@ public:
 		double *out, int xstride, int ystride);
 
 	/** @param mask[size()] >=0 if we want to include this grid cell */
-	virtual std::unique_ptr<MapSparseMatrix> void get_smoothing_matrix(int *mask) {}
+	virtual std::unique_ptr<MapSparseMatrix> get_smoothing_matrix(std::set<int> const &mask) {}
 
 
-
+#if 0
 	/** Used to divide up a grid cell in the face of elevation classes */
 	GridCell sub_by_elevation_class(
 		GridCell const &gc0,
@@ -86,6 +89,7 @@ public:
 		int index1 = (gc0.index - index_base) * num_elevation_class
 			+ (elevation_class - min_elevation_class) + index_base;
 	}
+#endif
 
 
 };

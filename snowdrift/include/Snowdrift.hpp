@@ -1,15 +1,14 @@
+#pragma once
+
 #include <algorithm>
 #include <memory>
 #include <blitz/array.h>
 #include "qpt_x.hpp"
 
-//#include "Grid.hpp"
-//#include "SparseMatrix.hpp"
+#include "Grid.hpp"
+#include "SparseMatrix.hpp"
 
 namespace giss {
-
-class Grid;
-class VectorSparseMatrix;
 
 /**
 <pre>The following suffixes are used in variable names
@@ -23,8 +22,10 @@ class VectorSparseMatrix;
 </pre>
 */
 class Snowdrift {
+public:
+	int num_hclass;
 
-enum class MergeOrReplace {REPLACE, MERGE};
+	enum class MergeOrReplace {MERGE, REPLACE};
 
 	// ------- Original Grids and overlap matrix read from netCDF file
 	std::unique_ptr<Grid> grid1;
@@ -63,9 +64,9 @@ enum class MergeOrReplace {REPLACE, MERGE};
 	std::vector<int> _i2p_to_i2;			// Converts i2p --> i2
 
 	inline int i2_to_i2p(int i2)
-		{ return _i2_to_i2p(i2); }
+		{ return _i2_to_i2p[i2]; }
 	inline int i2p_to_i2(int i2p)
-		{ return _i2p_to_i2(i2p); }
+		{ return _i2p_to_i2[i2p]; }
 
 	std::vector<double> overlap_area1hp;	// Same as proj_area1hp.  By definition, height-classified parts of grid1 are only portions that overlap grid2
 	std::vector<double> &proj_area1hp;
@@ -76,12 +77,13 @@ enum class MergeOrReplace {REPLACE, MERGE};
 
 	std::vector<GridCell const *> grid2p;
 
+public:
 	// ---------------- Methods...
 
 	/** Loads basic grid and overlap info from a NetCDF file */
-	void Snowdrift(std::string const &fname);
+	Snowdrift(std::string const &fname);
 
-	void Snowdrift(
+	Snowdrift(
 	std::unique_ptr<Grid> _grid1,
 	std::unique_ptr<Grid> _grid2,
 	std::unique_ptr<VectorSparseMatrix> _overlap);
@@ -103,7 +105,7 @@ enum class MergeOrReplace {REPLACE, MERGE};
 	@param Z2 output, for regridded data.
 	@param merge true to merge in results, false for replace
 	*/
-	void downgrid(
+	bool downgrid(
 	std::vector<blitz::Array<double,1>> const &Z1,
 	blitz::Array<double,1> &Z2,
 	MergeOrReplace merge_or_replace,
@@ -115,8 +117,10 @@ enum class MergeOrReplace {REPLACE, MERGE};
 	@param merge true to merge in results, false for replace
 	*/
 	void upgrid(
-	std::vector<blitz::Array<double,1>> const &Z2,
-	blitz::Array<double,1> &Z1,
+	blitz::Array<double,1> const &Z2,
+	std::vector<blitz::Array<double,1>> &Z1,
 	MergeOrReplace merge_or_replace);
 
 };
+
+}	// namespace giss

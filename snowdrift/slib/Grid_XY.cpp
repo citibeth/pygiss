@@ -123,29 +123,30 @@ const int derivative_x[4] = {-1, 1, 0, 0};
 const int derivative_y[4] = {0, 0, -1, 1};
 
 /** @param mask[size()] >=0 if we want to include this grid cell */
-std::unique_ptr<MapSparseMatrix> Grid_XY::get_smoothing_matrix(int *mask)
+std::unique_ptr<MapSparseMatrix> Grid_XY::get_smoothing_matrix(std::set<int> const &mask)
 {
 	// Allocate the matrix
 	int nx = x_boundaries.size() - 1;
 	int ny = y_boundaries.size() - 1;
 	int nxy = nx * ny;
-	std::unique_ptr<MapSparseMatrix> H(
+	std::unique_ptr<MapSparseMatrix> H(new MapSparseMatrix(
 		SparseDescr(nxy, nxy, index_base,
-		MatrixStructure::SYMMETRIC, TriangularType::LOWER, 0,
-		DuplicatePolicy::BOTH));
+		SparseMatrix::MatrixStructure::SYMMETRIC,
+		SparseMatrix::TriangularType::LOWER)));
 
-	for (size_t index0=0; index0<size(); ++index0) {
-		if (mask[index0] < 0) continue;		// Skip inactive cells
+	for (auto ii = mask.begin(); ii != mask.end(); ++ii) {
+		int index0 = *ii;
 
 		int y0i = index0 / nx;
 		int x0i = index0 - y0i*nx;
 
-		for (int di=0; int di < 4; ++di) {
+		for (int di=0; di < 4; ++di) {
 			int x1i = x0i + derivative_x[di];
 			if (x1i < 0 || x1i >= nx) continue;
 			int y1i = y0i + derivative_y[di];
 			if (y1i < 0 || y1i >= ny) continue;
-			if (mask[index1] < 0) continue;		// Neighbor is inactive, skip
+			int index1 = y1i * nx + x1i;
+			if (mask.find(index1) == mask.end()) continue;		// Neighbor is inactive, skip
 
 			// Get distance between centers of the two gridcells
 			double deltax_x2 =
@@ -158,15 +159,10 @@ std::unique_ptr<MapSparseMatrix> Grid_XY::get_smoothing_matrix(int *mask)
 			// weight = 1 / |(x1,y1) - (x0,y0)|
 			double weight = 4.0 / (deltax_x2*deltax_x2 + deltay_x2*deltay_x2);
 
-            // Add (Z1 - Z0)^2 to our objective function
-            // (But the calls to sparsebuilder won't add anything if
-            // index0 and index1 aren't both active cells.)
-			int index1 = y1i*nx + x1i;
-
 			// Add it to our matrix
-			H.add(index0+index_base, index0+index_base, weight);
-			H.add(index1+index_base, index1+index_base, weight);
-			H.add(index0+index_base, index1+index_base, -weight);
+			H->add(index0, index0, weight);
+			H->add(index1, index1, weight);
+			H->add(index0, index1, -weight);
 		}
 	}
 

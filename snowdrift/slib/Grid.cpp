@@ -287,9 +287,10 @@ void Grid_rasterize(
 	grid->rasterize(x0, x1, nx, y0, y1, ny, data, data_stride, out, xstride, ystride);
 }
 
+
 /** @param fname Name of file to load from (eg, an overlap matrix file)
 @param vname Eg: "grid1" or "grid2" */
-std::unique_ptr<Grid> Grid::from_netcdf(
+std::unique_ptr<Grid> Grid::netcdf_read(
 //std::string const &fname,
 NcFile &nc,
 std::string const &vname)
@@ -326,7 +327,7 @@ std::string const &vname)
 		grid->add_cell(GridCell(poly, indices[i], native_area[i]));
 	}
 
-	fprintf(stderr, "Read %s:%s with %ld grid cells\n", fname.c_str(), vname.c_str(), grid->size());
+//	fprintf(stderr, "Read %s:%s with %ld grid cells\n", fname.c_str(), vname.c_str(), grid->size());
 	return grid;
 }
 

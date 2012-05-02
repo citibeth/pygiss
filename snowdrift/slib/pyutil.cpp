@@ -1,5 +1,6 @@
 #include <Python.h>
 #include <arrayobject.h>
+#include <vector>
 
 namespace giss {
 
@@ -13,5 +14,38 @@ bool is_doublevector(PyArrayObject *vec)  {
 	}
 	return true;
 }
+
+/** @param type_num See http://docs.scipy.org/doc/numpy/reference/c-api.dtype.html eg: NPY_DOUBLE */
+bool check_dimensions(PyArrayObject *vec, int type_num, 
+std::vector<int> const &dims)
+{
+	if (!vec) {
+		PyErr_SetString(PyExc_ValueError,
+			"check_dimensions: Array object is null");
+		return false;
+	}
+
+	int const ndim = dims.size();
+	if (vec->descr->type_num != type_num || vec->nd != ndim)  {
+		char buf[200];
+		sprintf(buf, "check_dimensions: array must be of type_num %d and %d dimensions.", type_num, ndim);
+		PyErr_SetString(PyExc_ValueError, buf);
+		return false;
+	}
+
+	for (int i=0; i<dims.size(); ++i) {
+		if (dims[i] < 0) continue;		// Don't check this dimension
+		if (dims[i] != vec->dimensions[i]) {
+			char buf[200];
+			sprintf(buf,
+				"check_dimensions: Array dimension #%d is %d, should be %d",
+				i, vec->dimensions[i], dims[i]);
+			PyErr_SetString(PyExc_ValueError, buf);
+			return false;
+		}
+	}
+	return true;
+}
+
 
 }

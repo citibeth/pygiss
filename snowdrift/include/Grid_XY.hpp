@@ -42,7 +42,7 @@ public:
 
 	 boost::function<void()> netcdf_define(NcFile &nc, std::string const &generic_name) const;
 
-	std::unique_ptr<MapSparseMatrix> void get_smoothing_matrix(int *mask);
+	std::unique_ptr<MapSparseMatrix> get_smoothing_matrix(std::set<int> const &mask);
 
 };
 

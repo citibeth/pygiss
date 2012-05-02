@@ -75,6 +75,8 @@ type(ZD11_c) :: self
 type(ZD11_type), pointer :: main
 integer, value :: m, n, ne
 
+integer :: stat
+
 	main%m = m
 	main%n = n
 	main%ne = ne
@@ -90,7 +92,7 @@ integer, value :: m, n, ne
 	allocate(main%val(ne))
 	self%val = c_loc_array_double(main%val)
 
-	call ZD11_put(main%type, 'COORDINATE')
+	call ZD11_put(main%type, 'COORDINATE', stat)
 end subroutine ZD11_c_init
 
 

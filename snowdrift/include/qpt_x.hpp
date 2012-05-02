@@ -1,3 +1,5 @@
+#pragma once
+
 #include "hsl_zd11_x.hpp"
 
 namespace giss {
@@ -8,14 +10,12 @@ class QPT_problem;			// C++ class
 }
 
 // =============== Fortran Subroutines
-extern "C" {
-	giss::QPT_problem_f *QPT_problem_new_c_();
-	void QPT_problem_delete_c_(giss::QPT_problem_f *ptr);
-	void QPT_problem_c_init_(
+extern "C" giss::QPT_problem_f *qpt_problem_new_c_();
+extern "C" void qpt_problem_delete_c_(giss::QPT_problem_f *ptr);
+extern "C" void qpt_problem_c_init_(
 		giss::QPT_problem *self, giss::QPT_problem_f *main,
 		int m, int n,
 		int A_ne, int H_ne, int eqp_bool);
-}
 // =============== C++ Peer Classes
 
 namespace giss {
@@ -42,19 +42,21 @@ public :
 	/** @param A_ne Number of elements in the constraint matrix */
 	QPT_problem(
 		int m, int n,
-		int A_ne, int H_ne, bool eqp)
+		int A_ne, int H_ne, bool eqp) :
+	main(*(QPT_problem_f *)0),
+	m(*(int *)0),
+	n(*(int *)0),
+	f(*(double *)0),
+	G(0), X_l(0), X_u(0), C(0), C_l(0), C_u(0), X(0), Y(0), Z(0)
 	{
-		QPT_problem_f *main = QPT_problem_new_c_();
-		QPT_problem_c_init_(this, main, m, n, A_ne, H_ne, eqp);
+		QPT_problem_f *main = qpt_problem_new_c_();
+		qpt_problem_c_init_(this, main, m, n, A_ne, H_ne, eqp);
 	}
 
 	~QPT_problem()
 	{
-		QPT_problem_delete_c_(&main);
+		qpt_problem_delete_c_(&main);
 	}
 };
 
-
-
-
-}
+}	// namespace giss

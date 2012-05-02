@@ -1,8 +1,9 @@
 #include <Python.h>
 #include <arrayobject.h>
 #include <math.h>
-#include "snowdrift.h"
 #include "pyutil.hpp"
+#include "Snowdrift.hpp"
+#include <blitz/array.h>
 
 using namespace giss;
 
@@ -10,7 +11,7 @@ using namespace giss;
 /// Classmembers of the Python class
 typedef struct {
 	PyObject_HEAD
-	giss::Snowdrift *snowdrift_f;	// Fortran-allocated snowdrift pointer
+	giss::Snowdrift *snowdrift;
 } SnowdriftDict;
 
 // ========= class snowdrift.Snowdrift :
@@ -22,7 +23,7 @@ static PyObject *Snowdrift_new(PyTypeObject *type, PyObject *args, PyObject *kwd
 	self = (SnowdriftDict *)type->tp_alloc(type, 0);
 
     if (self != NULL) {
-		self->snowdrift_f = NULL;
+		self->snowdrift = NULL;
     }
 
     return (PyObject *)self;
@@ -40,112 +41,95 @@ static int Snowdrift_init(SnowdriftDict *self, PyObject *args, PyObject *kwds)
 		return 0;
 	}
 
-printf("Snowdrift_init(%s) called, snowdrift_f=%p\n", fname, self->snowdrift_f);
+printf("Snowdrift_init(%s) called, snowdrift=%p\n", fname, self->snowdrift);
 
 	// Instantiate pointer
-	if (self->snowdrift_f) snowdrift_delete_c_(self->snowdrift_f);
-	self->snowdrift_f = snowdrift_new_c_(fname, strlen(fname));
+	if (self->snowdrift) delete self->snowdrift;
+	self->snowdrift = new giss::Snowdrift(std::string(fname));
 
-
-printf("snowdrift_f = %p\n", self->snowdrift_f);
+printf("snowdrift = %p\n", self->snowdrift);
 
 	return 0;
 }
 
 static void Snowdrift_dealloc(SnowdriftDict *self)
 {
-	if (self->snowdrift_f) snowdrift_delete_c_(self->snowdrift_f);
-	self->snowdrift_f = NULL;
+	if (self->snowdrift) delete self->snowdrift;
+	self->snowdrift = NULL;
 	self->ob_type->tp_free((PyObject *)self);
 }
 
-//static PyMemberDef Snowdrift_members[] = {{NULL}};
-
-
-static PyObject * Snowdrift_downgrid_snowdrift(SnowdriftDict *self, PyObject *args)
+static std::vector<blitz::Array<double,1>> py_to_blitz_Z1(PyArrayObject *Z1_py, int num_hclass)
 {
-	// Get Arguments
-	PyArrayObject *Z1;
-	PyArrayObject *Z2;
+	// ======== Convert to Blitz++ arrays
+    blitz::TinyVector<int,1> shape(0);
+		shape[0] = Z1_py->dimensions[0];
+    blitz::TinyVector<int,1> strides(0);
+		strides[0] = Z1_py->strides[0] / sizeof(double);
+	std::vector<blitz::Array<double,1>> Z1;
+	for (int heighti = 0; heighti < num_hclass; ++heighti) {
+		Z1.push_back(blitz::Array<double,1>(
+			(double *)Z1_py->data + (Z1_py->strides[1] / sizeof(double)) * heighti,
+			shape, strides, blitz::neverDeleteData));
+	}
+	return Z1;
+}
+
+
+static PyObject * Snowdrift_downgrid(SnowdriftDict *self, PyObject *args, PyObject *keywords)
+{
+	Snowdrift * const sd(self->snowdrift);
+
+	// ======== Parse and typecheck the arguments
+	PyArrayObject *Z1_py;
+	PyArrayObject *Z2_py;
+	Snowdrift::MergeOrReplace merge_or_replace = Snowdrift::MergeOrReplace::MERGE;
+	int use_snowdrift = 0;
 // For some reason, this didn't work.  Maybe a reference count problem.
 //	if (!PyArg_ParseTuple(args, "O!O!",
-//		&PyArray_Type, &Z1,
-//		&PyArray_Type, &Z2))
-	if (!PyArg_ParseTuple(args, "OO", &Z1, &Z2))
-	{
-		return NULL;
-	}
+//		&PyArray_Type, &Z1_py,
+//		&PyArray_Type, &Z2_py))
+	static char const *keyword_list[] = {"Z1", "Z2", "merge_or_replace", "use_snowdrift"};
+	if (!PyArg_ParseTupleAndKeywords(
+		args, keywords, "OO|ii",
+		const_cast<char **>(keyword_list),
+		&Z1_py, &Z2_py, &merge_or_replace, &use_snowdrift)) return NULL;
 
+	if (!check_dimensions(Z1_py, NPY_DOUBLE, {sd->n1, sd->num_hclass})) return NULL;
+	if (!check_dimensions(Z2_py, NPY_DOUBLE, {sd->n2})) return NULL;
 
-	// if (NULL == Z1)  return NULL;
-	// if (NULL == Z2)  return NULL;
-	
-	/* Check that objects are 'double' type and vectors */
-	if (!is_doublevector(Z1)) return NULL;
-	if (!is_doublevector(Z2)) return NULL;
+	std::vector<blitz::Array<double,1>> Z1(py_to_blitz_Z1(Z1_py, sd->num_hclass));
+	auto Z2(py_to_blitz<double,1>(Z2_py));
 
-double *z1 = (double *)Z1->data;
-int dim = Z1->dimensions[0];
-printf("z1[%d] = %f %f %f...\n", dim, z1[0], z1[1], z1[2]);
-printf("snowdrift_f = %p\n", self->snowdrift_f);
-	
-	int ret = snowdrift_downgrid_snowdrift_c_(self->snowdrift_f,
-		(double *)Z1->data, 1, // Z1->dimensions[0],
-		(double *)Z2->data, 1); //Z2->dimensions[0]);
+	// ====== Downgrid!
+	bool ret = sd->downgrid(Z1, Z2, merge_or_replace, use_snowdrift);
 
-	return Py_BuildValue("i", ret);
+	return Py_BuildValue("i", (int)ret);
 }
 
-static PyObject * Snowdrift_upgrid(SnowdriftDict *self, PyObject *args)
+static PyObject * Snowdrift_upgrid(SnowdriftDict *self, PyObject *args, PyObject *keywords)
 {
-	// Arguments from Python
-	PyArrayObject *Z2;
-	PyArrayObject *Z1;
-	int merge_or_replace;
+	Snowdrift * const sd(self->snowdrift);
 
-	/* Parse tuples separately since args will differ between C fcns */
-#if 0
-	if (!PyArg_ParseTuple(args, "O!O!",
-		&PyArray_Type, &Z2,
-		&PyArray_Type, &Z1)) return NULL;
-#endif
-	if (!PyArg_ParseTuple(args, "iOO", &merge_or_replace, &Z2, &Z1)) return NULL;
-	
-	/* Check that objects are 'double' type and vectors */
-	if (!is_doublevector(Z2)) return NULL;
-	if (!is_doublevector(Z1)) return NULL;
-	
-	snowdrift_upgrid_c_(self->snowdrift_f, merge_or_replace,
-		(double *)Z2->data, 1, //Z2->dimensions[0],
-		(double *)Z1->data, 1); //, Z1->dimensions[0]);
+	// ======== Parse and typecheck the arguments
+	PyArrayObject *Z2_py;
+	PyArrayObject *Z1_py;
+	Snowdrift::MergeOrReplace merge_or_replace = Snowdrift::MergeOrReplace::MERGE;
 
-	// Returns a Python None value
-	// http://stackoverflow.com/questions/8450481/method-without-return-value-in-python-c-extension-module
-	return Py_BuildValue("");
-}
+	static char const *keyword_list[] = {"Z2", "Z1", "merge_or_replace"};
+	if (!PyArg_ParseTupleAndKeywords(
+		args, keywords, "OO|i",
+		const_cast<char **>(keyword_list),
+		&Z2_py, &Z1_py, &merge_or_replace)) return NULL;
 
-static PyObject * Snowdrift_downgrid(SnowdriftDict *self, PyObject *args)
-{
-	// Arguments from Python
-	PyArrayObject *Z2;
-	PyArrayObject *Z1;
-	int merge_or_replace;
+	if (!check_dimensions(Z2_py, NPY_DOUBLE, {sd->n2})) return NULL;
+	if (!check_dimensions(Z1_py, NPY_DOUBLE, {sd->n1, sd->num_hclass})) return NULL;
 
-	/* Parse tdownles separately since args will differ between C fcns */
-#if 0
-	if (!PyArg_ParseTuple(args, "O!O!",
-		&PyArray_Type, &Z2,
-		&PyArray_Type, &Z1)) return NULL;
-#endif
-	if (!PyArg_ParseTuple(args, "iOO", &merge_or_replace, &Z2, &Z1)) return NULL;
-	
-	/* Check that objects are 'double' type and vectors */
-	if (!is_doublevector(Z2)) return NULL;
-	if (!is_doublevector(Z1)) return NULL;
-	
-	snowdrift_downgrid_c_(self->snowdrift_f, merge_or_replace,
-		(double *)Z2->data, 1, //Z2->dimensions[0],
-		(double *)Z1->data, 1); //, Z1->dimensions[0]);
+	auto Z2(py_to_blitz<double,1>(Z2_py));
+	std::vector<blitz::Array<double,1>> Z1(py_to_blitz_Z1(Z1_py, sd->num_hclass));
+
+	// ====== Upgrid!
+	sd->upgrid(Z2, Z1, merge_or_replace);
 
 	// Returns a Python None value
 	// http://stackoverflow.com/questions/8450481/method-without-return-value-in-python-c-extension-module
@@ -153,40 +137,42 @@ static PyObject * Snowdrift_downgrid(SnowdriftDict *self, PyObject *args)
 }
 
 
-static PyObject * Snowdrift_overlap(SnowdriftDict *self, PyObject *args)
-{
-	// Arguments from Python
-	PyArrayObject *densemat;
-	
-	/* Parse tuples separately since args will differ between C fcns */
-	if (!PyArg_ParseTuple(args, "O", &densemat)) return NULL;
-	
-	/* Check that objects are 'double' type and vectors */
-	if (!is_doublevector(densemat)) return NULL;
-	
-	snowdrift_overlap_c_(self->snowdrift_f,
-		(double *)densemat->data,
-		densemat->strides[0] / sizeof(double),
-		densemat->strides[1] / sizeof(double));
 
-	// Returns a Python None value
-	// http://stackoverflow.com/questions/8450481/method-without-return-value-in-python-c-extension-module
-	return Py_BuildValue("");
-}
+// static PyObject * Snowdrift_overlap(SnowdriftDict *self, PyObject *args)
+// {
+// 	// Arguments from Python
+// 	PyArrayObject *densemat;
+// 	
+// 	/* Parse tuples separately since args will differ between C fcns */
+// 	if (!PyArg_ParseTuple(args, "O", &densemat)) return NULL;
+// 	if (!check_dimensions(densemat, NPY_DOUBLE, {sd->n1, sd->n2})) return NULL;
+// 
+// 
+// 	
+// 	/* Check that objects are 'double' type and vectors */
+// 	if (!is_doublevector(densemat)) return NULL;
+// 	
+// 	snowdrift_overlap_c_(self->snowdrift_f,
+// 		(double *)densemat->data,
+// 		densemat->strides[0] / sizeof(double),
+// 		densemat->strides[1] / sizeof(double));
+// 
+// 	// Returns a Python None value
+// 	// http://stackoverflow.com/questions/8450481/method-without-return-value-in-python-c-extension-module
+// 	return Py_BuildValue("");
+// }
 
 
 
 
 static PyMethodDef Snowdrift_methods[] = {
 	// {"__init__", Snowdrift_init
-	{"downgrid_snowdrift", (PyCFunction)Snowdrift_downgrid_snowdrift, METH_VARARGS,
-		"Convert from grid1 to grid2 using Snowdrift regridding method"},
 	{"upgrid", (PyCFunction)Snowdrift_upgrid, METH_VARARGS,
 		"Convert from grid2 to grid1, simple overlap matrix multiplication"},
 	{"downgrid", (PyCFunction)Snowdrift_downgrid, METH_VARARGS,
 		"Convert from grid1 to grid2, simple overlap matrix multiplication"},
-	{"overlap", (PyCFunction)Snowdrift_overlap, METH_VARARGS,
-		"Obtain the overlap matrix (in dense form)"},
+//	{"overlap", (PyCFunction)Snowdrift_overlap, METH_VARARGS,
+//		"Obtain the overlap matrix (in dense form)"},
 	{NULL}     /* Sentinel - marks the end of this structure */
 };
 
