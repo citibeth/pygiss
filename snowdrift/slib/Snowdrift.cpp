@@ -8,14 +8,19 @@ namespace giss {
 Snowdrift::Snowdrift(std::string const &fname)
  : proj_area1hp(overlap_area1hp)
 {
+	NcFile nc(fname.c_str());
+	grid1 = Grid::netcdf_read(nc, "grid1");
+	grid2 = Grid::netcdf_read(nc, "grid2");
+	overlap = VectorSparseMatrix::netcdf_read(nc, "overlap");
+	nc.close();
 }
 
 
 
 Snowdrift::Snowdrift(
-std::unique_ptr<Grid> _grid1,
-std::unique_ptr<Grid> _grid2,
-std::unique_ptr<VectorSparseMatrix> _overlap) :
+std::unique_ptr<Grid> &&_grid1,
+std::unique_ptr<Grid> &&_grid2,
+std::unique_ptr<VectorSparseMatrix> &&_overlap) :
 	grid1(std::move(_grid1)), grid2(std::move(_grid2)), overlap(std::move(_overlap)), proj_area1hp(overlap_area1hp)
 {}
 
@@ -35,8 +40,10 @@ blitz::Array<int,1> const &mask2,
 std::vector<blitz::Array<double,1>> const &height_max1)
 {
 	num_hclass = height_max1.size();
-	n1 = grid1->size();
-	n2 = grid2->size();
+	n1 = grid1->max_index - grid1->index_base + 1;
+	n2 = grid2->max_index - grid2->index_base + 1;
+printf("grid1->size() == %ld\n", grid1->size());
+printf("grid2->size() == %ld\n", grid2->size());
 	n1h = n1 * num_hclass;
 
 	// Create a height-classified overlap matrix

@@ -84,9 +84,9 @@ public:
 	Snowdrift(std::string const &fname);
 
 	Snowdrift(
-	std::unique_ptr<Grid> _grid1,
-	std::unique_ptr<Grid> _grid2,
-	std::unique_ptr<VectorSparseMatrix> _overlap);
+	std::unique_ptr<Grid> &&_grid1,
+	std::unique_ptr<Grid> &&_grid2,
+	std::unique_ptr<VectorSparseMatrix> &&_overlap);
 
 	/**
 	@param overlap [n1 x n2] Overlap matrix between grid1 and grid2

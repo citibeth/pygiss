@@ -7,8 +7,8 @@ namespace giss {
 
 bool is_doublevector(PyArrayObject *vec);
 
-bool check_dimensions(PyArrayObject *vec, int type_num, 
-std::vector<int> const &dims);
+bool check_dimensions(PyArrayObject *vec, std::string const &vec_name,
+	int type_num, std::vector<int> const &dims);
 
 /** Convert a Numpy array to a blitz one, using the original's data (no copy).
 N is the rank of the array.

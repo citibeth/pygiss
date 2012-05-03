@@ -1,6 +1,7 @@
 #include <Python.h>
 #include <arrayobject.h>
 #include <vector>
+#include <string>
 
 namespace giss {
 
@@ -16,14 +17,16 @@ bool is_doublevector(PyArrayObject *vec)  {
 }
 
 /** @param type_num See http://docs.scipy.org/doc/numpy/reference/c-api.dtype.html eg: NPY_DOUBLE */
-bool check_dimensions(PyArrayObject *vec, int type_num, 
+bool check_dimensions(PyArrayObject *vec, std::string const &vec_name, int type_num, 
 std::vector<int> const &dims)
 {
+printf("BB1\n");
 	if (!vec) {
 		PyErr_SetString(PyExc_ValueError,
 			"check_dimensions: Array object is null");
 		return false;
 	}
+printf("BB1\n");
 
 	int const ndim = dims.size();
 	if (vec->descr->type_num != type_num || vec->nd != ndim)  {
@@ -32,18 +35,20 @@ std::vector<int> const &dims)
 		PyErr_SetString(PyExc_ValueError, buf);
 		return false;
 	}
+printf("BB1\n");
 
 	for (int i=0; i<dims.size(); ++i) {
 		if (dims[i] < 0) continue;		// Don't check this dimension
 		if (dims[i] != vec->dimensions[i]) {
 			char buf[200];
 			sprintf(buf,
-				"check_dimensions: Array dimension #%d is %d, should be %d",
-				i, vec->dimensions[i], dims[i]);
+				"%s: Array dimension #%d is %d, should be %d",
+				vec_name.c_str(), i, vec->dimensions[i], dims[i]);
 			PyErr_SetString(PyExc_ValueError, buf);
 			return false;
 		}
 	}
+printf("BB1\n");
 	return true;
 }
 

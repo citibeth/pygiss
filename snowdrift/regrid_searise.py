@@ -126,12 +126,26 @@ cax2 = plot_image(ax, ZH0_r, np.array([x0,x1,y0,y1])/km)
 fig.colorbar(cax2)
 ax.plot(greenland_xy[0]/km, greenland_xy[1]/km, 'black', alpha=.5)
 
-# ================ Upgrid it to the GCM Grid
-sd = snowdrift.Snowdrift(overlap_fname)
+# ============= Set up Snowdrift data structures
 grid1_var = nc.variables['grid1.info']
-ZG0_len = grid1_var.__dict__['max_index'] - grid1_var.__dict__['index_base'] + 1
-ZG0 = np.zeros(ZG0_len)
-sd.upgrid(0, ZH0, ZG0)		# 0 = Replace, 1 = Merge
+	n1 = grid1_var.__dict__['max_index'] - grid1_var.__dict__['index_base'] + 1
+grid2_var = nc.variables['grid2.info']
+	n2 = grid2_var.__dict__['max_index'] - grid2_var.__dict__['index_base'] + 1
+#info = sd.info()
+#	n1 = info['n1']
+#	n2 = info['n2']
+
+sd = snowdrift.Snowdrift(overlap_fname)
+nheight_class = 1
+
+elevation2 = np.array(searise_nc.variables[field_name], dtype='d').flatten('C')
+mask2 = np.ones((n2,))
+height_max1 = np.ones((n1,nheight_class)) * 1e20
+
+sd.init(elevation2, mask2, height_max1[n1,nhclass])
+
+# ================ Upgrid it to the GCM Grid
+sd.upgrid(ZH0, ZG0)		# 1 = Replace, 0 = Merge
 
 
 # =============== Rasterize on the GCM Grid
@@ -162,9 +176,8 @@ ax.plot(greenland_xy[0]/km, greenland_xy[1]/km, 'black', alpha=.5)
 
 # ================ Downgrid to the ice grid
 ZH1 = np.zeros(ice_nx*ice_ny)
-#sd.downgrid(0, ZG0, ZH1)		# Simple downgridding
 time0 = time.time()
-sd.downgrid_snowdrift(ZG0, ZH1)
+sd.downgrid(ZG0, ZH1, 1)	# 1 = use snowdrift, 0 = simple HNTR
 time1 = time.time()
 print ZH1[1:200]
 print 'Finished with Downgrid, took %f seconds' % (time1-time0,)
