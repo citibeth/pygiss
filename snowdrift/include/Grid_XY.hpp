@@ -44,6 +44,9 @@ public:
 
 	std::unique_ptr<MapSparseMatrix> get_smoothing_matrix(std::set<int> const &mask);
 
+protected:
+	void read_from_netcdf(NcFile &nc, std::string const &grid_var_name);
+
 };
 
 }

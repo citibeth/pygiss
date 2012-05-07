@@ -13,6 +13,9 @@ Snowdrift::Snowdrift(std::string const &fname)
 	grid2 = Grid::netcdf_read(nc, "grid2");
 	overlap = VectorSparseMatrix::netcdf_read(nc, "overlap");
 	nc.close();
+
+	n1 = grid1->max_index - grid1->index_base + 1;
+	n2 = grid2->max_index - grid2->index_base + 1;
 }
 
 
@@ -22,7 +25,10 @@ std::unique_ptr<Grid> &&_grid1,
 std::unique_ptr<Grid> &&_grid2,
 std::unique_ptr<VectorSparseMatrix> &&_overlap) :
 	grid1(std::move(_grid1)), grid2(std::move(_grid2)), overlap(std::move(_overlap)), proj_area1hp(overlap_area1hp)
-{}
+{
+	n1 = grid1->max_index - grid1->index_base + 1;
+	n2 = grid2->max_index - grid2->index_base + 1;
+}
 
 
 
@@ -40,17 +46,13 @@ blitz::Array<int,1> const &mask2,
 std::vector<blitz::Array<double,1>> const &height_max1)
 {
 	num_hclass = height_max1.size();
-	n1 = grid1->max_index - grid1->index_base + 1;
-	n2 = grid2->max_index - grid2->index_base + 1;
 printf("grid1->size() == %ld\n", grid1->size());
 printf("grid2->size() == %ld\n", grid2->size());
 	n1h = n1 * num_hclass;
 
 	// Create a height-classified overlap matrix
 	overlaph.reset(new VectorSparseMatrix(SparseDescr(
-		n1h, n2, overlap->index_base,
-		SparseMatrix::MatrixStructure::TRIANGULAR,
-		SparseMatrix::TriangularType::LOWER)));
+		n1h, n2, overlap->index_base)));
 
 	// Construct height-classified overlap matrix
 	overlap->sort(SparseMatrix::SortOrder::ROW_MAJOR);	// Optimize gather of height_max_ij
@@ -59,12 +61,15 @@ printf("grid2->size() == %ld\n", grid2->size());
 	double height_max_ij[num_hclass+1];
 	int i1_last = -1;
 
+printf("overlap->size() = %ld, index_base=%d\n", overlap->size(), overlap->index_base);
 	for (auto oi = overlap->begin(); oi != overlap->end(); ++oi) {
 		int i2 = oi.col();
-		if (mask2(i2) != 0) continue;	// Exclude this cell
+		if (!mask2(i2)) continue;	// Exclude this cell
 		double ele = elevation2(i2);
 
 		int i1 = oi.row();
+
+//if (i1>168857) printf("i1=%d, i2=%d\n", i1, i2);
 
 		// Gather height classes from disparate Fortran data structure
 		if (i1 != i1_last) {
@@ -86,10 +91,12 @@ printf("grid2->size() == %ld\n", grid2->size());
 
 		// Determine the height-classified grid cell in grid1h
 		int i1h = i1 * num_hclass + hc;
+//printf("i1=%d, hc=%d, i1h=%d, num_hclass=%d\n", i1, hc, i1h, num_hclass);
 
 		// Store it in the height-classified overlap matrix
 		overlaph->set(i1h, i2, oi.val());
 		used1h_set.insert(i1h);
+//printf("used2_set.insert(%07d)\n", i2);
 		used2_set.insert(i2);
 	}
 
@@ -100,8 +107,11 @@ printf("grid2->size() == %ld\n", grid2->size());
 	// Gather value for subselected matrix
 	_i1h_to_i1hp.clear(); _i1h_to_i1hp.resize(n1h, -1);
 	_i1hp_to_i1h.clear(); _i1hp_to_i1h.reserve(n1hp);
+printf("n1h=%d\n", n1h);
+printf("n1hp=%d\n", n1hp);
 	for (auto i1h = used1h_set.begin(); i1h != used1h_set.end(); ++i1h) {
 		int i1hp = _i1hp_to_i1h.size();
+//printf("(i1h, i1hp) = (%d, %d)\n", *i1h, i1hp);
 		_i1hp_to_i1h.push_back(*i1h);
 		_i1h_to_i1hp[*i1h] = i1hp;
 	}
@@ -117,9 +127,13 @@ printf("grid2->size() == %ld\n", grid2->size());
 	}
 
 	// Get smoothing matrix (sub-select it later)
+printf("used2_set.size() == %ld\n", used2_set.size());
 	std::unique_ptr<MapSparseMatrix> smooth2(grid2->get_smoothing_matrix(used2_set));
 
 	// Allocate for our QP problem
+printf("overlaph=%p, smooth2=%p\n", &*overlaph, &*smooth2);
+printf("overlaph->size() = %ld\n", overlaph->size());
+printf("smooth2->size() = %ld\n", smooth2->size());
 	prob.reset(new QPT_problem(n1hp, n2p, overlaph->size(), smooth2->size(), 1));
 	overlaphp.reset(new ZD11SparseMatrix(prob->A, 0));
 	smooth2p.reset(new ZD11SparseMatrix(prob->H, 0));
@@ -263,6 +277,9 @@ blitz::Array<double,1> const &Z2,
 std::vector<blitz::Array<double,1>> &Z1,
 MergeOrReplace merge_or_replace)
 {
+
+printf("Snowdrift::upgrid(merge_or_replace = %d)\n", merge_or_replace);
+
 	// Select out Z, and scale to projected space
 	std::vector<double> Z2p;
 	Z2p.reserve(n2p);
@@ -294,8 +311,9 @@ MergeOrReplace merge_or_replace)
 		// Merge makes no sense here, because by definition,
 		// proj_area1hp == overlap_area1hp.  So merge just reduces
 		// to replace
-		Z1[hclass][i1] = X1;
+		Z1[hclass](i1) = X1;
 	}
+
 }
 
 

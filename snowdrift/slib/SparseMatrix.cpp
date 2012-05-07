@@ -27,7 +27,7 @@ void VectorSparseMatrix::sort(SparseMatrix::SortOrder sort_order)
 	CmpIndex2 cmp;
 	switch(sort_order) {
 		case SparseMatrix::SortOrder::COLUMN_MAJOR :
-			cmp.init(&indx[0], &jndx[0]);
+			cmp.init(&jndx[0], &indx[0]);
 		break;
 		default :
 			cmp.init(&indx[0], &jndx[0]);
@@ -84,6 +84,15 @@ std::unique_ptr<VectorSparseMatrix> VectorSparseMatrix::netcdf_read(
 		(SparseMatrix::MatrixStructure)descrVar->get_att("matrix_structure")->as_int(0),
 		(SparseMatrix::TriangularType)descrVar->get_att("triangular_type")->as_int(0),
 		(SparseMatrix::MainDiagonalType)descrVar->get_att("main_diagonal_type")->as_int(0));
+
+#if 0
+// ********* TODO REMOVE ***************
+// Fixup bug
+for (int i=0; i<ne; ++i) {
+	indx[i] -= 1;
+	jndx[i] -= 1;
+}
+#endif
 
 	return std::unique_ptr<VectorSparseMatrix>(new VectorSparseMatrix(descr,
 		std::move(indx), std::move(jndx), std::move(val)));

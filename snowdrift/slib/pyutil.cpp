@@ -20,13 +20,11 @@ bool is_doublevector(PyArrayObject *vec)  {
 bool check_dimensions(PyArrayObject *vec, std::string const &vec_name, int type_num, 
 std::vector<int> const &dims)
 {
-printf("BB1\n");
 	if (!vec) {
 		PyErr_SetString(PyExc_ValueError,
 			"check_dimensions: Array object is null");
 		return false;
 	}
-printf("BB1\n");
 
 	int const ndim = dims.size();
 	if (vec->descr->type_num != type_num || vec->nd != ndim)  {
@@ -35,7 +33,6 @@ printf("BB1\n");
 		PyErr_SetString(PyExc_ValueError, buf);
 		return false;
 	}
-printf("BB1\n");
 
 	for (int i=0; i<dims.size(); ++i) {
 		if (dims[i] < 0) continue;		// Don't check this dimension
@@ -48,7 +45,6 @@ printf("BB1\n");
 			return false;
 		}
 	}
-printf("BB1\n");
 	return true;
 }
 

@@ -122,9 +122,10 @@ boost::function<void ()> Grid_XY::netcdf_define(NcFile &nc, std::string const &g
 const int derivative_x[4] = {-1, 1, 0, 0};
 const int derivative_y[4] = {0, 0, -1, 1};
 
-/** @param mask[size()] >=0 if we want to include this grid cell */
+/** @param mask[size()] == 1 if we want to include this grid cell. */
 std::unique_ptr<MapSparseMatrix> Grid_XY::get_smoothing_matrix(std::set<int> const &mask)
 {
+printf("Grid_XY::get_smoothing_matrix() called\n");
 	// Allocate the matrix
 	int nx = x_boundaries.size() - 1;
 	int ny = y_boundaries.size() - 1;
@@ -134,11 +135,16 @@ std::unique_ptr<MapSparseMatrix> Grid_XY::get_smoothing_matrix(std::set<int> con
 		SparseMatrix::MatrixStructure::SYMMETRIC,
 		SparseMatrix::TriangularType::LOWER)));
 
+printf("H=%p\n", H.get());
+printf("mask.size() == %ld\n", mask.size());
+
 	for (auto ii = mask.begin(); ii != mask.end(); ++ii) {
 		int index0 = *ii;
 
 		int y0i = index0 / nx;
 		int x0i = index0 - y0i*nx;
+
+//if (index0 > 168557) printf("index0=%d, x0i=%d of %d, y0i=%d of %d\n", index0, x0i, nx, y0i, ny);
 
 		for (int di=0; di < 4; ++di) {
 			int x1i = x0i + derivative_x[di];
@@ -146,6 +152,9 @@ std::unique_ptr<MapSparseMatrix> Grid_XY::get_smoothing_matrix(std::set<int> con
 			int y1i = y0i + derivative_y[di];
 			if (y1i < 0 || y1i >= ny) continue;
 			int index1 = y1i * nx + x1i;
+//if (index0 > 168557) printf("      (x0i,y0i) = (%d, %d)   (x1i, y1i) = (%d, %d)   (index0, index1) = (%d,%d)\n", x0i, y0i, x1i, y1i, index0, index1);
+
+//printf("index0=%d, index1=%d\n", index0, index1);
 			if (mask.find(index1) == mask.end()) continue;		// Neighbor is inactive, skip
 
 			// Get distance between centers of the two gridcells
@@ -166,10 +175,18 @@ std::unique_ptr<MapSparseMatrix> Grid_XY::get_smoothing_matrix(std::set<int> con
 		}
 	}
 
+printf("Grid_XY: H->size() == %ld\n", H->size());
 	return H;
 }
 
 
+void Grid_XY::read_from_netcdf(NcFile &nc, std::string const &vname)
+{
+	Grid::read_from_netcdf(nc, vname);
+
+	x_boundaries = read_double_vector(nc, vname + ".x_boundaries");
+	y_boundaries = read_double_vector(nc, vname + ".y_boundaries");
+}
 
 
 }

@@ -273,6 +273,19 @@ boost::function<bool(gc::Polygon_2 const &)> const &euclidian_clip)
 	return grid;
 }
 
+void Grid_LatLon::read_from_netcdf(NcFile &nc, std::string const &vname)
+{
+	Grid::read_from_netcdf(nc, vname);
+
+	lon_boundaries = read_double_vector(nc, vname + ".lon_boundaries");
+	lat_boundaries = read_double_vector(nc, vname + ".lat_boundaries");
+
+	// ... don't bother reading the rest of stuff for now...
+	points_in_side = -1;
+	south_pole = false;
+	north_pole = false;
+	// proj = ...;
+}
 
 
 }

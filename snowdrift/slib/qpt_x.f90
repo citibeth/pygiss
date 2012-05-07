@@ -73,7 +73,9 @@ integer, value :: eqp_bool		! Are we preparing for a problem w/ equality constra
 	self%Y = c_loc_array_double(main%Y)
 	self%Z = c_loc_array_double(main%Z)
 
+write(6,*) 'ZD11_c_init(self%A)', A_ne
 	call ZD11_c_init(self%A, main%A, m, n, A_ne)
+write(6,*) 'ZD11_c_init(self%H)'
 	call ZD11_c_init(self%H, main%H, n, n, H_ne)
 end subroutine QPT_problem_c_init
 

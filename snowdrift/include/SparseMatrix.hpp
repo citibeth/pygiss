@@ -111,6 +111,16 @@ void SparseMatrix1<SparseMatrix0T>::set(int row, int col, double const val, Spar
 		break;
 	}
 
+	// Check range
+	if (row >= this->nrow || row < 0) {
+		fprintf(stderr, "SparseMatrix1<>::set(), row=%d >= nrow=%d or <0\n", row, this->nrow);
+		throw std::exception();
+	}
+	if (col >= this->ncol || col < 0) {
+		fprintf(stderr, "SparseMatrix1<>::set(), col=%d >= ncol=%d or <0\n", col, this->ncol);
+		throw std::exception();
+	}
+
 	// Adjust for index_base
 	row += this->index_base;
 	col += this->index_base;
@@ -122,7 +132,7 @@ void SparseMatrix1<SparseMatrix0T>::set(int row, int col, double const val, Spar
 template<class SparseMatrix0T>
 void SparseMatrix1<SparseMatrix0T>::netcdf_write(NcFile *nc, std::string const &vname)
 {
-	NcVar *grid_indexVar = nc->get_var((vname + ".num_elements").c_str());
+	NcVar *grid_indexVar = nc->get_var((vname + ".index").c_str());
 	NcVar *areaVar = nc->get_var((vname + ".val").c_str());
 
 	int i=0;

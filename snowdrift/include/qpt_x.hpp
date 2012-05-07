@@ -50,6 +50,7 @@ public :
 	G(0), X_l(0), X_u(0), C(0), C_l(0), C_u(0), X(0), Y(0), Z(0)
 	{
 		QPT_problem_f *main = qpt_problem_new_c_();
+printf("qpt_x: A_ne=%d\n", A_ne);
 		qpt_problem_c_init_(this, main, m, n, A_ne, H_ne, eqp);
 	}
 

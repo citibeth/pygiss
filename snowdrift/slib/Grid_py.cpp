@@ -19,6 +19,7 @@ static PyObject *Grid_new(PyTypeObject *type, PyObject *args, PyObject *kwds)
 
 printf("Grid_new() called\n");
 	self = (GridDict *)type->tp_alloc(type, 0);
+printf("Grid_new() got self=%p\n", self);
 
     if (self != NULL) {
 		self->grid = NULL;
@@ -51,7 +52,8 @@ fprintf(stderr, "Grid_new() returns %p\n", self->grid);
 
 static void Grid_dealloc(GridDict *self)
 {
-fprintf(stderr, "Grid_dealloc(%p)\n", self->grid);
+//fprintf(stderr, "Grid_dealloc(%p)\n", self->grid);
+printf("Grid_dealloc(self=%p, grid=%p)\n", self, self->grid);
 	if (self->grid) delete self->grid;
 	self->grid = NULL;
 	self->ob_type->tp_free((PyObject *)self);
@@ -136,4 +138,5 @@ PyTypeObject GridType = {
    (initproc)Grid_init,  /* tp_init */
    0,                         /* tp_alloc */
    (newfunc)Grid_new    /* tp_new */
+//   (freefunc)Grid_free	/* tp_free */
 };

@@ -12,7 +12,7 @@ class OverlapMatrix {
 
 	Grid *grid1, *grid2;
 
-	std::unique_ptr<VectorSparseMatrix> overlaps;
+	std::unique_ptr<VectorSparseMatrix> overlap;
 
 public :
 	void set_grids(Grid *grid1, Grid *grid2);

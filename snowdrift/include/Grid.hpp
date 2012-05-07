@@ -65,7 +65,18 @@ public:
 	GridCell const &operator[](int index)
 		{ return _cells[index]; }
 
+	/** Factory method */
+	static std::unique_ptr<Grid> new_grid(std::string const &type,
+		std::string const &name, int index_base, int max_index);
+
+
+	/** Main factory method */
 	static std::unique_ptr<Grid> netcdf_read(NcFile &nc, std::string const &grid_var_name);
+
+protected:
+	virtual void read_from_netcdf(NcFile &nc, std::string const &grid_var_name);
+
+public:
 
 	/** Prepare for display of a function on this grid. */
 	void rasterize(
@@ -75,8 +86,7 @@ public:
 		double *out, int xstride, int ystride);
 
 	/** @param mask[size()] >=0 if we want to include this grid cell */
-	virtual std::unique_ptr<MapSparseMatrix> get_smoothing_matrix(std::set<int> const &mask) {}
-
+	virtual std::unique_ptr<MapSparseMatrix> get_smoothing_matrix(std::set<int> const &mask);
 
 #if 0
 	/** Used to divide up a grid cell in the face of elevation classes */

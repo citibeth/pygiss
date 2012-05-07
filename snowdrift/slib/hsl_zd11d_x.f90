@@ -15,6 +15,21 @@ IMPLICIT NONE
 		type(c_ptr) :: val			! double[ne]
 	end type
 
+! INTERFACE
+! 
+! 	subroutine zd11_multiply(mat, vec, ret)
+! 	implicit none
+! 	type(zd11_type), intent(in) :: mat
+! 	real*8, dimension(mat%n), intent(in) :: vec
+! 	real*8, dimension(mat%m), intent(out) :: ret
+! 
+! 	subroutine zd11_multiply_T(mat, vec, ret)
+! 	type(zd11_type), intent(in) :: mat
+! 	real*8, dimension(mat%m), intent(in) :: vec
+! 	real*8, dimension(mat%n), intent(out) :: ret
+! 
+! END INTERFACE
+
 CONTAINS
 
 	! Computes mat * vec
@@ -60,19 +75,18 @@ CONTAINS
 	
 	end subroutine zd11_multiply_T
 
-END MODULE HSL_ZD11_double_x
 
 ! ======================================================
 ! Functions to be called from C, so they're outside of a module
 
 subroutine ZD11_c_init(self, main, m, n, ne)
 use HSL_ZD11_double
-use HSL_ZD11_double_x
+!use HSL_ZD11_double_x
 use c_loc_x
 use, intrinsic :: iso_c_binding
 IMPLICIT NONE
 type(ZD11_c) :: self
-type(ZD11_type), pointer :: main
+type(ZD11_type), target :: main
 integer, value :: m, n, ne
 
 integer :: stat
@@ -95,6 +109,7 @@ integer :: stat
 	call ZD11_put(main%type, 'COORDINATE', stat)
 end subroutine ZD11_c_init
 
+END MODULE HSL_ZD11_double_x
 
 !subroutine ZD11_c_destroy(self)
 !type(ZD11_c) :: self

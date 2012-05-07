@@ -50,6 +50,15 @@ public:
 
 	 virtual boost::function<void()> netcdf_define(NcFile &nc, std::string const &generic_name) const;
 
+
+	std::unique_ptr<MapSparseMatrix> get_smoothing_matrix(std::set<int> const &mask)
+	{
+		printf("Grid_LatLon::get_smoothing_matrix()\n");
+		return std::unique_ptr<MapSparseMatrix>();
+	}
+
+protected:
+	void read_from_netcdf(NcFile &nc, std::string const &grid_var_name);
 		
 };
 

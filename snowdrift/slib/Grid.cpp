@@ -6,6 +6,9 @@
 #include <CGAL/enum.h>
 #include <cstdio>
 
+#include "Grid_XY.hpp"
+#include "Grid_LatLon.hpp"
+
 namespace giss {
 
 
@@ -76,21 +79,16 @@ gc::Polygon_2 const &Grid::bounding_box() {		// lazy eval
 void Grid::netcdf_write(NcFile *nc, std::string const &generic_name) const
 {
 	Grid const *grid = this;
-printf("AA1 %s\n", (name + ".realized_cells").c_str());
 
 	NcVar *indexVar = nc->get_var((generic_name + ".realized_cells").c_str());
-printf("AA2\n");
 	NcVar *native_areaVar = nc->get_var((generic_name + ".native_area").c_str());
-printf("AA2\n");
 	NcVar *proj_areaVar = nc->get_var((generic_name + ".proj_area").c_str());
 
-printf("AA2\n");
 
 
 	// Write out the polygons
 	NcVar *pointsVar = nc->get_var((generic_name + ".points").c_str());
 	NcVar *polyVar = nc->get_var((generic_name + ".polygons").c_str());
-printf("AA3\n");
 	int ivert = 0;
 	int i=0;
 	for (auto ii = grid->_cells.begin(); ii != _cells.end(); ++ii, ++i) {
@@ -288,6 +286,28 @@ void Grid_rasterize(
 }
 
 
+std::unique_ptr<MapSparseMatrix> Grid::get_smoothing_matrix(std::set<int> const &mask)
+{
+	printf("Grid::get_smoothing_matrix()\n");
+	return std::unique_ptr<MapSparseMatrix>();
+}
+
+
+std::unique_ptr<Grid> Grid::new_grid(std::string const &stype,
+	std::string const &name, int index_base, int max_index)
+{
+	std::unique_ptr<Grid> grid;
+	if (stype == "xy") {
+		grid.reset(new Grid_XY(name, index_base, max_index));
+	} else if (stype == "latlon") {
+		grid.reset(new Grid_LatLon(name, index_base, max_index));
+	} else {
+		grid.reset(new Grid("generic", name, index_base, max_index));
+	}
+	return grid;
+}
+
+
 /** @param fname Name of file to load from (eg, an overlap matrix file)
 @param vname Eg: "grid1" or "grid2" */
 std::unique_ptr<Grid> Grid::netcdf_read(
@@ -295,8 +315,24 @@ std::unique_ptr<Grid> Grid::netcdf_read(
 NcFile &nc,
 std::string const &vname)
 {
-//	NcFile nc(fname.c_str(), NcFile::ReadOnly);
+	auto infoVar = nc.get_var((vname + ".info").c_str());
+		int index_base = infoVar->get_att("index_base")->as_int(0);
+		int max_index = infoVar->get_att("max_index")->as_int(0);
+		std::string stype(infoVar->get_att("type")->as_string(0));
 
+	std::unique_ptr<Grid> grid(new_grid(stype, vname, index_base, max_index));
+
+	grid->read_from_netcdf(nc, vname);
+
+	return grid;
+}
+
+/** @param fname Name of file to load from (eg, an overlap matrix file)
+@param vname Eg: "grid1" or "grid2" */
+void Grid::read_from_netcdf(
+NcFile &nc,
+std::string const &vname)
+{
 	// Read points 2-d array as single vector
 	NcVar *vpoints = nc.get_var((vname + ".points").c_str());
 	long npoints = vpoints->get_dim(0)->size();
@@ -311,24 +347,16 @@ std::string const &vname)
 
 	std::vector<double> native_area(read_double_vector(nc, vname + ".native_area"));
 	std::vector<int> indices(read_int_vector(nc, vname + ".realized_cells"));
-	auto infoVar = nc.get_var((vname + ".info").c_str());
-	int index_base = infoVar->get_att("index_base")->as_int(0);
-	int max_index = infoVar->get_att("max_index")->as_int(0);
 
 	// Convert it into grid
-	std::unique_ptr<Grid> grid(new Grid("generic", "noname", index_base, max_index));
+	gc::Polygon_2 poly;
 	for (int i=0; i<npoly; ++i) {
-		gc::Polygon_2 poly;
-//fprintf(stderr, "Poly %d\n", i);
+		poly.clear();
 		for (int j=polygons[i] - poly_index_base; j < polygons[i+1] - poly_index_base; ++j) {
 			poly.push_back(gc::Point_2(points[j*2], points[j*2+1]));
-//fprintf(stderr, "    %f %f\n", points[j*2] ,points[j*2+1]);
 		}
-		grid->add_cell(GridCell(poly, indices[i], native_area[i]));
+		add_cell(GridCell(poly, indices[i], native_area[i]));
 	}
-
-//	fprintf(stderr, "Read %s:%s with %ld grid cells\n", fname.c_str(), vname.c_str(), grid->size());
-	return grid;
 }
 
 

@@ -1,5 +1,6 @@
 #pragma once
 
+#include <exception>
 #include <algorithm>
 #include <memory>
 #include <blitz/array.h>
@@ -51,10 +52,41 @@ public:
 	std::vector<int> _i1h_to_i1hp;		// Converts i1h --> i1hp
 	std::vector<int> _i1hp_to_i1h;			// Converts i1hp --> i1h
 
+#if 0
 	inline int i1h_to_i1hp(int i1h)
 		{ return _i1h_to_i1hp[i1h]; }
 	inline int i1hp_to_i1h(int i1hp)
 		{ return _i1hp_to_i1h[i1hp]; }
+#else
+	inline int i1h_to_i1hp(int i1h)
+	{
+		if (i1h < 0 || i1h >= _i1h_to_i1hp.size()) {
+			fprintf(stderr, "i1h=%d is out of range (%d, %d)\n", i1h, 0, _i1h_to_i1hp.size());
+			throw std::exception();
+		}
+		int i1hp = _i1h_to_i1hp[i1h];
+		if (i1hp < 0) {
+			fprintf(stderr, "i1h=%d produces invalid i1hp=%d\n", i1h, i1hp);
+			throw std::exception();
+		}
+		return i1hp;
+	}
+	inline int i1hp_to_i1h(int i1hp)
+	{
+		if (i1hp < 0 || i1hp >= _i1hp_to_i1h.size()) {
+			fprintf(stderr, "i1hp=%d is out of range (%d, %d)\n", i1hp, 0, _i1hp_to_i1h.size());
+			throw std::exception();
+		}
+		int i1h = _i1hp_to_i1h[i1hp];
+		if (i1h < 0) {
+			fprintf(stderr, "i1hp=%d produces invalid i1h=%d\n", i1hp, i1h);
+			throw std::exception();
+		}
+		return i1h;
+	}
+#endif
+
+
 	inline int i1h_to_i1(int i1h)
 		{ return i1h / num_hclass; }
 	inline int get_hclass(int i1h, int i1)
@@ -64,9 +96,31 @@ public:
 	std::vector<int> _i2p_to_i2;			// Converts i2p --> i2
 
 	inline int i2_to_i2p(int i2)
-		{ return _i2_to_i2p[i2]; }
+	{
+		if (i2 < 0 || i2 >= _i2_to_i2p.size()) {
+			fprintf(stderr, "i2=%d is out of range (%d, %d)\n", i2, 0, _i2_to_i2p.size());
+			throw std::exception();
+		}
+		int i2p = _i2_to_i2p[i2];
+		if (i2p < 0) {
+			fprintf(stderr, "i2=%d produces invalid i2p=%d\n", i2, i2p);
+			throw std::exception();
+		}
+		return i2p;
+	}
 	inline int i2p_to_i2(int i2p)
-		{ return _i2p_to_i2[i2p]; }
+	{
+		if (i2p < 0 || i2p >= _i2p_to_i2.size()) {
+			fprintf(stderr, "i2p=%d is out of range (%d, %d)\n", i2p, 0, _i2p_to_i2.size());
+			throw std::exception();
+		}
+		int i2 = _i2p_to_i2[i2p];
+		if (i2 < 0) {
+			fprintf(stderr, "i2p=%d produces invalid i2=%d\n", i2p, i2);
+			throw std::exception();
+		}
+		return i2;
+	}
 
 	std::vector<double> overlap_area1hp;	// Same as proj_area1hp.  By definition, height-classified parts of grid1 are only portions that overlap grid2
 	std::vector<double> &proj_area1hp;

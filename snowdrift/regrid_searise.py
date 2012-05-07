@@ -128,9 +128,9 @@ ax.plot(greenland_xy[0]/km, greenland_xy[1]/km, 'black', alpha=.5)
 
 # ============= Set up Snowdrift data structures
 grid1_var = nc.variables['grid1.info']
-	n1 = grid1_var.__dict__['max_index'] - grid1_var.__dict__['index_base'] + 1
+n1 = grid1_var.__dict__['max_index'] - grid1_var.__dict__['index_base'] + 1
 grid2_var = nc.variables['grid2.info']
-	n2 = grid2_var.__dict__['max_index'] - grid2_var.__dict__['index_base'] + 1
+n2 = grid2_var.__dict__['max_index'] - grid2_var.__dict__['index_base'] + 1
 #info = sd.info()
 #	n1 = info['n1']
 #	n2 = info['n2']
@@ -139,17 +139,20 @@ sd = snowdrift.Snowdrift(overlap_fname)
 nheight_class = 1
 
 elevation2 = np.array(searise_nc.variables[field_name], dtype='d').flatten('C')
-mask2 = np.ones((n2,))
+mask2 = np.ones((n2,),'i')
 height_max1 = np.ones((n1,nheight_class)) * 1e20
+print 'Shape of height_max1 = ' + str(height_max1.shape)
 
-sd.init(elevation2, mask2, height_max1[n1,nhclass])
+sd.init(elevation2, mask2, height_max1)
 
 # ================ Upgrid it to the GCM Grid
+ZG0 = np.zeros((n1,nheight_class))
 sd.upgrid(ZH0, ZG0)		# 1 = Replace, 0 = Merge
 
 
 # =============== Rasterize on the GCM Grid
 # Rasterize it over same region as ice grid
+print '==== Rasterize on the GCM Grid'
 grid1 = snowdrift.Grid(overlap_fname, 'grid1')
 
 ZG0_r = np.zeros((raster_x, raster_y))
@@ -160,6 +163,7 @@ print 'END Rasterize'
 print 'Rasterized to array of shape ', ZG0_r.shape
 
 # ================ Plot it!
+print '==== Plot it!'
 
 ax = fig.add_subplot(1,3,curplot)
 ax.set_xlim((x0/km, x1/km))
@@ -175,9 +179,10 @@ fig.colorbar(cax1)
 ax.plot(greenland_xy[0]/km, greenland_xy[1]/km, 'black', alpha=.5)
 
 # ================ Downgrid to the ice grid
+print '==== Downgrid to the ice grid, ZG0 -> ZH1'
 ZH1 = np.zeros(ice_nx*ice_ny)
 time0 = time.time()
-sd.downgrid(ZG0, ZH1, 1)	# 1 = use snowdrift, 0 = simple HNTR
+sd.downgrid(ZG0, ZH1, use_snowdrift=1)	# 1 = use snowdrift, 0 = simple HNTR
 time1 = time.time()
 print ZH1[1:200]
 print 'Finished with Downgrid, took %f seconds' % (time1-time0,)

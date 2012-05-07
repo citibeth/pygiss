@@ -50,9 +50,9 @@ static int Snowdrift__init(SnowdriftDict *self, PyObject *args, PyObject *kwds)
 {
 	// ========= Parse the arguments
 	const char *fname;
-	if (!PyArg_ParseTuple(args, "sOOO", &fname)) {
+	if (!PyArg_ParseTuple(args, "s", &fname)) {
 		// Throw an exception...
-		PyErr_SetString(PyExc_ValueError, "Snowdrift_init(): invalid arguments.");
+		PyErr_SetString(PyExc_ValueError, "Snowdrift__init(): invalid arguments.");
 		return -1;
 	}
 
@@ -69,7 +69,7 @@ static PyObject *Snowdrift_init(SnowdriftDict *self, PyObject *args, PyObject *k
 {
 	Snowdrift * const sd(self->snowdrift);
 
-printf("Snowdrift_init1 sd=%p\n", sd);
+printf("Snowdrift_init1 sd=%p, n1=%d, n2=%d\n", sd, sd->n1, sd->n2);
 
 	// ========= Parse the arguments
 	PyArrayObject *elevation_py;
@@ -87,8 +87,9 @@ printf("Snowdrift_init1 sd=%p\n", sd);
 		auto elevation(py_to_blitz<double,1>(elevation_py));
 	if (!check_dimensions(mask_py, "mask_py", NPY_INT, {sd->n2})) return NULL;
 		auto mask(py_to_blitz<int,1>(mask_py));
-	if (!check_dimensions(height_max_py, "height_max_py", NPY_DOUBLE, {sd->n1, sd->num_hclass})) return NULL;
-		auto height_max(py_to_blitz_Z1(height_max_py, sd->num_hclass));
+	if (!check_dimensions(height_max_py, "height_max_py", NPY_DOUBLE, {sd->n1, -1})) return NULL;
+		int num_hclass = height_max_py->dimensions[1];
+		auto height_max(py_to_blitz_Z1(height_max_py, num_hclass));
 
 	// ========== Finish initialization
 	self->snowdrift->init(elevation, mask, height_max);
@@ -128,6 +129,8 @@ static PyObject * Snowdrift_downgrid(SnowdriftDict *self, PyObject *args, PyObje
 		const_cast<char **>(keyword_list),
 		&Z1_py, &Z2_py, &merge_or_replace, &use_snowdrift)) return NULL;
 
+printf("use_snowdrift = %d\n", use_snowdrift);
+
 	if (!check_dimensions(Z1_py, "Z1_py", NPY_DOUBLE, {sd->n1, sd->num_hclass})) return NULL;
 	if (!check_dimensions(Z2_py, "Z2_py", NPY_DOUBLE, {sd->n2})) return NULL;
 
@@ -155,11 +158,8 @@ static PyObject * Snowdrift_upgrid(SnowdriftDict *self, PyObject *args, PyObject
 		const_cast<char **>(keyword_list),
 		&Z2_py, &Z1_py, &merge_or_replace)) return NULL;
 
-printf("AA1 %p\n", sd);
 	if (!check_dimensions(Z2_py, "Z2_py", NPY_DOUBLE, {sd->n2})) return NULL;
-printf("AA1\n");
 	if (!check_dimensions(Z1_py, "Z1_py", NPY_DOUBLE, {sd->n1, sd->num_hclass})) return NULL;
-printf("AA1\n");
 
 	auto Z2(py_to_blitz<double,1>(Z2_py));
 	std::vector<blitz::Array<double,1>> Z1(py_to_blitz_Z1(Z1_py, sd->num_hclass));
@@ -204,11 +204,11 @@ printf("AA1\n");
 static PyMethodDef Snowdrift_methods[] = {
 	{"init", (PyCFunction)Snowdrift_init, METH_VARARGS,
 		"Set up elevation classes and land mask"},
-	{"info", (PyCFunction)Snowdrift_info, METH_VARARGS,
-		"Stuff a bunch of bounds, etc. into a dictionary"},
+//	{"info", (PyCFunction)Snowdrift_info, METH_VARARGS,
+//		"Stuff a bunch of bounds, etc. into a dictionary"},
 	{"upgrid", (PyCFunction)Snowdrift_upgrid, METH_VARARGS,
 		"Convert from grid2 to grid1, simple overlap matrix multiplication"},
-	{"downgrid", (PyCFunction)Snowdrift_downgrid, METH_VARARGS,
+	{"downgrid", (PyCFunction)Snowdrift_downgrid, METH_KEYWORDS,
 		"Convert from grid1 to grid2, simple overlap matrix multiplication"},
 //	{"overlap", (PyCFunction)Snowdrift_overlap, METH_VARARGS,
 //		"Obtain the overlap matrix (in dense form)"},

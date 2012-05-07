@@ -18,8 +18,8 @@ int main(int argc, char **argv)
 #if 1
 	// The true exact SeaRISE grid
 	std::unique_ptr<Grid_XY> ice_grid = Grid_XY::new_grid("ice",
-		(- 800.0 - 2.5)*km, (- 800.0 + 300.0*5 + 2.5)*km,     50*km,
-		(-3400.0 - 2.5)*km, (-3400.0 + 560.0*5 + 2.5)*km,   50*km,
+		(- 800.0 - 2.5)*km, (- 800.0 + 300.0*5 + 2.5)*km,   5*km,
+		(-3400.0 - 2.5)*km, (-3400.0 + 560.0*5 + 2.5)*km,   5*km,
 		boost::bind(&EuclidianClip::keep_all, _1));
 #else
 	// Approximate SeaRISE grid
