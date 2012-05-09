@@ -29,9 +29,9 @@ public :
 	double * const G;		// double[n] Linear term of objective function
 	double * const X_l;		// double[n] Lower bound on variables
 	double * const X_u;		// double[n] Upper bound on variables
-	double * const C;		// double[m] RHS of equality constraints
 	double * const C_l;		// double[m] Lower bound, RHS of inequality constraints
 	double * const C_u;		// double[m] Upper bound, RHS of inequality constraints
+	double * const C;		// double[m] RHS of equality constraints
 	double * const X;		// double[n] Value of variables (input & output)
 	double * const Y;		// double[m]
 	double * const Z;		// double[n]
@@ -51,7 +51,8 @@ public :
 	{
 		QPT_problem_f *main = qpt_problem_new_c_();
 printf("qpt_x: A_ne=%d\n", A_ne);
-		qpt_problem_c_init_(this, main, m, n, A_ne, H_ne, eqp);
+		int eqp_bool = eqp;
+		qpt_problem_c_init_(this, main, m, n, A_ne, H_ne, eqp_bool);
 	}
 
 	~QPT_problem()

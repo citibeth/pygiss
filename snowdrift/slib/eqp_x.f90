@@ -1,6 +1,6 @@
 ! -------------------------------------------------------------------
 ! Calls the EQP subroutine
-function eqp_solve_simple(p)
+function eqp_solve_simple(p, infinity)
 
 use qpt_x
 ! USE GALAHAD_QP_double
@@ -8,6 +8,7 @@ use qpt_x
 USE GALAHAD_EQP_double
 IMPLICIT NONE
 type(QPT_problem_type) :: p
+real*8, value :: infinity
 logical :: eqp_solve_simple
 
 	integer :: errcode
@@ -30,7 +31,7 @@ logical :: eqp_solve_simple
 
 	! ------------ problem data complete, set up control
 	CALL EQP_initialize( data, control, inform ) ! Initialize control parameters
-!	control%infinity = infinity
+	! control%infinity = infinity	! Only for qp_control_type
 
 	! Set infinity
 !	control%quadratic_programming_solver = 'qpa' ! use QPA.  (This is important in getting it to work at all).

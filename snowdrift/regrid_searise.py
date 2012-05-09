@@ -182,7 +182,7 @@ ax.plot(greenland_xy[0]/km, greenland_xy[1]/km, 'black', alpha=.5)
 print '==== Downgrid to the ice grid, ZG0 -> ZH1'
 ZH1 = np.zeros(ice_nx*ice_ny)
 time0 = time.time()
-sd.downgrid(ZG0, ZH1, use_snowdrift=1)	# 1 = use snowdrift, 0 = simple HNTR
+sd.downgrid(ZG0, ZH1, use_snowdrift=1)
 time1 = time.time()
 print ZH1[1:200]
 print 'Finished with Downgrid, took %f seconds' % (time1-time0,)

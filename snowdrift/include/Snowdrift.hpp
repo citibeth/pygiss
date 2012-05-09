@@ -1,13 +1,13 @@
 #pragma once
 
 #include <exception>
-#include <algorithm>
 #include <memory>
 #include <blitz/array.h>
 #include "qpt_x.hpp"
 
 #include "Grid.hpp"
 #include "SparseMatrix.hpp"
+#include "HeightClassifier.hpp"
 
 namespace giss {
 
@@ -38,6 +38,7 @@ public:
 
 	// ------ Additional stuff we compute in preparation for regridding
 	std::unique_ptr<QPT_problem> prob;	// Data structure for QP solver
+	double infinity;					// Value used for infinity in QP solver
 	std::unique_ptr<ZD11SparseMatrix> overlaphp;	// Overlap (constratints) matrix used for QP problem
 	std::unique_ptr<ZD11SparseMatrix> smooth2p;
 
@@ -146,13 +147,13 @@ public:
 	@param overlap [n1 x n2] Overlap matrix between grid1 and grid2
 	@param mask2 [n2] (bool) Which grid cells in grid2 we want to actually use
 	@param elevation2 [n2] Topography
-	@param height_max1 [num_hclass][n1] Height class boundaries for each cell in grid1.
+	@param height_classes Height class boundaries for each cell in grid1.
 	                   From LISMB_COM.F90 in ModelE.
 	*/
 	void init(
 	blitz::Array<double,1> const &elevation2,
 	blitz::Array<int,1> const &mask2,
-	std::vector<blitz::Array<double,1>> const &height_max1);
+	HeightClassifier &height_classifier);
 
 	/**
 	@param Z1 Field to downgrid. [num_hclass][n1]

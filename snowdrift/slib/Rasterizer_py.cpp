@@ -1,72 +1,73 @@
 #include <Python.h>
 #include <arrayobject.h>
 #include <math.h>
-#include "Grid.hpp"
+#include "Rasterizer.hpp"
 #include "Grid_py.hpp"
+#include "Rasterizer_py.hpp"
+#include "pyutil.hpp"
 
 using namespace giss;
 
 // ========================================================================
 
-// ========= class snowdrift.Grid :
-static PyObject *Grid_new(PyTypeObject *type, PyObject *args, PyObject *kwds)
+// ========= class snowdrift.Rasterizer :
+static PyObject *Rasterizer_new(PyTypeObject *type, PyObject *args, PyObject *kwds)
 {
-	GridDict *self;
+	RasterizerDict *self;
 
-printf("Grid_new() called\n");
-	self = (GridDict *)type->tp_alloc(type, 0);
-printf("Grid_new() got self=%p\n", self);
+	self = (RasterizerDict *)type->tp_alloc(type, 0);
 
     if (self != NULL) {
-		self->grid = NULL;
+		self->rasterizer = NULL;
     }
 
     return (PyObject *)self;
 }
 
-static int Grid_init(GridDict *self, PyObject *args, PyObject *kwds)
+static int Rasterizer__init(RasterizerDict *self, PyObject *args, PyObject *kwds)
 {
-
 	// Get arguments
-	const char *fname;
-	const char *vname;
-	if (!PyArg_ParseTuple(args, "ss", &fname, &vname)) {
+	GridDict *grid;
+	double x0, x1; int nx;	// Grid to rasterize to
+	double y0, y1; int ny;
+
+	if (!PyArg_ParseTuple(args, "Oddiddi", &grid,
+		&x0, &x1, &nx,
+		&y0, &y1, &ny))
+	{
 		// Throw an exception...
 		PyErr_SetString(PyExc_ValueError,
-			"Grid_init() called without a valid string as argument.");
+			"Rasterizer__init() called without a valid string as argument.");
 		return 0;
 	}
 
 	// Instantiate pointer
-	if (self->grid) delete self->grid;
-	NcFile nc(fname, NcFile::ReadOnly);
-	self->grid = Grid::netcdf_read(nc, std::string(vname)).release();
-fprintf(stderr, "Grid_new() returns %p\n", self->grid);
+	if (self->rasterizer) delete self->rasterizer;
+	self->rasterizer = new Rasterizer(grid->grid, x0, x1, nx, y0, y1, ny);
+fprintf(stderr, "Rasterizer_new() returns %p\n", self->rasterizer);
 
 	return 0;
 }
 
-static void Grid_dealloc(GridDict *self)
+static void Rasterizer_dealloc(RasterizerDict *self)
 {
-//fprintf(stderr, "Grid_dealloc(%p)\n", self->grid);
-printf("Grid_dealloc(self=%p, grid=%p)\n", self, self->grid);
-	if (self->grid) delete self->grid;
-	self->grid = NULL;
+//fprintf(stderr, "Rasterizer_dealloc(%p)\n", self->rasterizer);
+printf("Rasterizer_dealloc(self=%p, rasterizer=%p)\n", self, self->rasterizer);
+	if (self->rasterizer) delete self->rasterizer;
+	self->rasterizer = NULL;
 	self->ob_type->tp_free((PyObject *)self);
 }
 
-//static PyMemberDef Grid_members[] = {{NULL}};
+//static PyMemberDef Rasterizer_members[] = {{NULL}};
 
-static PyObject * Grid_rasterize(GridDict *self, PyObject *args)
+PyObject *rasterize(PyObject *self, PyObject *args)
 {
 	// Get Arguments
-	PyArrayObject *data;
-	PyArrayObject *out;
-	double x0,x1,dx;
-	double y0,y1,dy;
-	if (!PyArg_ParseTuple(args, "ddddddOO",
-		&x0, &x1, &dx, &y0, &y1, &dy,
-		&data, &out))
+	RasterizerDict *rast;
+	PyArrayObject *data_py;
+	PyArrayObject *out_py;
+	if (!PyArg_ParseTuple(args, "OOO",
+		&rast, &data_py, &out_py))
 	{
 		return NULL;
 	}
@@ -75,31 +76,26 @@ static PyObject * Grid_rasterize(GridDict *self, PyObject *args)
 	// out must have dimensions (nx, ny) and be double
 	// data has single dimension, based on highest index possible
 	// strides must be mulitple of sizeof(double)
+//	if (!check_dimensions(data_py, "data_py", NPY_DOUBLE, {rast->rasterizer->
+	auto data(py_to_blitz<double,1>(data_py));
+	auto out(py_to_blitz<double,2>(out_py));
 
-
-//fprintf(stderr, "Strides = %d %d\n", out->strides[0], out->strides[1]);
-	self->grid->rasterize(x0, x1, dx, y0, y1, dy,
-		(double *)data->data, data->strides[0] / sizeof(double),
-		(double *)out->data,
-		out->strides[0] / sizeof(double),
-		out->strides[1] / sizeof(double));
+	rasterize(*rast->rasterizer, data, out);
 
 	return Py_BuildValue("");
 }
 
-static PyMethodDef Grid_methods[] = {
-//	{"rasterize", (PyCFunction)Grid_rasterize, METH_VARARGS,
-//		"Regrid to a regular x/y grid for display ONLY"},
+static PyMethodDef Rasterizer_methods[] = {
 	{NULL}     /* Sentinel - marks the end of this structure */
 };
 
-PyTypeObject GridType = {
+PyTypeObject RasterizerType = {
    PyObject_HEAD_INIT(NULL)
    0,                         /* ob_size */
-   "Grid",               /* tp_name */
-   sizeof(GridDict),     /* tp_basicsize */
+   "Rasterizer",               /* tp_name */
+   sizeof(RasterizerDict),     /* tp_basicsize */
    0,                         /* tp_itemsize */
-   (destructor)Grid_dealloc, /* tp_dealloc */
+   (destructor)Rasterizer_dealloc, /* tp_dealloc */
    0,                         /* tp_print */
    0,                         /* tp_getattr */
    0,                         /* tp_setattr */
@@ -115,15 +111,15 @@ PyTypeObject GridType = {
    0,                         /* tp_setattro */
    0,                         /* tp_as_buffer */
    Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE, /* tp_flags*/
-   "Grid object",        /* tp_doc */
+   "Rasterizer object",        /* tp_doc */
    0,                         /* tp_traverse */
    0,                         /* tp_clear */
    0,                         /* tp_richcompare */
    0,                         /* tp_weaklistoffset */
    0,                         /* tp_iter */
    0,                         /* tp_iternext */
-   Grid_methods,         /* tp_methods */
-//   Grid_members,         /* tp_members */
+   Rasterizer_methods,         /* tp_methods */
+//   Rasterizer_members,         /* tp_members */
    0,                         /* tp_members */
    0,                         /* tp_getset */
    0,                         /* tp_base */
@@ -131,8 +127,8 @@ PyTypeObject GridType = {
    0,                         /* tp_descr_get */
    0,                         /* tp_descr_set */
    0,                         /* tp_dictoffset */
-   (initproc)Grid_init,  /* tp_init */
+   (initproc)Rasterizer__init,  /* tp_init */
    0,                         /* tp_alloc */
-   (newfunc)Grid_new    /* tp_new */
-//   (freefunc)Grid_free	/* tp_free */
+   (newfunc)Rasterizer_new    /* tp_new */
+//   (freefunc)Rasterizer_free	/* tp_free */
 };

@@ -32,11 +32,16 @@ public:
 //	enum class Type { XY, LATLON };
 	// ---------------------------------------------------
 
+	std::map<int, GridCell>::const_iterator begin() { return _cells.begin(); }
+
 	// Array base used for index numbers in _cells
 	int const index_base;
 
 	// Maximum value that index can have for any cell in the global grid, even if not realized in this Grid
 	int const max_index;
+
+	// Total number of grid cells in the indexing scheme
+	int const index_size;
 
 	std::string const name;	/// Name of this grid instance (eg: "ice", "gcm", etc)
 
@@ -62,8 +67,9 @@ public:
 	std::map<int, GridCell> const &cells() const
 		{ return _cells; }
 
+	/** Correct by index_base here so indexing matches up with SparseMatrix.hpp */
 	GridCell const &operator[](int index)
-		{ return _cells[index]; }
+		{ return _cells[index + index_base]; }
 
 	/** Factory method */
 	static std::unique_ptr<Grid> new_grid(std::string const &type,

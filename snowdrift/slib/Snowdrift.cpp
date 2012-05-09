@@ -2,6 +2,9 @@
 #include "eqp_x.hpp"
 #include "qpt_x.hpp"
 
+#include "Python.h"
+extern PyTypeObject SnowdriftType;
+
 namespace giss {
 
 /** Reads from a netCDF file */
@@ -43,9 +46,9 @@ std::unique_ptr<VectorSparseMatrix> &&_overlap) :
 void Snowdrift::init(
 blitz::Array<double,1> const &elevation2,
 blitz::Array<int,1> const &mask2,
-std::vector<blitz::Array<double,1>> const &height_max1)
+HeightClassifier &height_classifier)
 {
-	num_hclass = height_max1.size();
+	num_hclass = height_classifier.num_hclass();
 printf("grid1->size() == %ld\n", grid1->size());
 printf("grid2->size() == %ld\n", grid2->size());
 	n1h = n1 * num_hclass;
@@ -55,39 +58,24 @@ printf("grid2->size() == %ld\n", grid2->size());
 		n1h, n2, overlap->index_base)));
 
 	// Construct height-classified overlap matrix
-	overlap->sort(SparseMatrix::SortOrder::ROW_MAJOR);	// Optimize gather of height_max_ij
 	std::set<int> used1h_set;	// Grid cells used in overlap matrix
 	std::set<int> used2_set;
-	double height_max_ij[num_hclass+1];
-	int i1_last = -1;
 
 printf("overlap->size() = %ld, index_base=%d\n", overlap->size(), overlap->index_base);
 	for (auto oi = overlap->begin(); oi != overlap->end(); ++oi) {
 		int i2 = oi.col();
 		if (!mask2(i2)) continue;	// Exclude this cell
-		double ele = elevation2(i2);
 
 		int i1 = oi.row();
 
 //if (i1>168857) printf("i1=%d, i2=%d\n", i1, i2);
-
-		// Gather height classes from disparate Fortran data structure
-		if (i1 != i1_last) {
-			for (int heighti=0; heighti<num_hclass; ++heighti)
-				height_max_ij[heighti] = height_max1[heighti](i1);
-			height_max_ij[num_hclass] = std::numeric_limits<double>::infinity();
-			i1_last = i1;
-		}
 
 		// Determine which height class this small grid cell is in,
 		// (or at least, the portion that overlap the big grid cell)
 		// Element should be in range [bot, top)
 
 		// upper_bound returns first item > ele
-		double *top = std::upper_bound(height_max_ij, height_max_ij + num_hclass+1, ele);
-		int hc = top - height_max_ij;
-		if (hc < 0) hc = 0;		// Redundant
-		if (hc >= num_hclass) hc = num_hclass - 1;
+		int hc = height_classifier.get_hclass(i1, elevation2(i2));
 
 		// Determine the height-classified grid cell in grid1h
 		int i1h = i1 * num_hclass + hc;
@@ -138,6 +126,18 @@ printf("smooth2->size() = %ld\n", smooth2->size());
 	overlaphp.reset(new ZD11SparseMatrix(prob->A, 0));
 	smooth2p.reset(new ZD11SparseMatrix(prob->H, 0));
 
+	// Set up the simple things
+	infinity = 1e20;
+	prob->f = 0;				// Constant term of objective function
+	for (int i1hp=0; i1hp<n1hp; ++i1hp) {
+		prob->X_l[i1hp] = infinity;		// Lower bound for result
+		prob->X_u[i1hp] = -infinity;		// Upper bound for result
+	}
+	for (int i2p=0; i2p < n2p; ++i2p) {
+		prob->G[i2p] = 0;		// Linear term of objective function
+	}
+
+
 	// Subselect the smoothing matrix
 	for (auto ii = smooth2->begin(); ii != smooth2->end(); ++ii) {
 		int row2p = i2_to_i2p(ii.row());
@@ -163,7 +163,7 @@ printf("smooth2->size() = %ld\n", smooth2->size());
 	for (int i1hp=0; i1hp<n1hp; ++i1hp) {
 		int i1h = i1hp_to_i1h(i1hp);
 		int i1 = i1h_to_i1(i1h);
-		GridCell const &gc1((*grid1)[i1]);
+		GridCell const &gc1((*grid1).operator[](i1));
 
 		native_area1hp[i1hp] = overlap_area1hp[i1hp] * (gc1.native_area / gc1.proj_area);
 	}
@@ -172,7 +172,7 @@ printf("smooth2->size() = %ld\n", smooth2->size());
 	grid2p.clear();
 	for (int i2p=0; i2p<n2p; ++i2p) {
 		int i2 = i2p_to_i2(i2p);
-		GridCell const &gc2((*grid2)[i2 + grid2->index_base]);
+		GridCell const &gc2((*grid2).operator[](i2));
 		grid2p.push_back(&gc2);
 	}
 
@@ -225,6 +225,16 @@ bool use_snowdrift)
 
 	// Re-arrange mass within each GCM gridcell (grid1)
 	if (use_snowdrift) {
+		// Zero things out
+		for (int i1hp=0; i1hp<n1hp; ++i1hp) {
+			prob->Y[i1hp] = 0;
+		}
+		for (int i2p=0; i2p<n2p; ++i2p) {
+			prob->Z[i2p] = 0;
+		}
+
+printf("prob = %p\n", &*prob);
+printf("prob->C = %p\n", prob->C);
 		// RHS of equality constraints
 		for (int i1hp=0; i1hp<n1hp; ++i1hp) {
 			double val = Z1hp[i1hp] * overlap_area1hp[i1hp];
@@ -236,17 +246,22 @@ bool use_snowdrift)
 			// prob->C_u[i1hp] = -val;
 		}
 
+		for (int i2p=0; i2p<n2p; ++i2p) {
+			prob->X[i2p] = Z2p[i2p];
+		}
+
 		// Solve the QP problem
-		ret = eqp_solve_simple_(prob->main);
+		ret = eqp_solve_simple_(prob->main, infinity);
 	}
 
 //	store_result(_i2p_to_i2, Z2, Z2p,
 //		&overlap_area2p[0], &grid2p[0], merge_or_replace);
 
+#if 1
 	// Merge results into Z2
 	for (int i2p=0; i2p < n2p; ++i2p) {
 		int i2 = i2p_to_i2(i2p);
-		double X0 = Z2(i2);		// Original value
+		// double X0 = Z2(i2);		// Original value
 
 		GridCell const &gc2(*grid2p[i2p]);
 		double X1 = Z2p[i2p] * (gc2.proj_area / gc2.native_area);	// Regrid result
@@ -254,8 +269,8 @@ bool use_snowdrift)
 		switch(merge_or_replace) {
 			case MergeOrReplace::MERGE : {
 				double overlap_fraction = overlap_area2p[i2p] / gc2.proj_area;
-				Z2[i2] =
-					(1.0 - overlap_fraction) * Z2[i2] +		// Original value
+				Z2(i2) =
+					(1.0 - overlap_fraction) * Z2(i2) +		// Original value
 					overlap_fraction * X1;					// Our new value
 			} break;
 			default :		// REPLACE
@@ -263,7 +278,7 @@ bool use_snowdrift)
 			break;
 		}
 	}
-
+#endif
 	return ret;
 }
 
@@ -296,6 +311,7 @@ printf("Snowdrift::upgrid(merge_or_replace = %d)\n", merge_or_replace);
 	// Scale back to Z/m^2
 	for (int i1hp=0; i1hp < n1hp; ++i1hp) {
 		// Z1hp[i1hp] *= proj_area1hp[i1hp] / (overlap_area1hp[i1hp] * native_area1hp[i1hp]);
+if (i1hp < 5) printf("native_area1hp[%d] = %f\n", native_area1hp[i1hp]);
 		Z1hp[i1hp] /= native_area1hp[i1hp];		// Because proj_area1hp == overlap_area1hp
 	}
 
@@ -303,8 +319,9 @@ printf("Snowdrift::upgrid(merge_or_replace = %d)\n", merge_or_replace);
 	for (int i1hp=0; i1hp < n1hp; ++i1hp) {
 		int i1h = i1hp_to_i1h(i1hp);
 		int i1 = i1h_to_i1(i1h);
+if (i1h < 5) printf("i1h=%d, i1=%d\n", i1h, i1);
 		int hclass = get_hclass(i1h, i1);
-		double X0 = Z1[hclass](i1);
+		// double X0 = Z1[hclass](i1);
 
 		double X1 = Z1hp[i1hp] * (proj_area1hp[i1hp] / native_area1hp[i1hp]);	// Regrid result
 

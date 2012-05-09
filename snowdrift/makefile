@@ -75,6 +75,8 @@ xy_overlap : smain/xy_overlap.o snowdrift.so
 xy_snowdrift : smain/xy_snowdrift.o snowdrift.so
 	gfortran -o $@ $^ $(SNOWDRIFT_LIB_LIBS) -lstdc++
 
+hctest : smain/hctest.o snowdrift.so
+	g++ -o $@ $^ $(SNOWDRIFT_LIB_LIBS)
 
 
 clean :

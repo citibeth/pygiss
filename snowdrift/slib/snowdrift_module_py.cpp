@@ -5,7 +5,19 @@
 extern PyTypeObject SnowdriftType;
 extern PyTypeObject GridType;
 
+extern PyTypeObject RasterizerType;
+extern PyObject *rasterize(PyObject *self, PyObject *args);
+
 // ===========================================================================
+
+static PyMethodDef snowdrift_functions[] = {
+	// =================== From Rasterizer
+	{"rasterize", (PyCFunction)rasterize, METH_VARARGS,
+		"Rerasterizer to a regular x/y rasterizer for display ONLY"},
+	{NULL}     /* Sentinel - marks the end of this structure */
+};
+
+
 
 extern "C"
 void initsnowdrift(void)
@@ -13,7 +25,7 @@ void initsnowdrift(void)
    PyObject* mod;
 
    // Create the module
-   mod = Py_InitModule3("snowdrift", NULL, "Snowdrift Regridding Interface");
+   mod = Py_InitModule3("snowdrift", snowdrift_functions, "Snowdrift Regridding Interface");
    if (mod == NULL) {
       return;
    }
@@ -28,17 +40,15 @@ void initsnowdrift(void)
    Py_INCREF(&SnowdriftType);
    PyModule_AddObject(mod, "Snowdrift", (PyObject*)&SnowdriftType);
 
-
-
-   // Fill in some slots in the type, and make it ready
-//   GridType.tp_new = PyType_GenericNew;
-   if (PyType_Ready(&GridType) < 0) {
-      return;
-   }
-
-   // Add the type to the module.
+   // ======== GridType
+   if (PyType_Ready(&GridType) < 0) return;
    Py_INCREF(&GridType);
    PyModule_AddObject(mod, "Grid", (PyObject*)&GridType);
+
+   // ======== RasterizerType
+   if (PyType_Ready(&RasterizerType) < 0) return;
+   Py_INCREF(&RasterizerType);
+   PyModule_AddObject(mod, "Rasterizer", (PyObject*)&RasterizerType);
 
 
 }

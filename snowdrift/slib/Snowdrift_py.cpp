@@ -89,10 +89,10 @@ printf("Snowdrift_init1 sd=%p, n1=%d, n2=%d\n", sd, sd->n1, sd->n2);
 		auto mask(py_to_blitz<int,1>(mask_py));
 	if (!check_dimensions(height_max_py, "height_max_py", NPY_DOUBLE, {sd->n1, -1})) return NULL;
 		int num_hclass = height_max_py->dimensions[1];
-		auto height_max(py_to_blitz_Z1(height_max_py, num_hclass));
+		HeightClassifier height_classes(py_to_blitz_Z1(height_max_py, num_hclass));
 
 	// ========== Finish initialization
-	self->snowdrift->init(elevation, mask, height_max);
+	self->snowdrift->init(elevation, mask, height_classes);
 
 //printf("Snowdrift::init(%s) called, snowdrift=%p\n", fname, self->snowdrift);
 printf("snowdrift = %p\n", self->snowdrift);
