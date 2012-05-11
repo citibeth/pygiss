@@ -23,7 +23,11 @@ def plot_image(ax, Z, extent) :
 	# For SMB
 	cmap = 'bwr'
 	norm = giss.plotutil.AsymmetricNormalize(vmin=-2.45,vmax=3.3)
-#		vmin=0,vmax=4.5)	# For precipitation
+	norm = giss.plotutil.AsymmetricNormalize(vmin=-2.45*.5,vmax=3.3*.5)
+
+#	# For precipitation
+	cmap = 'spectral'
+	norm = matplotlib.colors.Normalize(vmin=0,vmax=4.5)	# For precipitation
 
 	return ax.imshow(Zmasked, origin='lower',
 		interpolation='nearest',
@@ -109,10 +113,27 @@ searise_nc = netCDF4.Dataset('Greenland_5km_v1.1.nc')
 ZH0 = np.array(searise_nc.variables[field_name], dtype='d').flatten('C')
 print 'ZH0 has %d elements, vs (%d x %d) = %d' % (ZH0.shape[0], ice_nx, ice_ny, ice_nx * ice_ny)
 
+# ============ Mask to only ice areas
+#mask2 = np.ones((n2,),'i')
+
+# landcover:ice_sheet = 4 ;
+# landcover:land = 2 ;
+# landcover:local_ice_caps_not_connected_to_the_ice_sheet = 3 ;
+# landcover:long_name = "Land Cover" ;
+# landcover:no_data = 0 ;
+# landcover:ocean = 1 ;
+# landcover:standard_name = "land_cover" ;
+mask2 = np.array(searise_nc.variables['landcover'], dtype=np.int32).flatten('C')
+mask2 = np.where(mask2==4,np.int32(1),np.int32(0))
+ZH0[mask2==0] = np.nan
+
+# ============= Rasterize and Plot original field
+
 ZH0_r = np.zeros((raster_x, raster_y))
 ZH0_r[:] = np.nan
 grid2 = snowdrift.Grid(overlap_fname, 'grid2')
-grid2.rasterize(x0,x1,raster_x, y0,y1,raster_y, ZH0, ZH0_r)
+rast2 = snowdrift.Rasterizer(grid2, x0,x1,raster_x, y0,y1,raster_y);
+snowdrift.rasterize(rast2, ZH0, ZH0_r)
 
 ax = fig.add_subplot(1,3,curplot)
 ax.set_xlim((x0/km, x1/km))
@@ -125,6 +146,8 @@ ax.set_title(field_name)
 cax2 = plot_image(ax, ZH0_r, np.array([x0,x1,y0,y1])/km)
 fig.colorbar(cax2)
 ax.plot(greenland_xy[0]/km, greenland_xy[1]/km, 'black', alpha=.5)
+
+
 
 # ============= Set up Snowdrift data structures
 grid1_var = nc.variables['grid1.info']
@@ -139,7 +162,7 @@ sd = snowdrift.Snowdrift(overlap_fname)
 nheight_class = 1
 
 elevation2 = np.array(searise_nc.variables[field_name], dtype='d').flatten('C')
-mask2 = np.ones((n2,),'i')
+
 height_max1 = np.ones((n1,nheight_class)) * 1e20
 print 'Shape of height_max1 = ' + str(height_max1.shape)
 
@@ -147,6 +170,7 @@ sd.init(elevation2, mask2, height_max1)
 
 # ================ Upgrid it to the GCM Grid
 ZG0 = np.zeros((n1,nheight_class))
+ZG0[:] = np.nan
 sd.upgrid(ZH0, ZG0)		# 1 = Replace, 0 = Merge
 
 
@@ -158,7 +182,8 @@ grid1 = snowdrift.Grid(overlap_fname, 'grid1')
 ZG0_r = np.zeros((raster_x, raster_y))
 ZG0_r[:] = np.nan
 print 'BEGIN Rasterize'
-grid1.rasterize(x0,x1,raster_x, y0,y1,raster_y, ZG0, ZG0_r)
+rast1 = snowdrift.Rasterizer(grid1, x0,x1,raster_x, y0,y1,raster_y)
+snowdrift.rasterize(rast1, ZG0, ZG0_r)
 print 'END Rasterize'
 print 'Rasterized to array of shape ', ZG0_r.shape
 
@@ -181,15 +206,17 @@ ax.plot(greenland_xy[0]/km, greenland_xy[1]/km, 'black', alpha=.5)
 # ================ Downgrid to the ice grid
 print '==== Downgrid to the ice grid, ZG0 -> ZH1'
 ZH1 = np.zeros(ice_nx*ice_ny)
+ZH1[:] = np.nan
 time0 = time.time()
-sd.downgrid(ZG0, ZH1, use_snowdrift=1)
+sd.downgrid(ZG0, ZH1, use_snowdrift=1, merge_or_replace=1)
 time1 = time.time()
 print ZH1[1:200]
 print 'Finished with Downgrid, took %f seconds' % (time1-time0,)
 ZH1_r = np.zeros((raster_x, raster_y))
 ZH1_r[:] = np.nan
 print 'BEGIN Rasterize'
-grid2.rasterize(x0,x1,raster_x, y0,y1,raster_y, ZH1, ZH1_r)
+snowdrift.rasterize(rast2, ZH1, ZH1_r)
+#ZH1_r[ZH1_r < 0] = 4.0			# Debugging
 print 'END Rasterize'
 
 ax = fig.add_subplot(1,3,curplot)
@@ -223,7 +250,10 @@ ax.plot(greenland_xy[0]/km, greenland_xy[1]/km, 'black', alpha=.5)
 # xs, ys = pyproj.transform(llproj, proj, lons, lats)
 
 
-
+# ================================================================
+# Test conservation on ice grid
+print 'np.nansum(ZH0) = %f' % np.nansum(ZH0)
+print 'np.nansum(ZH1) = %f' % np.nansum(ZH1)
 
 
 plt.show()

@@ -42,7 +42,7 @@ public:
 
 	 boost::function<void()> netcdf_define(NcFile &nc, std::string const &generic_name) const;
 
-	std::unique_ptr<MapSparseMatrix> get_smoothing_matrix(std::set<int> const &mask);
+	virtual std::unique_ptr<Grid::SmoothingFunction> get_smoothing_function(std::set<int> const &mask);
 
 protected:
 	void read_from_netcdf(NcFile &nc, std::string const &grid_var_name);

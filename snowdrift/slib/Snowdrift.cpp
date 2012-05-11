@@ -116,33 +116,39 @@ printf("n1hp=%d\n", n1hp);
 
 	// Get smoothing matrix (sub-select it later)
 printf("used2_set.size() == %ld\n", used2_set.size());
-	std::unique_ptr<MapSparseMatrix> smooth2(grid2->get_smoothing_matrix(used2_set));
+	std::unique_ptr<Grid::SmoothingFunction> smooth2(grid2->get_smoothing_function(used2_set));
 
 	// Allocate for our QP problem
 printf("overlaph=%p, smooth2=%p\n", &*overlaph, &*smooth2);
 printf("overlaph->size() = %ld\n", overlaph->size());
-printf("smooth2->size() = %ld\n", smooth2->size());
-	prob.reset(new QPT_problem(n1hp, n2p, overlaph->size(), smooth2->size(), 1));
+printf("smooth2->size() = %ld\n", smooth2->H.size());
+	prob.reset(new QPT_problem(n1hp, n2p, overlaph->size(), smooth2->H.size(), 1));
 	overlaphp.reset(new ZD11SparseMatrix(prob->A, 0));
-	smooth2p.reset(new ZD11SparseMatrix(prob->H, 0));
+	smooth2p_H.reset(new ZD11SparseMatrix(prob->H, 0));
+	smooth2p_G0.clear(); smooth2p_G0.resize(n2p);
 
 	// Set up the simple things
 	infinity = 1e20;
-	prob->f = 0;				// Constant term of objective function
-	for (int i1hp=0; i1hp<n1hp; ++i1hp) {
-		prob->X_l[i1hp] = infinity;		// Lower bound for result
-		prob->X_u[i1hp] = -infinity;		// Upper bound for result
+//	prob->f = 0;				// Constant term of objective function
+	for (int i2p=0; i2p<n2p; ++i2p) {
+//		prob->X_l[i2p] = -infinity;		// Lower bound for result
+		prob->X_l[i2p] = 0;		// Lower bound for result
+		prob->X_u[i2p] = infinity;		// Upper bound for result
 	}
-	for (int i2p=0; i2p < n2p; ++i2p) {
-		prob->G[i2p] = 0;		// Linear term of objective function
-	}
+//	for (int i2p=0; i2p < n2p; ++i2p) {
+//		prob->G[i2p] = 0;		// Linear term of objective function
+//	}
 
 
-	// Subselect the smoothing matrix
-	for (auto ii = smooth2->begin(); ii != smooth2->end(); ++ii) {
+	// Subselect the smoothing function
+	for (auto ii = smooth2->H.begin(); ii != smooth2->H.end(); ++ii) {
 		int row2p = i2_to_i2p(ii.row());
 		int col2p = i2_to_i2p(ii.col());
-		smooth2p->set(row2p, col2p, ii.val());
+		smooth2p_H->set(row2p, col2p, ii.val());
+	}
+	for (int i2p=0; i2p<n2p; ++i2p) {
+		int i2 = i2p_to_i2(i2p);
+		smooth2p_G0[i2p] = smooth2->G0[i2];
 	}
 	smooth2.reset();
 
@@ -215,6 +221,11 @@ bool use_snowdrift)
 			(native_area1hp[i1hp] / proj_area1hp[i1hp]));
 	}
 
+	// Compute |Z1hp|
+	double Z1hp_sum = 0;
+	for (int i1hp=0; i1hp < n1hp; ++i1hp) Z1hp_sum += overlap_area1hp[i1hp] * Z1hp[i1hp];
+	printf("downgrid: |Z1hp| = %g\n", Z1hp_sum);
+
 	// Get initial approximation of answer (that satisfies our constraints)
 	double * const Z2p(prob->X);
 	overlaphp->multiplyT(&Z1hp[0], Z2p);
@@ -222,6 +233,11 @@ bool use_snowdrift)
 		GridCell const &gc2(*grid2p[i2p]);
 		Z2p[i2p] *= gc2.proj_area / (overlap_area2p[i2p] * gc2.native_area);
 	}
+
+	// Compute |Z2p|
+	double Z2p_sum = 0;
+	for (int i2p=0; i2p < n2p; ++i2p) Z2p_sum += overlap_area2p[i2p] * Z2p[i2p];
+	printf("downgrid: |Z2p| initial = %g\n", Z2p_sum);
 
 	// Re-arrange mass within each GCM gridcell (grid1)
 	if (use_snowdrift) {
@@ -231,6 +247,18 @@ bool use_snowdrift)
 		}
 		for (int i2p=0; i2p<n2p; ++i2p) {
 			prob->Z[i2p] = 0;
+		}
+
+		// Linear and constant terms of objective function
+		// This is based on get_smoothing_function().
+		// If x1 is missing, then instead of (x0-x1)**2 to the objective
+		// function, we want to add (x0-x0bar)**2 where x0bar is the
+		// result of the HNTR regridding for gridcell 0
+		prob->f = 0;
+		for (int i2p=0; i2p<n2p; ++i2p) {
+			double weight = smooth2p_G0[i2p];
+			prob->G[i2p] = -2.0 * weight * Z2p[i2p];
+			prob->f     +=        weight * Z2p[i2p]*Z2p[i2p];
 		}
 
 printf("prob = %p\n", &*prob);
@@ -246,12 +274,17 @@ printf("prob->C = %p\n", prob->C);
 			// prob->C_u[i1hp] = -val;
 		}
 
-		for (int i2p=0; i2p<n2p; ++i2p) {
-			prob->X[i2p] = Z2p[i2p];
-		}
+		//for (int i2p=0; i2p<n2p; ++i2p) {
+		//	prob->X[i2p] = Z2p[i2p];
+		//}
 
 		// Solve the QP problem
 		ret = eqp_solve_simple_(prob->main, infinity);
+
+		// Compute |Z2p|
+		double Z2p_sum = 0;
+		for (int i2p=0; i2p < n2p; ++i2p) Z2p_sum += overlap_area2p[i2p] * Z2p[i2p];
+		printf("downgrid: |Z2p| final = %g\n", Z2p_sum);
 	}
 
 //	store_result(_i2p_to_i2, Z2, Z2p,
@@ -296,13 +329,21 @@ MergeOrReplace merge_or_replace)
 printf("Snowdrift::upgrid(merge_or_replace = %d)\n", merge_or_replace);
 
 	// Select out Z, and scale to projected space
+	double Z2p_sum_proj = 0;
+	double Z2p_sum_native = 0;
 	std::vector<double> Z2p;
 	Z2p.reserve(n2p);
 	for (int i2p=0; i2p<n2p; ++i2p) {
 		int i2 = i2p_to_i2(i2p);
 		GridCell const &gc2(*grid2p[i2p]);
-		Z2p.push_back(Z2(i2) * (gc2.native_area / gc2.proj_area));
+		double factor = (gc2.native_area / gc2.proj_area);
+		Z2p.push_back(Z2(i2) * factor);
+		Z2p_sum_proj += overlap_area2p[i2p] * Z2(i2);
+		Z2p_sum_native += overlap_area2p[i2p] * Z2(i2) * factor;
 	}
+
+	// Print |Z2p|
+	printf("upgrid: |Z2p| = %g\n", Z2p_sum_native);
 
 	// Regrid by multiplying by overlap matrix (HNTR regridding)
 	double Z1hp[n1hp];
@@ -310,12 +351,16 @@ printf("Snowdrift::upgrid(merge_or_replace = %d)\n", merge_or_replace);
 
 	// Scale back to Z/m^2
 	for (int i1hp=0; i1hp < n1hp; ++i1hp) {
-		// Z1hp[i1hp] *= proj_area1hp[i1hp] / (overlap_area1hp[i1hp] * native_area1hp[i1hp]);
-if (i1hp < 5) printf("native_area1hp[%d] = %f\n", native_area1hp[i1hp]);
-		Z1hp[i1hp] /= native_area1hp[i1hp];		// Because proj_area1hp == overlap_area1hp
+		Z1hp[i1hp] /= proj_area1hp[i1hp];		// Because proj_area1hp == overlap_area1hp
 	}
 
+	// Compute |Z1hp|
+//	double Z1hp_sum = 0;
+//	for (int i1hp=0; i1hp < n1hp; ++i1hp) Z1hp_sum += overlap_area1hp[i1hp] * Z1hp[i1hp];
+//	printf("upgrid: |Z1hp| = %g\n", Z1hp_sum);
+
 	// Merge results into Z1
+	double Z1hp_sum_native = 0;
 	for (int i1hp=0; i1hp < n1hp; ++i1hp) {
 		int i1h = i1hp_to_i1h(i1hp);
 		int i1 = i1h_to_i1(i1h);
@@ -329,7 +374,10 @@ if (i1h < 5) printf("i1h=%d, i1=%d\n", i1h, i1);
 		// proj_area1hp == overlap_area1hp.  So merge just reduces
 		// to replace
 		Z1[hclass](i1) = X1;
+		Z1hp_sum_native += X1 * native_area1hp[i1hp];
 	}
+	printf("upgrid: |Z1hp| = %g\n", Z1hp_sum_native);
+
 
 }
 

@@ -1,5 +1,6 @@
 # Set up a sample function on the ice grid, upgrids to the GCM grid,
 # and then plot it (rasterized) on the GCM grid
+# Eg: python snowdrift_test3.py xy_overlap.nc
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -159,14 +160,16 @@ print 'ZG0[0] = %f' % ZG0[0]
 
 # =============== Rasterize on the GCM Grid
 # Rasterize it over same region as ice grid
-grid1 = snowdrift.Grid(overlap_fname, 'grid1')
-
 raster_x = 100
 raster_y = 200
+
+grid1 = snowdrift.Grid(overlap_fname, 'grid1')
+rast1 = snowdrift.Rasterizer(grid1, x0,x1,raster_x, y0,y1,raster_y)
+
 ZG0_r = np.zeros((raster_x, raster_y))
 ZG0_r[:] = np.nan
 print 'BEGIN Rasterize'
-grid1.rasterize(x0,x1,raster_x, y0,y1,raster_y, ZG0, ZG0_r)
+snowdrift.rasterize(rast1, ZG0, ZG0_r)
 print 'END Rasterize'
 print 'Rasterized to array of shape ', ZG0_r.shape
 
@@ -191,10 +194,11 @@ time1 = time.time()
 print ZH1[1:200]
 print 'Finished with Downgrid, took %f seconds' % (time1-time0,)
 grid2 = snowdrift.Grid(overlap_fname, 'grid2')
+rast2 = snowdrift.Rasterizer(grid2, x0,x1,raster_x, y0,y1,raster_y)
 ZH1_r = np.zeros((raster_x, raster_y))
 ZH1_r[:] = np.nan
 print 'BEGIN Rasterize'
-grid2.rasterize(x0,x1,raster_x, y0,y1,raster_y, ZH1, ZH1_r)
+snowdrift.rasterize(rast2, ZH1, ZH1_r)
 print 'END Rasterize'
 
 ax = fig.add_subplot(1,2,2)

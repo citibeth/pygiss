@@ -91,8 +91,21 @@ public:
 		double const *data, int data_stride,
 		double *out, int xstride, int ystride);
 
+
+	struct SmoothingFunction {
+		/** The Hessian matrix, used in QP */
+		MapSparseMatrix H;
+
+		/** Linear term to QP objective function.  Must be pairwise-multiplied
+		by Z0, the HNTR regridding result.  Constant term is also available
+		from this */
+		std::vector<double> G0;
+
+		SmoothingFunction(MapSparseMatrix &&_H) : H(_H), G0(H.ncol) {}
+	};
+
 	/** @param mask[size()] >=0 if we want to include this grid cell */
-	virtual std::unique_ptr<MapSparseMatrix> get_smoothing_matrix(std::set<int> const &mask);
+	virtual std::unique_ptr<Grid::SmoothingFunction> get_smoothing_function(std::set<int> const &mask);
 
 #if 0
 	/** Used to divide up a grid cell in the face of elevation classes */

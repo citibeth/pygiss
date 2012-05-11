@@ -292,10 +292,11 @@ void Grid_rasterize(
 
 
 
-std::unique_ptr<MapSparseMatrix> Grid::get_smoothing_matrix(std::set<int> const &mask)
+std::unique_ptr<Grid::SmoothingFunction> Grid::get_smoothing_function(std::set<int> const &mask)
 {
-	printf("Grid::get_smoothing_matrix()\n");
-	return std::unique_ptr<MapSparseMatrix>();
+	fprintf(stderr, "Grid::get_smoothing_function() undefined!\n");
+	throw std::exception();
+	//return std::unique_ptr<SmoothingFunction>();
 }
 
 

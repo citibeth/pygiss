@@ -1,5 +1,6 @@
 #include <boost/bind.hpp>
 #include "Grid_XY.hpp"
+#include <cmath>
 
 namespace giss {
 
@@ -123,19 +124,19 @@ const int derivative_x[4] = {-1, 1, 0, 0};
 const int derivative_y[4] = {0, 0, -1, 1};
 
 /** @param mask[size()] == 1 if we want to include this grid cell. */
-std::unique_ptr<MapSparseMatrix> Grid_XY::get_smoothing_matrix(std::set<int> const &mask)
+std::unique_ptr<Grid::SmoothingFunction> Grid_XY::get_smoothing_function(std::set<int> const &mask)
 {
 printf("Grid_XY::get_smoothing_matrix() called\n");
 	// Allocate the matrix
 	int nx = x_boundaries.size() - 1;
 	int ny = y_boundaries.size() - 1;
 	int nxy = nx * ny;
-	std::unique_ptr<MapSparseMatrix> H(new MapSparseMatrix(
+
+	std::unique_ptr<Grid::SmoothingFunction> ret(new SmoothingFunction(MapSparseMatrix(
 		SparseDescr(nxy, nxy, index_base,
 		SparseMatrix::MatrixStructure::SYMMETRIC,
-		SparseMatrix::TriangularType::LOWER)));
+		SparseMatrix::TriangularType::LOWER))));
 
-printf("H=%p\n", H.get());
 printf("mask.size() == %ld\n", mask.size());
 
 	for (auto ii = mask.begin(); ii != mask.end(); ++ii) {
@@ -155,8 +156,8 @@ printf("mask.size() == %ld\n", mask.size());
 //if (index0 > 168557) printf("      (x0i,y0i) = (%d, %d)   (x1i, y1i) = (%d, %d)   (index0, index1) = (%d,%d)\n", x0i, y0i, x1i, y1i, index0, index1);
 
 //printf("index0=%d, index1=%d\n", index0, index1);
-			if (mask.find(index1) == mask.end()) continue;		// Neighbor is inactive, skip
 
+			// =========== Add smoothness term to objective function
 			// Get distance between centers of the two gridcells
 			double deltax_x2 =
 				(x_boundaries[x1i+1] + x_boundaries[x1i]) -
@@ -168,15 +169,34 @@ printf("mask.size() == %ld\n", mask.size());
 			// weight = 1 / |(x1,y1) - (x0,y0)|
 			double weight = 4.0 / (deltax_x2*deltax_x2 + deltay_x2*deltay_x2);
 
-			// Add it to our matrix
-			H->add(index0, index0, weight);
-			H->add(index1, index1, weight);
-			H->add(index0, index1, -weight);
+			// Add to our objective function
+			if (mask.find(index1) != mask.end()) {	// Neighbor is active, use it
+
+				// Add it to our matrix
+				ret->H.add(index0, index0, weight);
+				ret->H.add(index1, index1, weight);
+				ret->H.add(index0, index1, -weight);	// Implicitly *2 since this is symmetric matrix.
+			} else {
+				// Neighbor is inactive, weight according to distance from
+				// what HNTR regridding would have provided.
+				double lambda = .1;
+				ret->H.add(index0, index0, weight*lambda);
+				ret->G0[index0] += weight*lambda*.5;	// .5 by definition of objective function in Galahad EQP
+			}
+
+			// ============ Add HNTR fidelity term to objective function
+#if 0
+			double lambda = 1e-13;		// Weight factor between smoothness and fidelity to HNTR
+			GridCell const &gc(this->operator[](index0));
+			double hntr_weight = lambda * sqrt(gc.native_area);
+			ret->H.add(index0, index0, hntr_weight);
+			ret->G0[index0] += hntr_weight*.5;
+#endif
 		}
 	}
 
-printf("Grid_XY: H->size() == %ld\n", H->size());
-	return H;
+printf("Grid_XY: ret->H.size() == %ld\n", ret->H.size());
+	return ret;
 }
 
 

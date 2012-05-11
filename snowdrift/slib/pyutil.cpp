@@ -29,7 +29,7 @@ std::vector<int> const &dims)
 	int const ndim = dims.size();
 	if (vec->descr->type_num != type_num || vec->nd != ndim)  {
 		char buf[200];
-		sprintf(buf, "check_dimensions: array must be of type_num %d and %d dimensions.", type_num, ndim);
+		sprintf(buf, "check_dimensions: %s must be of type_num %d and %d dimensions (its is of type_num=%d and %d dimensions).", vec_name.c_str(), type_num, ndim, vec->descr->type_num, vec->nd);
 		PyErr_SetString(PyExc_ValueError, buf);
 		return false;
 	}

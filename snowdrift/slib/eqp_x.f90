@@ -56,6 +56,9 @@ print *,'H%m,H%n,H%ne',p%H%m,p%H%n,p%H%ne
 !print *,'p%H%val',p%H%val
 
 
+!print *,'p%X_l',p%X_l(1:20)
+!print *,'p%X_u',p%X_u(1:20)
+
 	! Causes error on samples with lat/lon and cartesian grid
 	!!control%presolve = .TRUE.
 	!control%presolve = .FALSE.

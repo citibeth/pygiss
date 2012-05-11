@@ -40,7 +40,8 @@ public:
 	std::unique_ptr<QPT_problem> prob;	// Data structure for QP solver
 	double infinity;					// Value used for infinity in QP solver
 	std::unique_ptr<ZD11SparseMatrix> overlaphp;	// Overlap (constratints) matrix used for QP problem
-	std::unique_ptr<ZD11SparseMatrix> smooth2p;
+	std::unique_ptr<ZD11SparseMatrix> smooth2p_H;		// Hessian for QP solver
+	std::vector<double> smooth2p_G0;					// Subselected version of smooth2.G0
 
 	int n1;		// grid1.size() = overlap.nrow
 	int n2;		// grid2.size() = overlap.ncol

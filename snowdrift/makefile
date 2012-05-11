@@ -54,7 +54,8 @@ SNOWDRIFT_LIB_LIBS = \
 	-L$(NETCDF_HOME)/lib -lnetcdff -lnetcdf -lnetcdf_c++ \
 	-L$(CGAL_HOME)/lib -lCGAL -lmpfr -lgmp -lproj \
 	-L$(BOOST_HOME)/lib -lboost_thread-mt \
-	-L$(BLITZ_HOME)/lib -lblitz
+	-L$(BLITZ_HOME)/lib -lblitz \
+	-lpython2.7
 
 
 test :
@@ -64,7 +65,7 @@ test :
 -include $(SNOWDRIFT_LIB_OBJ:.o=.d)
 
 snowdrift.so : $(SNOWDRIFT_LIB_OBJ)
-	gfortran -shared -Wl -o snowdrift.so $(SNOWDRIFT_LIB_OBJ) $(SNOWDRIFT_LIB_LIBS) -lstdc++ -lpython2.7
+	gfortran -shared -Wl -o snowdrift.so $(SNOWDRIFT_LIB_OBJ) $(SNOWDRIFT_LIB_LIBS) -lstdc++
 
 searise_ll_overlap : smain/searise_ll_overlap.o snowdrift.so
 	g++ -o $@ $^ $(SNOWDRIFT_LIB_LIBS)
@@ -77,6 +78,11 @@ xy_snowdrift : smain/xy_snowdrift.o snowdrift.so
 
 hctest : smain/hctest.o snowdrift.so
 	g++ -o $@ $^ $(SNOWDRIFT_LIB_LIBS)
+
+pytypes : smain/pytypes.o snowdrift.so
+	g++ -o $@ $^ $(SNOWDRIFT_LIB_LIBS)
+
+
 
 
 clean :
