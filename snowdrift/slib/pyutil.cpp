@@ -2,6 +2,7 @@
 #include <arrayobject.h>
 #include <vector>
 #include <string>
+#include "pyutil.hpp"
 
 namespace giss {
 
@@ -47,6 +48,28 @@ std::vector<int> const &dims)
 	}
 	return true;
 }
+
+/** Used to pull apart a Numpy array into an array of arrays, one per
+height class.
+@param Z1_py The numpy data.  dimension[0] = n, dimension[1] = num_hclass */
+std::vector<blitz::Array<double,1>> py_to_blitz_Z1(PyArrayObject *Z1_py)
+{
+	int num_hclass = Z1_py->dimensions[1];
+
+	// ======== Convert to Blitz++ arrays
+    blitz::TinyVector<int,1> shape(0);
+		shape[0] = Z1_py->dimensions[0];
+    blitz::TinyVector<int,1> strides(0);
+		strides[0] = Z1_py->strides[0] / sizeof(double);
+	std::vector<blitz::Array<double,1>> Z1;
+	for (int heighti = 0; heighti < num_hclass; ++heighti) {
+		Z1.push_back(blitz::Array<double,1>(
+			(double *)Z1_py->data + (Z1_py->strides[1] / sizeof(double)) * heighti,
+			shape, strides, blitz::neverDeleteData));
+	}
+	return Z1;
+}
+
 
 
 }

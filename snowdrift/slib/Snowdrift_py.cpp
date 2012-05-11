@@ -29,23 +29,6 @@ static PyObject *Snowdrift_new(PyTypeObject *type, PyObject *args, PyObject *kwd
     return (PyObject *)self;
 }
 
-static std::vector<blitz::Array<double,1>> py_to_blitz_Z1(PyArrayObject *Z1_py, int num_hclass)
-{
-	// ======== Convert to Blitz++ arrays
-    blitz::TinyVector<int,1> shape(0);
-		shape[0] = Z1_py->dimensions[0];
-    blitz::TinyVector<int,1> strides(0);
-		strides[0] = Z1_py->strides[0] / sizeof(double);
-	std::vector<blitz::Array<double,1>> Z1;
-	for (int heighti = 0; heighti < num_hclass; ++heighti) {
-		Z1.push_back(blitz::Array<double,1>(
-			(double *)Z1_py->data + (Z1_py->strides[1] / sizeof(double)) * heighti,
-			shape, strides, blitz::neverDeleteData));
-	}
-	return Z1;
-}
-
-
 static int Snowdrift__init(SnowdriftDict *self, PyObject *args, PyObject *kwds)
 {
 	// ========= Parse the arguments
@@ -88,8 +71,7 @@ printf("Snowdrift_init1 sd=%p, n1=%d, n2=%d\n", sd, sd->n1, sd->n2);
 	if (!check_dimensions(mask_py, "mask_py", NPY_INT, {sd->n2})) return NULL;
 		auto mask(py_to_blitz<int,1>(mask_py));
 	if (!check_dimensions(height_max_py, "height_max_py", NPY_DOUBLE, {sd->n1, -1})) return NULL;
-		int num_hclass = height_max_py->dimensions[1];
-		HeightClassifier height_classes(py_to_blitz_Z1(height_max_py, num_hclass));
+		HeightClassifier height_classes(py_to_blitz_Z1(height_max_py));
 
 	// ========== Finish initialization
 	self->snowdrift->init(elevation, mask, height_classes);
@@ -134,7 +116,7 @@ printf("use_snowdrift = %d\n", use_snowdrift);
 	if (!check_dimensions(Z1_py, "Z1_py", NPY_DOUBLE, {sd->n1, sd->num_hclass})) return NULL;
 	if (!check_dimensions(Z2_py, "Z2_py", NPY_DOUBLE, {sd->n2})) return NULL;
 
-	std::vector<blitz::Array<double,1>> Z1(py_to_blitz_Z1(Z1_py, sd->num_hclass));
+	std::vector<blitz::Array<double,1>> Z1(py_to_blitz_Z1(Z1_py));
 	auto Z2(py_to_blitz<double,1>(Z2_py));
 
 	// ====== Downgrid!
@@ -162,7 +144,7 @@ static PyObject * Snowdrift_upgrid(SnowdriftDict *self, PyObject *args, PyObject
 	if (!check_dimensions(Z1_py, "Z1_py", NPY_DOUBLE, {sd->n1, sd->num_hclass})) return NULL;
 
 	auto Z2(py_to_blitz<double,1>(Z2_py));
-	std::vector<blitz::Array<double,1>> Z1(py_to_blitz_Z1(Z1_py, sd->num_hclass));
+	auto Z1(py_to_blitz_Z1(Z1_py));
 
 	// ====== Upgrid!
 	sd->upgrid(Z2, Z1, merge_or_replace);

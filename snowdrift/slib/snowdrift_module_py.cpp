@@ -1,3 +1,4 @@
+#include <vector>
 #include <Python.h>
 #include <arrayobject.h>
 #include <math.h>
@@ -6,17 +7,14 @@ extern PyTypeObject SnowdriftType;
 extern PyTypeObject GridType;
 
 extern PyTypeObject RasterizerType;
-extern PyObject *rasterize(PyObject *self, PyObject *args);
+extern PyMethodDef Rasterizer_functions[];
 
 // ===========================================================================
 
-static PyMethodDef snowdrift_functions[] = {
-	// =================== From Rasterizer
-	{"rasterize", (PyCFunction)rasterize, METH_VARARGS,
-		"Rerasterizer to a regular x/y rasterizer for display ONLY"},
-	{NULL}     /* Sentinel - marks the end of this structure */
+static PyMethodDef *snowdrift_function_sets[] = {
+	Rasterizer_functions,
+	NULL
 };
-
 
 
 extern "C"
@@ -24,8 +22,28 @@ void initsnowdrift(void)
 {
    PyObject* mod;
 
+	// Create array of all snowdrift functions
+	int ndefs = 0;
+	for (int i=0; snowdrift_function_sets[i] != NULL; ++i) {
+		PyMethodDef *functions = snowdrift_function_sets[i];
+		for (int j=0; functions[j].ml_name != NULL; ++j) {
+			++ndefs;
+		}
+	}
+	PyMethodDef *defs = new PyMethodDef[ndefs+1];	// We will give this memory to Py_InitModule3
+	int k=0;
+	for (int i=0; snowdrift_function_sets[i] != NULL; ++i) {
+		PyMethodDef *functions = snowdrift_function_sets[i];
+		for (int j=0; functions[j].ml_name != NULL; ++j) {
+			defs[k++] = functions[j];
+		}
+	}
+	const PyMethodDef dummy = {NULL};
+	defs[k++] = dummy;
+
+
    // Create the module
-   mod = Py_InitModule3("snowdrift", snowdrift_functions, "Snowdrift Regridding Interface");
+   mod = Py_InitModule3("snowdrift", defs, "Snowdrift Regridding Interface");
    if (mod == NULL) {
       return;
    }

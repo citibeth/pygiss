@@ -15,7 +15,7 @@ N is the rank of the array.
 @see: http://mail.scipy.org/pipermail/numpy-discussion/2004-March/002892.html
 */
 template<class T, int N>
-static blitz::Array<T,N> py_to_blitz(PyArrayObject* arr_obj)
+blitz::Array<T,N> py_to_blitz(PyArrayObject* arr_obj)
 {
     int T_size = sizeof(T);
     blitz::TinyVector<int,N> shape(0);
@@ -31,5 +31,12 @@ static blitz::Array<T,N> py_to_blitz(PyArrayObject* arr_obj)
     return blitz::Array<T,N>((T*) arr_obj->data,shape,strides,
 		blitz::neverDeleteData);
 }
+
+
+/** Used to pull apart a Numpy array into an array of arrays, one per
+height class.
+@param Z1_py The numpy data.  dimension[0] = n, dimension[1] = num_hclass */
+std::vector<blitz::Array<double,1>> py_to_blitz_Z1(PyArrayObject *Z1_py);
+
 
 }

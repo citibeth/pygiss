@@ -5,6 +5,7 @@
 #include "Grid_py.hpp"
 #include "Rasterizer_py.hpp"
 #include "pyutil.hpp"
+#include "HeightClassifier.hpp"
 
 using namespace giss;
 
@@ -60,6 +61,35 @@ printf("Rasterizer_dealloc(self=%p, rasterizer=%p)\n", self, self->rasterizer);
 
 //static PyMemberDef Rasterizer_members[] = {{NULL}};
 
+PyObject *rasterize_hc(PyObject *self, PyObject *args)
+{
+	// Get Arguments
+	RasterizerDict *rast1;
+	RasterizerDict *rast2;
+	PyArrayObject *Z1_py;
+	PyArrayObject *elevation2_py;
+	PyArrayObject *hclass_max_py;
+	PyArrayObject *Z1_r_py;
+	if (!PyArg_ParseTuple(args, "OOOOOO",
+		&rast1, &rast2, &Z1_py, &elevation2_py, &hclass_max_py, &Z1_r_py))
+	{
+		return NULL;
+	}
+
+	// --------- Check array sizes and types
+	// out must have dimensions (nx, ny) and be double
+	// data has single dimension, based on highest index possible
+	// strides must be mulitple of sizeof(double)
+	auto Z1(py_to_blitz_Z1(Z1_py));
+	auto elevation2(py_to_blitz<double,1>(elevation2_py));
+	HeightClassifier height_classifier(py_to_blitz_Z1(hclass_max_py));
+	auto Z1_r(py_to_blitz<double,2>(Z1_r_py));
+
+	giss::rasterize_hc(*rast1->rasterizer, *rast2->rasterizer, Z1, elevation2, height_classifier, Z1_r);
+
+	return Py_BuildValue("");
+}
+
 PyObject *rasterize(PyObject *self, PyObject *args)
 {
 	// Get Arguments
@@ -80,10 +110,20 @@ PyObject *rasterize(PyObject *self, PyObject *args)
 	auto data(py_to_blitz<double,1>(data_py));
 	auto out(py_to_blitz<double,2>(out_py));
 
-	rasterize(*rast->rasterizer, data, out);
+	giss::rasterize(*rast->rasterizer, data, out);
 
 	return Py_BuildValue("");
 }
+
+
+PyMethodDef Rasterizer_functions[] = {
+	{"rasterize", (PyCFunction)rasterize, METH_VARARGS,
+		"Rerasterizer to a regular x/y rasterizer for display ONLY"},
+	{"rasterize_hc", (PyCFunction)rasterize_hc, METH_VARARGS,
+		"Rerasterize with height classes to a regular x/y rasterizer for display ONLY"},
+	{NULL}     /* Sentinel - marks the end of this structure */
+};
+
 
 static PyMethodDef Rasterizer_methods[] = {
 	{NULL}     /* Sentinel - marks the end of this structure */
