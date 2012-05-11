@@ -159,17 +159,17 @@ n2 = grid2_var.__dict__['max_index'] - grid2_var.__dict__['index_base'] + 1
 #	n2 = info['n2']
 
 sd = snowdrift.Snowdrift(overlap_fname)
-nheight_class = 1
+num_hclass = 1
 
 elevation2 = np.array(searise_nc.variables[field_name], dtype='d').flatten('C')
 
-height_max1 = np.ones((n1,nheight_class)) * 1e20
+height_max1 = np.ones((n1,num_hclass)) * 1e20
 print 'Shape of height_max1 = ' + str(height_max1.shape)
 
 sd.init(elevation2, mask2, height_max1)
 
 # ================ Upgrid it to the GCM Grid
-ZG0 = np.zeros((n1,nheight_class))
+ZG0 = np.zeros((n1,num_hclass))
 ZG0[:] = np.nan
 sd.upgrid(ZH0, ZG0)		# 1 = Replace, 0 = Merge
 
