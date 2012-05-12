@@ -81,8 +81,8 @@ ice_nx = xb.shape[0]-1
 ice_ny = yb.shape[0]-1
 
 
-raster_x = 100
-raster_y = 200
+raster_x = ice_nx/2
+raster_y = ice_ny/2
 
 
 # =========== Read Greenland
@@ -159,11 +159,20 @@ n2 = grid2_var.__dict__['max_index'] - grid2_var.__dict__['index_base'] + 1
 #	n2 = info['n2']
 
 sd = snowdrift.Snowdrift(overlap_fname)
-num_hclass = 1
+topg = np.array(searise_nc.variables['topg'], dtype='d').flatten('C')
+thk = np.array(searise_nc.variables['thk'], dtype='d').flatten('C')
+elevation2 = topg + thk
+print elevation2
 
-elevation2 = np.array(searise_nc.variables[field_name], dtype='d').flatten('C')
 
-height_max1 = np.ones((n1,num_hclass)) * 1e20
+num_hclass = 10
+# See p. 14 of "The CESM Land Ice Model: Documentation and User's Guide" by William Lipscomb (June 2010)
+tops = np.array([200,400,700,1000,1300,1600,2000,2500,3000,10000], dtype='d')
+#tops = np.array([400, 700, 1000, 1300, 1600, 2000, 2500, 3000, 10000], dtype='d')
+#tops = np.array([100000], dtype='d')
+num_hclass = tops.shape[0]
+height_max1 = np.tile(tops, (n1,1))		# Produces an n1xnum_hclass array
+#height_max1 = np.ones((n1,num_hclass)) * 1e20
 print 'Shape of height_max1 = ' + str(height_max1.shape)
 
 sd.init(elevation2, mask2, height_max1)
@@ -183,7 +192,8 @@ ZG0_r = np.zeros((raster_x, raster_y))
 ZG0_r[:] = np.nan
 print 'BEGIN Rasterize'
 rast1 = snowdrift.Rasterizer(grid1, x0,x1,raster_x, y0,y1,raster_y)
-snowdrift.rasterize(rast1, ZG0, ZG0_r)
+#snowdrift.rasterize(rast1, ZG0, ZG0_r)
+snowdrift.rasterize_hc(rast1, rast2, ZG0, elevation2, mask2, height_max1, ZG0_r)
 print 'END Rasterize'
 print 'Rasterized to array of shape ', ZG0_r.shape
 

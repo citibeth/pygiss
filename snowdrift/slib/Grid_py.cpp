@@ -13,9 +13,9 @@ static PyObject *Grid_new(PyTypeObject *type, PyObject *args, PyObject *kwds)
 {
 	GridDict *self;
 
-printf("Grid_new() called\n");
+//printf("Grid_new() called\n");
 	self = (GridDict *)type->tp_alloc(type, 0);
-printf("Grid_new() got self=%p\n", self);
+//printf("Grid_new() got self=%p\n", self);
 
     if (self != NULL) {
 		self->grid = NULL;
@@ -41,7 +41,7 @@ static int Grid_init(GridDict *self, PyObject *args, PyObject *kwds)
 	if (self->grid) delete self->grid;
 	NcFile nc(fname, NcFile::ReadOnly);
 	self->grid = Grid::netcdf_read(nc, std::string(vname)).release();
-fprintf(stderr, "Grid_new() returns %p\n", self->grid);
+//fprintf(stderr, "Grid_new() returns %p\n", self->grid);
 
 	return 0;
 }

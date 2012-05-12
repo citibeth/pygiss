@@ -17,7 +17,7 @@ static double const nan = std::numeric_limits<double>::quiet_NaN();
 Grid::Grid(std::string const &_stype, std::string const &_name, int _index_base, int _max_index) :
 	stype(_stype), name(_name), _bounding_box_valid(false), index_base(_index_base), _rtree_valid(false), max_index(_max_index), index_size(max_index - index_base + 1)
 {
-fprintf(stderr, "Grid(this=%p)\n", this);
+//fprintf(stderr, "Grid(this=%p)\n", this);
 }
 
 

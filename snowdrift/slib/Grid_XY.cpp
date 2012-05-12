@@ -126,7 +126,7 @@ const int derivative_y[4] = {0, 0, -1, 1};
 /** @param mask[size()] == 1 if we want to include this grid cell. */
 std::unique_ptr<Grid::SmoothingFunction> Grid_XY::get_smoothing_function(std::set<int> const &mask)
 {
-printf("Grid_XY::get_smoothing_matrix() called\n");
+//printf("Grid_XY::get_smoothing_matrix() called\n");
 	// Allocate the matrix
 	int nx = x_boundaries.size() - 1;
 	int ny = y_boundaries.size() - 1;
@@ -137,7 +137,7 @@ printf("Grid_XY::get_smoothing_matrix() called\n");
 		SparseMatrix::MatrixStructure::SYMMETRIC,
 		SparseMatrix::TriangularType::LOWER))));
 
-printf("mask.size() == %ld\n", mask.size());
+//printf("mask.size() == %ld\n", mask.size());
 
 	for (auto ii = mask.begin(); ii != mask.end(); ++ii) {
 		int index0 = *ii;
@@ -169,6 +169,7 @@ printf("mask.size() == %ld\n", mask.size());
 			// weight = 1 / |(x1,y1) - (x0,y0)|
 			double weight = 4.0 / (deltax_x2*deltax_x2 + deltay_x2*deltay_x2);
 
+#if 1
 			// Add to our objective function
 			if (mask.find(index1) != mask.end()) {	// Neighbor is active, use it
 
@@ -183,10 +184,12 @@ printf("mask.size() == %ld\n", mask.size());
 				ret->H.add(index0, index0, weight*lambda);
 				ret->G0[index0] += weight*lambda*.5;	// .5 by definition of objective function in Galahad EQP
 			}
+#endif
 
 			// ============ Add HNTR fidelity term to objective function
 #if 0
 			double lambda = 1e-13;		// Weight factor between smoothness and fidelity to HNTR
+lambda = 1;
 			GridCell const &gc(this->operator[](index0));
 			double hntr_weight = lambda * sqrt(gc.native_area);
 			ret->H.add(index0, index0, hntr_weight);
@@ -195,7 +198,7 @@ printf("mask.size() == %ld\n", mask.size());
 		}
 	}
 
-printf("Grid_XY: ret->H.size() == %ld\n", ret->H.size());
+//printf("Grid_XY: ret->H.size() == %ld\n", ret->H.size());
 	return ret;
 }
 

@@ -59,16 +59,16 @@ integer, value :: eqp_bool		! Are we preparing for a problem w/ equality constra
 	self%X_l = c_loc_array_double(main%X_l)
 	self%X_u = c_loc_array_double(main%X_u)
 
-write(6,*) 'QPT_problem-c_init() eqp_bool=', eqp_bool
+! write(6,*) 'QPT_problem-c_init() eqp_bool=', eqp_bool
 	if (eqp_bool /= 0) then
 		allocate(main%C(m))
 		self%C = c_loc_array_double(main%C)
-write(6,*) 'self%C=', self%C
+! write(6,*) 'self%C=', self%C
 	else
 		allocate(main%C_l(m), main%C_u(m))
 		self%C_l = c_loc_array_double(main%C_l)
 		self%C_u = c_loc_array_double(main%C_u)
-write(6,*) 'self%C_u=', self%C_u
+! write(6,*) 'self%C_u=', self%C_u
 	end if
 
 	allocate(main%X(n), main%Y(m), main%Z(n))

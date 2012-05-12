@@ -45,7 +45,7 @@ static int Rasterizer__init(RasterizerDict *self, PyObject *args, PyObject *kwds
 	// Instantiate pointer
 	if (self->rasterizer) delete self->rasterizer;
 	self->rasterizer = new Rasterizer(grid->grid, x0, x1, nx, y0, y1, ny);
-fprintf(stderr, "Rasterizer_new() returns %p\n", self->rasterizer);
+//fprintf(stderr, "Rasterizer_new() returns %p\n", self->rasterizer);
 
 	return 0;
 }
@@ -68,10 +68,11 @@ PyObject *rasterize_hc(PyObject *self, PyObject *args)
 	RasterizerDict *rast2;
 	PyArrayObject *Z1_py;
 	PyArrayObject *elevation2_py;
+	PyArrayObject *mask2_py;
 	PyArrayObject *hclass_max_py;
 	PyArrayObject *Z1_r_py;
-	if (!PyArg_ParseTuple(args, "OOOOOO",
-		&rast1, &rast2, &Z1_py, &elevation2_py, &hclass_max_py, &Z1_r_py))
+	if (!PyArg_ParseTuple(args, "OOOOOOO",
+		&rast1, &rast2, &Z1_py, &elevation2_py, &mask2_py, &hclass_max_py, &Z1_r_py))
 	{
 		return NULL;
 	}
@@ -82,10 +83,11 @@ PyObject *rasterize_hc(PyObject *self, PyObject *args)
 	// strides must be mulitple of sizeof(double)
 	auto Z1(py_to_blitz_Z1(Z1_py));
 	auto elevation2(py_to_blitz<double,1>(elevation2_py));
+	auto mask2(py_to_blitz<int,1>(mask2_py));
 	HeightClassifier height_classifier(py_to_blitz_Z1(hclass_max_py));
 	auto Z1_r(py_to_blitz<double,2>(Z1_r_py));
 
-	giss::rasterize_hc(*rast1->rasterizer, *rast2->rasterizer, Z1, elevation2, height_classifier, Z1_r);
+	giss::rasterize_hc(*rast1->rasterizer, *rast2->rasterizer, Z1, elevation2, mask2, height_classifier, Z1_r);
 
 	return Py_BuildValue("");
 }

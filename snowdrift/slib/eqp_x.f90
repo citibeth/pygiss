@@ -41,6 +41,7 @@ logical :: eqp_solve_simple
 !	control%scale = 1
 
 !	control%generate_sif_file = .TRUE.
+	control%print_level = 5
 
 print *,'m,n,A%m,A%n,A%ne',p%m,p%n,p%A%m,p%A%n,p%A%ne
 !print *,'p%A%row',p%A%row
@@ -83,7 +84,26 @@ print *,'H%m,H%n,H%ne',p%H%m,p%H%n,p%H%ne
 	! with preconditioner = 2 only 1 iteration is required, but the
 	! factorization cost is far higher. The better preconditioned method
 	! seems to take 0.06 seconds on my desktop machine for the 25km problem.
-	control%SBLS_control%preconditioner = 1
+
+!    0 automatic
+!    1 explicit with G = I
+!    2 explicit with G = H
+!    3 explicit with G = diag(max(H,min_diag))
+!    4 explicit with G = band(H)
+!    5 explicit with G = (optional, diagonal) D
+!   11 explicit with G_11 = 0, G_21 = 0, G_22 = H_22
+!   12 explicit with G_11 = 0, G_21 = H_21, G_22 = H_22
+!   -1 implicit with G_11 = 0, G_21 = 0, G_22 = I
+!   -2 implicit with G_11 = 0, G_21 = 0, G_22 = H_22
+	control%SBLS_control%preconditioner = 1	! Random low-elevation points break this
+!	control%SBLS_control%preconditioner = 3	! Works even with low-elevation points (but not when the rest of points are added back)
+!	control%SBLS_control%preconditioner = 4	! Super-slow
+!	control%SBLS_control%preconditioner = 5	! Breaks
+!	control%SBLS_control%preconditioner = 11	! Segfault in sbls_find_basis():uls_factorize():gls_analyse()
+!	control%SBLS_control%preconditioner = 12	! Segfault
+	control%SBLS_control%preconditioner = 0
+
+
 
 	call system_clock(time0_ms)
 	CALL EQP_solve( p, data, control, inform) ! Solve
@@ -93,15 +113,24 @@ print *,'H%m,H%n,H%ne',p%H%m,p%H%n,p%H%ne
 	write(6, "( 'EQP_Solve took ', F6.3, ' seconds')") delta_time
 
 !	inform%status = 0
+	write(6, "( ' condition_number_1= ', F6.3, ' condition_number_2= ', F6.3)") &
+		inform%SBLS_inform%SLS_inform%condition_number_1, &
+		inform%SBLS_inform%SLS_inform%condition_number_2
 	IF ( inform%status /= 0 ) THEN	! Error
 		eqp_solve_simple = .false.
 		WRITE( 6, "( ' QP_solve exit status = ', I6 ) " ) inform%status
-!		select case(inform%status)
+		select case(inform%status)
+!			case(-10)
+!				write(6, "( ' inform%sils_factorize_status = ', I6 ) " ) inform%sils_factorize_status
+			case(-10)
+				write(6, "( ' inform%SBLS_inform%status = ', I6 ) " ) inform%SBLS_inform%status
+				write(6, "( ' inform%SBLS_inform%SLS_inform%status = ', I6 ) " ) inform%SBLS_inform%SLS_inform%status
+
 !			case(-32)
 !				write(6, "( ' inform%PRESOLVE_inform%status = ', I6 ) " ) inform%PRESOLVE_inform%status
 !			case(-35)
 !				write(6, "( ' inform%QPC_inform%status = ', I6 ) " ) inform%QPC_inform%status
-!		end select
+		end select
 	else
 		eqp_solve_simple = .true.
 		! ----------- Good return
@@ -116,5 +145,6 @@ print *,'H%m,H%n,H%ne',p%H%m,p%H%n,p%H%ne
 
 	end if
 	CALL EQP_terminate( data, control, inform) ! delete internal workspace
+	call flush(6)
 
 end function eqp_solve_simple

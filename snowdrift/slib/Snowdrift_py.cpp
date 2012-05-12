@@ -43,7 +43,7 @@ static int Snowdrift__init(SnowdriftDict *self, PyObject *args, PyObject *kwds)
 	if (self->snowdrift) delete self->snowdrift;
 	self->snowdrift = new giss::Snowdrift(std::string(fname));
 
-printf("snowdrift = %p\n", self->snowdrift);
+//printf("snowdrift = %p\n", self->snowdrift);
 
 	return 0;
 }
@@ -52,7 +52,7 @@ static PyObject *Snowdrift_init(SnowdriftDict *self, PyObject *args, PyObject *k
 {
 	Snowdrift * const sd(self->snowdrift);
 
-printf("Snowdrift_init1 sd=%p, n1=%d, n2=%d\n", sd, sd->n1, sd->n2);
+//printf("Snowdrift_init1 sd=%p, n1=%d, n2=%d\n", sd, sd->n1, sd->n2);
 
 	// ========= Parse the arguments
 	PyArrayObject *elevation_py;

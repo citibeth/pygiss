@@ -107,6 +107,7 @@ Rasterizer const &rast1,
 Rasterizer const &rast2,
 std::vector<blitz::Array<double,1>> const &Z1,
 blitz::Array<double,1> const &elevation2,
+blitz::Array<int,1> const &mask2,
 HeightClassifier &height_classifier,
 blitz::Array<double,2> &Z1_r)
 {
@@ -137,11 +138,15 @@ blitz::Array<double,2> &Z1_r)
 			int i1 = rast1.index(ix, iy);
 			int i2 = rast2.index(ix, iy);
 
-			// Figure out its height class
-			int hclass = height_classifier.get_hclass(i1, elevation2(i2));
+			if (mask2(i2) == 0) {
+				Z1_r(ix,iy) = nan;
+			} else {
+				// Figure out its height class
+				int hclass = height_classifier.get_hclass(i1, elevation2(i2));
 
-			// Look up and store its value
-			Z1_r(ix,iy) = Z1[hclass](i1);
+				// Look up and store its value
+				Z1_r(ix,iy) = Z1[hclass](i1);
+			}
 		}
 	}
 }

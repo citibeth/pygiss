@@ -20,9 +20,29 @@ namespace giss {
     1h          Height-classified grid1
     1hp         Sub-selected grid1h (zero rows & cols removed)
     2p          Sub-selected grid2
+	1hq,2p      Additional rows/cols removed for QP.  Subset of 1hp
 </pre>
 */
 class Snowdrift {
+	class GCInfo {
+	public:
+		double native_area;
+		double proj_area;
+
+		GCInfo(double _native_area, double _proj_area) :
+			native_area(_native_area), proj_area(_proj_area) {}
+#if 0
+		GCInfo(GCInfo const &rhs) : native_area(rhs.native_area), proj_area(rhs.proj_area) {}
+		GCInfo &operator=(GCInfo const &rhs) {
+			native_area = rhs.native_area;
+			proj_area = rhs.proj_area;
+			return *this;
+		}
+#endif
+
+		double native_by_proj() const { return native_area / proj_area; }
+		double proj_by_native() const { return proj_area / native_area; }
+	};
 public:
 	int num_hclass;
 
@@ -34,23 +54,34 @@ public:
 	std::unique_ptr<VectorSparseMatrix> overlap;	/// Overlap matrix between grid1 and grid2
 
 	// -------- Arguments to regrid function
-	std::vector<blitz::Array<double,1>> const Z1;	// Z1[heighti][i1]
+	// std::vector<blitz::Array<double,1>> const Z1;	// Z1[heighti][i1]
 
 	// ------ Additional stuff we compute in preparation for regridding
 	std::unique_ptr<QPT_problem> prob;	// Data structure for QP solver
 	double infinity;					// Value used for infinity in QP solver
-	std::unique_ptr<ZD11SparseMatrix> overlaphp;	// Overlap (constratints) matrix used for QP problem
-	std::unique_ptr<ZD11SparseMatrix> smooth2p_H;		// Hessian for QP solver
-	std::vector<double> smooth2p_G0;					// Subselected version of smooth2.G0
+	std::unique_ptr<VectorSparseMatrix> overlaphp;
+	std::unique_ptr<ZD11SparseMatrix> overlaphq;	// Overlap (constratints) matrix used for QP problem.  Pesky cells have been removed, and rows/columns have been renumbered to remove blank rows and columns.
+
+	/** Cells of overlaphp that were not included in overlaphq.
+	This happens for rows with only 1 element in them, since they mess up the EQP solver. */
+//	std::unique_ptr<VectorSparseMatrix> overlaphp_extra;
+
+	std::unique_ptr<ZD11SparseMatrix> smooth2q_H;		// Hessian for QP solver
+	std::vector<double> smooth2q_G0;					// Subselected version of smooth2.G0
 
 	int n1;		// grid1.size() = overlap.nrow
 	int n2;		// grid2.size() = overlap.ncol
 	int n1h;	// grid1h.size() = overlaph.nrow
 	int n1hp;	// grid1hp.size() = overlaphp.nrow
 	int n2p;	// grid2.size() = overlaphp.ncol
+	int n1hq, n2q;
 
-	/// Overlap matrix between grid1h and grid2
-	std::unique_ptr<VectorSparseMatrix> overlaph;
+	std::vector<int> _i1hp_to_i1hq;
+	std::vector<int> _i1hq_to_i1hp;
+
+
+	/// Overlap matrix between grid1h and grid2 (including things that were eliminated for EQP)
+	// std::unique_ptr<VectorSparseMatrix> overlaph;
 	std::vector<int> _i1h_to_i1hp;		// Converts i1h --> i1hp
 	std::vector<int> _i1hp_to_i1h;			// Converts i1hp --> i1h
 
@@ -89,6 +120,37 @@ public:
 #endif
 
 
+	inline int i1hp_to_i1hq(int i1hp)
+	{
+		if (i1hp < 0 || i1hp >= _i1hp_to_i1hq.size()) {
+			fprintf(stderr, "i1hp=%d is out of range (%d, %d)\n", i1hp, 0, _i1hp_to_i1hq.size());
+			throw std::exception();
+		}
+		int i1hq = _i1hp_to_i1hq[i1hp];
+		if (i1hq < 0) {
+			fprintf(stderr, "i1hp=%d produces invalid i1hq=%d\n", i1hp, i1hq);
+			throw std::exception();
+		}
+		return i1hq;
+	}
+	inline int i1hq_to_i1hp(int i1hq)
+	{
+		if (i1hq < 0 || i1hq >= _i1hq_to_i1hp.size()) {
+			fprintf(stderr, "i1hq=%d is out of range (%d, %d)\n", i1hq, 0, _i1hq_to_i1hp.size());
+			throw std::exception();
+		}
+		int i1hp = _i1hq_to_i1hp[i1hq];
+		if (i1hp < 0) {
+			fprintf(stderr, "i1hq=%d produces invalid i1h=%d\n", i1hq, i1hp);
+			throw std::exception();
+		}
+		return i1hp;
+	}
+
+
+
+
+
 	inline int i1h_to_i1(int i1h)
 		{ return i1h / num_hclass; }
 	inline int get_hclass(int i1h, int i1)
@@ -96,6 +158,9 @@ public:
 
 	std::vector<int> _i2_to_i2p;		// Converts i2 --> i2p
 	std::vector<int> _i2p_to_i2;			// Converts i2p --> i2
+
+	std::vector<int> _i2p_to_i2q;		// Converts i2 --> i2p
+	std::vector<int> _i2q_to_i2p;			// Converts i2p --> i2
 
 	inline int i2_to_i2p(int i2)
 	{
@@ -124,14 +189,47 @@ public:
 		return i2;
 	}
 
-	std::vector<double> overlap_area1hp;	// Same as proj_area1hp.  By definition, height-classified parts of grid1 are only portions that overlap grid2
-	std::vector<double> &proj_area1hp;
-	std::vector<double> native_area1hp;
 
+	inline int i2p_to_i2q(int i2p)
+	{
+		if (i2p < 0 || i2p >= _i2p_to_i2q.size()) {
+			fprintf(stderr, "i2p=%d is out of range (%d, %d)\n", i2p, 0, _i2p_to_i2q.size());
+			throw std::exception();
+		}
+		int i2q = _i2p_to_i2q[i2p];
+		if (i2q < 0) {
+			fprintf(stderr, "i2p=%d produces invalid i2q=%d\n", i2p, i2q);
+			throw std::exception();
+		}
+		return i2q;
+	}
+	inline int i2q_to_i2p(int i2q)
+	{
+		if (i2q < 0 || i2q >= _i2q_to_i2p.size()) {
+			fprintf(stderr, "i2q=%d is out of range (%d, %d)\n", i2q, 0, _i2q_to_i2p.size());
+			throw std::exception();
+		}
+		int i2p = _i2q_to_i2p[i2q];
+		if (i2p < 0) {
+			fprintf(stderr, "i2q=%d produces invalid i2=%d\n", i2q, i2p);
+			throw std::exception();
+		}
+		return i2p;
+	}
+
+
+
+	// Based on overlaps in overlaphp
+	// By definition, height-classified parts of grid1 are only portions that overlap grid2
+	std::vector<double> overlap_area1hp;
 	std::vector<double> overlap_area2p;
-	// std::vector<double> native_area2p;
 
-	std::vector<GridCell const *> grid2p;
+	// Based on overlaps in overlaphq
+	std::vector<double> overlap_area1hq;
+	std::vector<double> overlap_area2q;
+
+	std::vector<GCInfo> grid2p;
+	std::vector<GCInfo> grid1hp;
 
 public:
 	// ---------------- Methods...

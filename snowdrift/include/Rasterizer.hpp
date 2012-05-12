@@ -21,6 +21,7 @@ class Rasterizer {
 	Rasterizer const &rast2,
 	std::vector<blitz::Array<double,1>> const &Z1,
 	blitz::Array<double,1> const &elevation2,
+	blitz::Array<int,1> const &mask2,
 	HeightClassifier &height_classifier,
 	blitz::Array<double,2> &Z1_r);
 
@@ -59,6 +60,7 @@ Rasterizer const &rast1,
 Rasterizer const &rast2,
 std::vector<blitz::Array<double,1>> const &Z1,
 blitz::Array<double,1> const &elevation2,
+blitz::Array<int,1> const &mask2,
 HeightClassifier &height_classifier,
 blitz::Array<double,2> &Z1_r);
 
