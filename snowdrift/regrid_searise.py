@@ -81,8 +81,8 @@ ice_nx = xb.shape[0]-1
 ice_ny = yb.shape[0]-1
 
 
-raster_x = ice_nx/2
-raster_y = ice_ny/2
+raster_x = ice_nx
+raster_y = ice_ny
 
 
 # =========== Read Greenland

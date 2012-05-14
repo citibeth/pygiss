@@ -343,12 +343,14 @@ printf("*** n1hp=%d, n1hq=%d\n", n1hp, n1hq);
 		for (int i1hq=0; i1hq<n1hq; ++i1hq) {
 			int i1hp = i1hq_to_i1hp(i1hq);
 			double val = Z1hp[i1hp] * overlap_area1hq[i1hq];
+#if 0
 //			double val = Z1hp[i1hp] * overlap_area1hp[i1hp];
 double frac = (overlap_area1hq[i1hq] - overlap_area1hp[i1hp]) / overlap_area1hp[i1hp];
 //if (std::abs(frac) > 1e-14) {
 if (overlap_area1hq[i1hq] != overlap_area1hp[i1hp]) {
 	printf("i1hq=%d, i1hp=%d, o1hq=%f, o1hp=%f\n", i1hq, i1hp, overlap_area1hq[i1hq], overlap_area1hp[i1hp]);
 }
+#endif
 
 			// We have "-val" here because the constraint is phrased as "Ax + c = 0"
 			// See the GALAHAD documentation eqp.pdf
