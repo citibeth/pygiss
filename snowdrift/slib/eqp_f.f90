@@ -101,7 +101,7 @@ print *,'H%m,H%n,H%ne',p%H%m,p%H%n,p%H%ne
 !	control%SBLS_control%preconditioner = 5	! Breaks
 !	control%SBLS_control%preconditioner = 11	! Segfault in sbls_find_basis():uls_factorize():gls_analyse()
 !	control%SBLS_control%preconditioner = 12	! Segfault
-	control%SBLS_control%preconditioner = 0
+!	control%SBLS_control%preconditioner = 0
 
 
 

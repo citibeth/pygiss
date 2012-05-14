@@ -1,5 +1,6 @@
 #pragma once
 
+#include <boost/function.hpp>
 #include "hsl_zd11_x.hpp"
 
 namespace giss {
@@ -8,6 +9,8 @@ class QPT_problem_f;		// Fortran type, opaque
 class QPT_problem;			// C++ class
 
 }
+
+class NcFile;
 
 // =============== Fortran Subroutines
 extern "C" giss::QPT_problem_f *qpt_problem_new_c_();
@@ -42,23 +45,11 @@ public :
 	/** @param A_ne Number of elements in the constraint matrix */
 	QPT_problem(
 		int m, int n,
-		int A_ne, int H_ne, bool eqp) :
-	main(*(QPT_problem_f *)0),
-	m(*(int *)0),
-	n(*(int *)0),
-	f(*(double *)0),
-	G(0), X_l(0), X_u(0), C(0), C_l(0), C_u(0), X(0), Y(0), Z(0)
-	{
-		QPT_problem_f *main = qpt_problem_new_c_();
-printf("qpt_x: A_ne=%d\n", A_ne);
-		int eqp_bool = eqp;
-		qpt_problem_c_init_(this, main, m, n, A_ne, H_ne, eqp_bool);
-	}
+		int A_ne, int H_ne, bool eqp);
 
-	~QPT_problem()
-	{
-		qpt_problem_delete_c_(&main);
-	}
+	~QPT_problem();
+
+	boost::function<void()> netcdf_define(NcFile &nc, std::string const &vname);
 };
 
 }	// namespace giss

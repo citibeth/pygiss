@@ -85,6 +85,9 @@ public:
 	std::vector<int> _i1h_to_i1hp;		// Converts i1h --> i1hp
 	std::vector<int> _i1hp_to_i1h;			// Converts i1hp --> i1h
 
+	// If != "", write to this file just before we solve.
+	std::string problem_file;
+
 #if 0
 	inline int i1h_to_i1hp(int i1h)
 		{ return _i1h_to_i1hp[i1h]; }

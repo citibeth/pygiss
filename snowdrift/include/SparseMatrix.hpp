@@ -159,7 +159,7 @@ boost::function<void ()> SparseMatrix1<SparseMatrix0T>::netcdf_define(
 	auto areaVar = nc.add_var((vname + ".val").c_str(), ncDouble, lenDim);
 
 	auto oneDim = get_or_add_dim(nc, "one", 1);
-	auto descrVar = nc.add_var((vname + ".descr").c_str(), ncInt, oneDim);
+	auto descrVar = nc.add_var((vname + ".descr").c_str(), ncInt, oneDim);	// TODO: This should be ".info"
 	descrVar->add_att("nrow", this->nrow);
 	descrVar->add_att("ncol", this->ncol);
 	descrVar->add_att("index_base", this->index_base);

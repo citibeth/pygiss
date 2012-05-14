@@ -18,6 +18,8 @@ Snowdrift::Snowdrift(std::string const &fname)
 
 	n1 = grid1->max_index - grid1->index_base + 1;
 	n2 = grid2->max_index - grid2->index_base + 1;
+
+//	problem_file = "snowdrift.nc";
 }
 
 
@@ -359,6 +361,13 @@ if (overlap_area1hq[i1hq] != overlap_area1hp[i1hp]) {
 			// prob->C_u[i1hq] = -val;
 		}
 printf("*** done\n");
+
+		// Write the problem
+		if (problem_file != "") {
+			NcFile nc(problem_file.c_str(), NcFile::Replace);
+			prob->netcdf_define(nc, "eqp")();
+			nc.close();
+		}
 
 		// Solve the QP problem
 		ret = eqp_solve_simple_(prob->main, infinity);

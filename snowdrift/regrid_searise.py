@@ -81,8 +81,8 @@ ice_nx = xb.shape[0]-1
 ice_ny = yb.shape[0]-1
 
 
-raster_x = ice_nx
-raster_y = ice_ny
+raster_x = ice_nx/2
+raster_y = ice_ny/2
 
 
 # =========== Read Greenland
@@ -175,7 +175,7 @@ height_max1 = np.tile(tops, (n1,1))		# Produces an n1xnum_hclass array
 #height_max1 = np.ones((n1,num_hclass)) * 1e20
 print 'Shape of height_max1 = ' + str(height_max1.shape)
 
-sd.init(elevation2, mask2, height_max1)
+sd.init(elevation2, mask2, height_max1, problem_file='snowdriftx.nc')
 
 # ================ Upgrid it to the GCM Grid
 ZG0 = np.zeros((n1,num_hclass))

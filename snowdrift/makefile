@@ -82,7 +82,12 @@ hctest : smain/hctest.o snowdrift.so
 pytypes : smain/pytypes.o snowdrift.so
 	g++ -o $@ $^ $(SNOWDRIFT_LIB_LIBS)
 
-
+read_eqp : smain/read_eqp.o slib/ncutil_f.o
+	gfortran -o $@ $^ \
+	-L$(NETCDF_HOME)/lib -lnetcdff -lnetcdf \
+	-L$(GALAHAD)/objects/$(GALAHAD_ARCH)/double -lgalahad \
+	-lgalahad_hsl -lgalahad_pardiso -lgalahad_wsmp -lgalahad_metis \
+	-lgalahad_lapack -lgalahad_blas -lgomp
 
 
 clean :

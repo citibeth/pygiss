@@ -48,7 +48,7 @@ static int Snowdrift__init(SnowdriftDict *self, PyObject *args, PyObject *kwds)
 	return 0;
 }
 
-static PyObject *Snowdrift_init(SnowdriftDict *self, PyObject *args, PyObject *kwds)
+static PyObject *Snowdrift_init(SnowdriftDict *self, PyObject *args, PyObject *keywords)
 {
 	Snowdrift * const sd(self->snowdrift);
 
@@ -58,8 +58,13 @@ static PyObject *Snowdrift_init(SnowdriftDict *self, PyObject *args, PyObject *k
 	PyArrayObject *elevation_py;
 	PyArrayObject *mask_py;
 	PyArrayObject *height_max_py;
-	if (!PyArg_ParseTuple(args, "OOO",
-		&elevation_py, &mask_py, &height_max_py))
+	char const *problem_file = "";
+	
+	static char const *keyword_list[] = {"elevation", "mask", "height_max", "problem_file", NULL};
+	if (!PyArg_ParseTupleAndKeywords(
+		args, keywords, "OOO|s",
+		const_cast<char **>(keyword_list),
+		&elevation_py, &mask_py, &height_max_py, &problem_file))
 	{
 		// Throw an exception...
 		PyErr_SetString(PyExc_ValueError, "Snowdrift_init(): invalid arguments."); return NULL;
@@ -75,6 +80,7 @@ static PyObject *Snowdrift_init(SnowdriftDict *self, PyObject *args, PyObject *k
 
 	// ========== Finish initialization
 	self->snowdrift->init(elevation, mask, height_classes);
+	self->snowdrift->problem_file = std::string(problem_file);
 
 //printf("Snowdrift::init(%s) called, snowdrift=%p\n", fname, self->snowdrift);
 printf("snowdrift = %p\n", self->snowdrift);
@@ -105,7 +111,7 @@ static PyObject * Snowdrift_downgrid(SnowdriftDict *self, PyObject *args, PyObje
 //	if (!PyArg_ParseTuple(args, "O!O!",
 //		&PyArray_Type, &Z1_py,
 //		&PyArray_Type, &Z2_py))
-	static char const *keyword_list[] = {"Z1", "Z2", "merge_or_replace", "use_snowdrift"};
+	static char const *keyword_list[] = {"Z1", "Z2", "merge_or_replace", "use_snowdrift", NULL};
 	if (!PyArg_ParseTupleAndKeywords(
 		args, keywords, "OO|ii",
 		const_cast<char **>(keyword_list),
@@ -134,7 +140,7 @@ static PyObject * Snowdrift_upgrid(SnowdriftDict *self, PyObject *args, PyObject
 	PyArrayObject *Z1_py;
 	Snowdrift::MergeOrReplace merge_or_replace = Snowdrift::MergeOrReplace::MERGE;
 
-	static char const *keyword_list[] = {"Z2", "Z1", "merge_or_replace"};
+	static char const *keyword_list[] = {"Z2", "Z1", "merge_or_replace", NULL};
 	if (!PyArg_ParseTupleAndKeywords(
 		args, keywords, "OO|i",
 		const_cast<char **>(keyword_list),
@@ -184,7 +190,7 @@ static PyObject * Snowdrift_upgrid(SnowdriftDict *self, PyObject *args, PyObject
 
 
 static PyMethodDef Snowdrift_methods[] = {
-	{"init", (PyCFunction)Snowdrift_init, METH_VARARGS,
+	{"init", (PyCFunction)Snowdrift_init, METH_KEYWORDS,
 		"Set up elevation classes and land mask"},
 //	{"info", (PyCFunction)Snowdrift_info, METH_VARARGS,
 //		"Stuff a bunch of bounds, etc. into a dictionary"},
