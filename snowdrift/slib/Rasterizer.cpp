@@ -99,6 +99,51 @@ blitz::Array<double,2> &Z1_r)
 	}
 }
 
+
+/** @param rast1 GCM (grid1) rasterizer --- the main grid we're rasterizing
+@param rast2 ice (grid2) rasterizer: provides elevation class
+@param height_max1 Elevation class definitions per GCM grid cell */
+void rasterize_mask(
+Rasterizer const &rast1,
+Rasterizer const &rast2,
+blitz::Array<double,1> const &Z1,
+blitz::Array<int,1> const &mask2,
+blitz::Array<double,2> &Z1_r)
+{
+	// --------- Check array dimensions
+	if (Z1_r.extent(0) != rast1.nx || Z1_r.extent(1) != rast1.ny) {
+		fprintf(stderr, "Bad array dimension Z1_r(%d, %d) should be (%d, %d)\n", Z1_r.extent(0), Z1_r.extent(1), rast1.nx, rast1.ny);
+		throw std::exception();
+	}
+	if (Z1[0].extent(0) != rast1.grid_index_size) {
+		fprintf(stderr, "Bad array dimension Z1(%d) should be (%d)\n", Z1[0].extent(0), rast1.grid_index_size);
+		throw std::exception();
+	}
+	if (rast1.nx != rast2.nx || rast1.ny != rast2.ny) {
+		fprintf(stderr, "rast1(%d,%d) and rast2(%d,%d) must have same dimensions\n",
+			rast1.nx, rast1.ny, rast2.nx, rast2.ny);
+	}
+
+	// ----------- Rasterize!
+	for (int ix=0; ix<rast1.nx; ++ix) {
+		for (int iy=0; iy<rast1.ny; ++iy) {
+			// Figure out which gridcell this pixel overlaps in grid1 and grid2
+			int i1 = rast1.index(ix, iy);
+			int i2 = rast2.index(ix, iy);
+
+			if (mask2(i2) == 0) {
+				Z1_r(ix,iy) = nan;
+			} else {
+				// Look up and store its value
+				Z1_r(ix,iy) = Z1(i1);
+			}
+		}
+	}
+}
+
+
+
+
 /** @param rast1 GCM (grid1) rasterizer --- the main grid we're rasterizing
 @param rast2 ice (grid2) rasterizer: provides elevation class
 @param height_max1 Elevation class definitions per GCM grid cell */

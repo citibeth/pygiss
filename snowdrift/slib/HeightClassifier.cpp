@@ -4,10 +4,8 @@
 namespace giss {
 
 HeightClassifier::HeightClassifier(
-	std::vector<blitz::Array<double,1>> &&_height_max)
-{
-	height_max = std::move(_height_max);
-}
+	std::vector<blitz::Array<double,1>> *_height_max) :
+height_max(_height_max) {}
 
 int HeightClassifier::get_hclass(int idx, double elevation)
 {

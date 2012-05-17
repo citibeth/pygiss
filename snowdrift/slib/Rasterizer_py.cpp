@@ -84,10 +84,38 @@ PyObject *rasterize_hc(PyObject *self, PyObject *args)
 	auto Z1(py_to_blitz_Z1(Z1_py));
 	auto elevation2(py_to_blitz<double,1>(elevation2_py));
 	auto mask2(py_to_blitz<int,1>(mask2_py));
-	HeightClassifier height_classifier(py_to_blitz_Z1(hclass_max_py));
+	auto height_max(py_to_blitz_Z1(hclass_max_py));
+	HeightClassifier height_classifier(&height_max);
 	auto Z1_r(py_to_blitz<double,2>(Z1_r_py));
 
 	giss::rasterize_hc(*rast1->rasterizer, *rast2->rasterizer, Z1, elevation2, mask2, height_classifier, Z1_r);
+
+	return Py_BuildValue("");
+}
+
+PyObject *rasterize_mask(PyObject *self, PyObject *args)
+{
+	// Get Arguments
+	RasterizerDict *rast1;
+	RasterizerDict *rast2;
+	PyArrayObject *Z1_py;
+	PyArrayObject *mask2_py;
+	PyArrayObject *Z1_r_py;
+	if (!PyArg_ParseTuple(args, "OOOOO",
+		&rast1, &rast2, &Z1_py, &mask2_py, &Z1_r_py))
+	{
+		return NULL;
+	}
+
+	// --------- Check array sizes and types
+	// out must have dimensions (nx, ny) and be double
+	// data has single dimension, based on highest index possible
+	// strides must be mulitple of sizeof(double)
+	auto Z1(py_to_blitz<double,1>(Z1_py));
+	auto mask2(py_to_blitz<int,1>(mask2_py));
+	auto Z1_r(py_to_blitz<double,2>(Z1_r_py));
+
+	giss::rasterize_mask(*rast1->rasterizer, *rast2->rasterizer, Z1, mask2, Z1_r);
 
 	return Py_BuildValue("");
 }
@@ -121,6 +149,8 @@ PyObject *rasterize(PyObject *self, PyObject *args)
 PyMethodDef Rasterizer_functions[] = {
 	{"rasterize", (PyCFunction)rasterize, METH_VARARGS,
 		"Rerasterizer to a regular x/y rasterizer for display ONLY"},
+	{"rasterize_mask", (PyCFunction)rasterize_mask, METH_VARARGS,
+		"Rerasterize with land mask, for display ONLY"},
 	{"rasterize_hc", (PyCFunction)rasterize_hc, METH_VARARGS,
 		"Rerasterize with height classes to a regular x/y rasterizer for display ONLY"},
 	{NULL}     /* Sentinel - marks the end of this structure */

@@ -10,7 +10,7 @@ public :
 	typedef std::vector<blitz::Array<double,1>> HeightMaxArray;
 
 private:
-	HeightMaxArray height_max;
+	HeightMaxArray *height_max;
 
 	class iterator {
 		HeightMaxArray::iterator ii;
@@ -40,15 +40,18 @@ private:
 		iterator(iterator const &rhs) : ii(rhs.ii), idx(rhs.idx) {}
 	};
 public :
-	iterator begin(int idx) { return iterator(height_max.begin(), idx); }
-	iterator end(int idx) { return iterator(height_max.end(), idx); }
+	iterator begin(int idx) { return iterator(height_max->begin(), idx); }
+	iterator end(int idx) { return iterator(height_max->end(), idx); }
 
-	size_t num_hclass() { return (int)height_max.size(); }
+	size_t num_hclass() { return (int)height_max->size(); }
 
 	/** Number of GCM grid cells */
-	size_t size() { return height_max[0].extent(0); }
+	size_t size() { return (*height_max)[0].extent(0); }
 
-	HeightClassifier(std::vector<blitz::Array<double,1>> &&_height_max);
+	/** Our lifetime must be shorter than that of _height_max.  That is OK,
+	typically HeightClassifier is just a local-var decorator used to
+	access height_max. */
+	HeightClassifier(std::vector<blitz::Array<double,1>> *_height_max);
 	int get_hclass(int idx, double elevation);
 };
 

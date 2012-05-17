@@ -255,7 +255,7 @@ public:
 	void init(
 	blitz::Array<double,1> const &elevation2,
 	blitz::Array<int,1> const &mask2,
-	HeightClassifier &height_classifier);
+	std::vector<blitz::Array<double,1>> &height_max);
 
 	/**
 	@param Z1 Field to downgrid. [num_hclass][n1]

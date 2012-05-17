@@ -76,10 +76,10 @@ static PyObject *Snowdrift_init(SnowdriftDict *self, PyObject *args, PyObject *k
 	if (!check_dimensions(mask_py, "mask_py", NPY_INT, {sd->n2})) return NULL;
 		auto mask(py_to_blitz<int,1>(mask_py));
 	if (!check_dimensions(height_max_py, "height_max_py", NPY_DOUBLE, {sd->n1, -1})) return NULL;
-		HeightClassifier height_classes(py_to_blitz_Z1(height_max_py));
+		auto height_max(py_to_blitz_Z1(height_max_py));
 
 	// ========== Finish initialization
-	self->snowdrift->init(elevation, mask, height_classes);
+	self->snowdrift->init(elevation, mask, height_max);
 	self->snowdrift->problem_file = std::string(problem_file);
 
 //printf("Snowdrift::init(%s) called, snowdrift=%p\n", fname, self->snowdrift);

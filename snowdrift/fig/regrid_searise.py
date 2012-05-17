@@ -9,10 +9,15 @@ import netCDF4
 import sys
 import pyproj
 import time
-
-import array
-import re
+import os
+import giss.io.noaa
+import giss.maputil
 import giss.plotutil
+import figure
+
+
+# ------------------------------------------------------------------
+# See: http://stackoverflow.com/questions/2216273/irregular-matplotlib-date-x-axis-labels
 
 # Image plot
 #Acceptable values are None, 'none', 'nearest', 'bilinear', 'bicubic', 'spline16', 'spline36', 'hanning', 'hamming', 'hermite', 'kaiser', 'quadric', 'catrom', 'gaussian', 'bessel', 'mitchell', 'sinc', 'lanczos'
@@ -29,9 +34,9 @@ def plot_image(ax, Z, extent) :
 	cmap = 'spectral'
 	norm = matplotlib.colors.Normalize(vmin=0,vmax=4.5)	# For precipitation
 
-	return ax.imshow(Zmasked, origin='lower',
+	ret = ax.imshow(Zmasked, origin='lower',
 		interpolation='nearest',
-		extent=np.array([x0,x1,y0,y1])/km,
+		extent=np.array([x0,x1,y0,y1]),
 		cmap=cmap, norm=norm)
 #		cmap='bwr', vmin=-3.4,vmax=3.4)		# For SMB
 #		cmap='spectral', vmin=0,vmax=4.5)	# For precipitation
@@ -40,91 +45,28 @@ def plot_image(ax, Z, extent) :
 #	cax = ax.contour(ZG0_r.transpose(), interpolation='nearest', origin='lower')
 
 
-lineRE=re.compile('(.*?)\s+(.*)')
-def read_coastline(fname) :
-	nlines = 0
-	xdata = array.array('d')
-	ydata = array.array('d')
-	for line in file(fname) :
-#		if (nlines % 10000 == 0) :
-#			print 'nlines = %d' % (nlines,)
-		if (nlines % 10 == 0 or line[0:3] == 'nan') :
-			match = lineRE.match(line)
-			lon = float(match.group(1))
-			lat = float(match.group(2))
+	return ret
 
-			xdata.append(lon)
-			ydata.append(lat)
-		nlines = nlines + 1
+# ------------------------------------------------------------------
 
-
-	return (np.array(xdata),np.array(ydata))
-
-
-km=1000.0
 
 overlap_fname = sys.argv[1]
 field_name = sys.argv[2]
 
 fig = plt.figure(figsize=(1000/80,400/80))	# Size of figure (inches)
-curplot = 1
-
-# ============= Read info from netCDF file
-nc = netCDF4.Dataset(overlap_fname, 'r')
-xb = np.array(nc.variables['grid2.x_boundaries'])
-yb = np.array(nc.variables['grid2.y_boundaries'])
-x0 = xb[0]
-x1 = xb[-1]
-y0 = yb[0]
-y1 = yb[-1]
-ice_nx = xb.shape[0]-1
-ice_ny = yb.shape[0]-1
 
 
-raster_x = ice_nx/2
-raster_y = ice_ny/2
-
-
-# =========== Read Greenland
-# Plot Greenland
-sproj = str(nc.variables['grid1.info'].getncattr('projection'))
-sllproj = str(nc.variables['grid1.info'].getncattr('latlon_projection'))
-
-print 'proj=' + sproj
-print 'llproj=' + sllproj
-
-proj = pyproj.Proj(sproj)
-llproj = pyproj.Proj(sllproj);
-
-# Read and plot Greenland Coastline
-lons, lats = read_coastline('data/18969-greenland-coastline.dat')
-greenland_xy = pyproj.transform(llproj, proj, lons, lats)
-
-# Decide what to remove
-#greenland_x = np.array(greenland_xy[0])
-clip_out = (greenland_xy[0] < -800*km) | (greenland_xy[0] > 681*km)
-greenland_xy[0][clip_out] = np.nan
-#greenland_y = np.array(greenland_xy[1])
-greenland_xy[1][clip_out] = np.nan
+figure.init_figure(overlap_fname)
+from figure import *		# Bring in our global variables
 
 # =============== Read a hi-res function on the ice grid
-searise_nc = netCDF4.Dataset('Greenland_5km_v1.1.nc')
+searise_nc = netCDF4.Dataset('data/searise/Greenland_5km_v1.1.nc')
 #ZH0 = np.ndarray.flatten(np.array(searise_nc.variables[field_name], dtype='d'))
 ZH0 = np.array(searise_nc.variables[field_name], dtype='d').flatten('C')
 print 'ZH0 has %d elements, vs (%d x %d) = %d' % (ZH0.shape[0], ice_nx, ice_ny, ice_nx * ice_ny)
 
 # ============ Mask to only ice areas
-#mask2 = np.ones((n2,),'i')
-
-# landcover:ice_sheet = 4 ;
-# landcover:land = 2 ;
-# landcover:local_ice_caps_not_connected_to_the_ice_sheet = 3 ;
-# landcover:long_name = "Land Cover" ;
-# landcover:no_data = 0 ;
-# landcover:ocean = 1 ;
-# landcover:standard_name = "land_cover" ;
-mask2 = np.array(searise_nc.variables['landcover'], dtype=np.int32).flatten('C')
-mask2 = np.where(mask2==4,np.int32(1),np.int32(0))
+mask2 = get_landmask(searise_nc)
 ZH0[mask2==0] = np.nan
 
 # ============= Rasterize and Plot original field
@@ -136,23 +78,19 @@ rast2 = snowdrift.Rasterizer(grid2, x0,x1,raster_x, y0,y1,raster_y);
 snowdrift.rasterize(rast2, ZH0, ZH0_r)
 
 ax = fig.add_subplot(1,3,curplot)
-ax.set_xlim((x0/km, x1/km))
-ax.set_ylim((y0/km, y1/km))
-ax.set_xlabel('km')
-ax.set_ylabel('km')
 curplot += 1
-ax.set_title(field_name)
+init_plot(ax, field_name, x0,x1,y0,y1)
 
-cax2 = plot_image(ax, ZH0_r, np.array([x0,x1,y0,y1])/km)
+cax2 = plot_image(ax, ZH0_r, np.array([x0,x1,y0,y1]))
 fig.colorbar(cax2)
-ax.plot(greenland_xy[0]/km, greenland_xy[1]/km, 'black', alpha=.5)
+ax.plot(greenland_xy[0], greenland_xy[1], 'black', alpha=.5)
 
 
 
 # ============= Set up Snowdrift data structures
-grid1_var = nc.variables['grid1.info']
+grid1_var = overlap_nc.variables['grid1.info']
 n1 = grid1_var.__dict__['max_index'] - grid1_var.__dict__['index_base'] + 1
-grid2_var = nc.variables['grid2.info']
+grid2_var = overlap_nc.variables['grid2.info']
 n2 = grid2_var.__dict__['max_index'] - grid2_var.__dict__['index_base'] + 1
 #info = sd.info()
 #	n1 = info['n1']
@@ -175,7 +113,7 @@ height_max1 = np.tile(tops, (n1,1))		# Produces an n1xnum_hclass array
 #height_max1 = np.ones((n1,num_hclass)) * 1e20
 print 'Shape of height_max1 = ' + str(height_max1.shape)
 
-sd.init(elevation2, mask2, height_max1, problem_file='snowdriftx.nc')
+sd.init(elevation2, mask2, height_max1, problem_file='snowdrift.nc')
 
 # ================ Upgrid it to the GCM Grid
 ZG0 = np.zeros((n1,num_hclass))
@@ -201,17 +139,13 @@ print 'Rasterized to array of shape ', ZG0_r.shape
 print '==== Plot it!'
 
 ax = fig.add_subplot(1,3,curplot)
-ax.set_xlim((x0/km, x1/km))
-ax.set_ylim((y0/km, y1/km))
 curplot += 1
-ax.set_title('Upscaled')
-ax.set_xlabel('km')
-ax.set_ylabel('km')
+init_plot(ax, 'Upscaled', x0,x1,y0,y1)
 
-cax1 = plot_image(ax, ZG0_r, np.array([x0,x1,y0,y1])/km)
+cax1 = plot_image(ax, ZG0_r, np.array([x0,x1,y0,y1]))
 fig.colorbar(cax1)
 
-ax.plot(greenland_xy[0]/km, greenland_xy[1]/km, 'black', alpha=.5)
+ax.plot(greenland_xy[0], greenland_xy[1], 'black', alpha=.5)
 
 # ================ Downgrid to the ice grid
 print '==== Downgrid to the ice grid, ZG0 -> ZH1'
@@ -230,24 +164,20 @@ snowdrift.rasterize(rast2, ZH1, ZH1_r)
 print 'END Rasterize'
 
 ax = fig.add_subplot(1,3,curplot)
-ax.set_xlim((x0/km, x1/km))
-ax.set_ylim((y0/km, y1/km))
 curplot += 1
-ax.set_title('Downscaled')
-ax.set_xlabel('km')
-ax.set_ylabel('km')
+init_plot(ax, 'Downscaled', x0,x1,y0,y1)
 
-cax2 = plot_image(ax, ZH1_r, np.array([x0,x1,y0,y1])/km)
+cax2 = plot_image(ax, ZH1_r, np.array([x0,x1,y0,y1]))
 fig.colorbar(cax2)
 
-ax.plot(greenland_xy[0]/km, greenland_xy[1]/km, 'black', alpha=.5)
+ax.plot(greenland_xy[0], greenland_xy[1], 'black', alpha=.5)
 
 
 # # =======================================================
 # # =========== Read and plot Greenland
 # # Plot Greenland
-# sproj = str(nc.variables['grid1.info'].getncattr('projection'))
-# sllproj = str(nc.variables['grid1.info'].getncattr('latlon_projection'))
+# sproj = str(overlap_nc.variables['grid1.info'].getncattr('projection'))
+# sllproj = str(overlap_nc.variables['grid1.info'].getncattr('latlon_projection'))
 # 
 # print 'proj=' + sproj
 # print 'llproj=' + sllproj

@@ -35,6 +35,93 @@ std::unique_ptr<VectorSparseMatrix> &&_overlap) :
 }
 
 
+/** Computes height_max boundaries for one grid cell.
+@param hmax OUT: */
+static void get_hmax(
+std::vector<std::pair<double,double>> &vals,		// elevation, weight
+std::vector<double> &hmax)
+{
+	double mine = 1e20;
+	double maxe = -1e20;
+	int nhclass = 0;
+	double hmax_d[hmax.size()];
+
+
+	if (vals.size() == 0) goto fill_out;
+
+	// Try arithmetic division between min and max
+	for (auto ii = vals.begin(); ii != vals.end(); ++ii) {
+		double ele = ii->first;
+		double weight = ii->second;
+		if (ele < 0) ele = 0;
+
+		if (ele < mine) mine = ele;
+		if (ele > maxe) maxe = ele;
+	}
+
+	if (maxe - mine < 20.0) goto fill_out;
+	else {
+		nhclass = hmax.size();
+		for (int i=0; i<hmax.size(); ++i) {
+			hmax[i] = mine + ((double)(i+1) / (double)hmax.size()) * (maxe-mine) ;
+		}
+	}
+#if 0
+	// ----------- Try quantile division
+	if (vals.size() < nhclass) goto fill_out;
+	std::sort(vals.begin(), vals.end());
+	for (int d=0; d<nhclass-1; ++d) {
+		int maxd = (d * vals.size() + nhclass-1)/ nhclass;
+		hmax_d[d] = vals[maxd].first;
+	}
+	hmax_d[nhclass-1] = 1e20;
+
+	for (int i=0; i<nhclass; ++i) hmax[i] = hmax_d[i];
+#endif
+
+fill_out :
+		for (int i=nhclass; i<hmax.size(); ++i) hmax[i] = 1e20 + 1e18*i;
+}
+
+/** Sets up "optimal" height classes.
+Assumes matrix is sorted row-major.
+@param lambda How much we want to use decile-based or value-based height classes */
+static void set_height_max(
+VectorSparseMatrix &overlap,
+blitz::Array<double,1> const &elevation2,
+blitz::Array<int,1> const &mask2,
+std::vector<blitz::Array<double,1>> &height_max)
+{
+	std::vector<double> hmax(height_max.size());
+	std::vector<std::pair<double,double>> vals;		// elevation, weight
+	auto oi = overlap.begin();
+	int last_row = oi.row();
+	if (mask2(oi.col()) != 0) vals.push_back(std::make_pair(elevation2(oi.col()), oi.val()));
+	for (auto oi = overlap.begin(); ; ++oi) {
+		int row = oi.row();
+		if (oi == overlap.end() || (row != last_row)) {
+			// ----------------------------------------
+			// Process stuff in vals
+			get_hmax(vals, hmax);
+			for (int i=0; i<height_max.size(); ++i) height_max[i](row) = hmax[i];
+// printf("hmax[%d] = {", row); for (int i=0; i<hmax.size(); ++i) printf("%f, ", hmax[i]); printf("\n");
+			// ----------------------------------------
+
+			if (oi == overlap.end()) break;
+
+			if (row < last_row) {
+				fprintf(stderr, "Overlap Matrix is not sorted row-major (row=%d, last_row=%d)!\n", row, last_row);
+				throw std::exception();
+			}
+
+			last_row = row;
+			vals.clear();
+		}
+		if (mask2(oi.col()) != 0) vals.push_back(std::make_pair(elevation2(oi.col()), oi.val()));
+	}
+}
+
+
 
 
 /**
@@ -47,8 +134,13 @@ std::unique_ptr<VectorSparseMatrix> &&_overlap) :
 void Snowdrift::init(
 blitz::Array<double,1> const &elevation2,
 blitz::Array<int,1> const &mask2,
-HeightClassifier &height_classifier)
+std::vector<blitz::Array<double,1>> &height_max)
 {
+
+//set_height_max(*overlap, elevation2, mask2, height_max);
+
+	HeightClassifier height_classifier(&height_max);
+
 	num_hclass = height_classifier.num_hclass();
 	n1h = n1 * num_hclass;
 
@@ -141,6 +233,7 @@ HeightClassifier &height_classifier)
 		double native_area = overlap_area1hp[i1hp] * (gc1.native_area / gc1.proj_area);
 		grid1hp.push_back(GCInfo(native_area, proj_area));
 	}
+	overlaphp->sort(SparseMatrix::SortOrder::ROW_MAJOR);
 
 	// ================= Set up *q space (subspace of *p space)
 
@@ -151,7 +244,8 @@ HeightClassifier &height_classifier)
 	// Determine indices used in the *q space
 	std::set<int> delete1h_set;
 	std::set<int> delete2_set;
-	int const min_row_count = 2;
+//	int const min_row_count = 2;		// Correct value for this
+	int const min_row_count = 1;
 //	int const min_row_count = 100000;
 	int overlaphq_size = 0;
 	for (auto oi = overlaphp->begin(); oi != overlaphp->end(); ++oi) {
@@ -500,47 +594,5 @@ printf("Snowdrift::upgrid(merge_or_replace = %d)\n", merge_or_replace);
 
 
 
-
-
-
-// /** Stores result of a regridding back into the main field.  Does two things:
-//  a) Scatter of result
-//  b) Merge cells of partial overlap into existing values, if needed.
-// 
-// @param i2p_to_i2 Translate indices from regridded result to main field
-// @param Z2 Original value
-// @param Z2p Result of regridding
-// */
-// void store_result(
-// std::vector<int> const &i2p_to_i2,
-// blitz::Array<double,1> &Z2, double const *Z2p,
-// double const *overlap_area2p,
-// GridCell const **grid2p,
-// MergeOrReplace merge_or_replace)
-// {
-// 	int n2p = i2p_to_i2.size();
-// 
-// 	// Merge results into Z2
-// 	for (int i2p=0; i2p < n2p; ++i2p) {
-// 		int i2 = i2p_to_i2[i2p];
-// 		double X0 = Z2[i2];		// Original value
-// 		double X1 = Z2p[i2p];	// Result of simple regridding
-// 
-// 		GridCell const &gc2(*grid2p[i2p]);
-// 		double X1 = Z2p[i2p] * (gc2.proj_area / gc2.native_area);	// Regrid result
-// 
-// 		switch(merge_or_replace) {
-// 			case MergeOrReplace::MERGE :
-// 				double overlap_fraction = overlap_area2p[i2p] / gc2.proj_area;
-// 				Z2[i2] =
-// 					(1.0 - overlap_fraction) * Z2[i2] +		// Original value
-// 					overlap_fraction * X1;					// Our new value
-// 			break;
-// 			default :		// REPLACE
-// 				Z2[i2] = X1;
-// 		}
-// 	}
-// }
-// 
 
 }	// namespace giss

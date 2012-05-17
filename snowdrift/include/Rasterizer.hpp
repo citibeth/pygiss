@@ -16,6 +16,13 @@ class Rasterizer {
 	blitz::Array<double,1> const &Z1,
 	blitz::Array<double,2> &Z1_r);
 
+	friend void rasterize_mask(
+	Rasterizer const &rast1,
+	Rasterizer const &rast2,
+	blitz::Array<double,1> const &Z1,
+	blitz::Array<int,1> const &mask2,
+	blitz::Array<double,2> &Z1_r);
+
 	friend void rasterize_hc(
 	Rasterizer const &rast1,
 	Rasterizer const &rast2,
@@ -52,6 +59,13 @@ Rasterizer const &rast1,
 blitz::Array<double,1> const &Z1,
 blitz::Array<double,2> &Z1_r);
 
+void rasterize_mask(
+Rasterizer const &rast1,
+Rasterizer const &rast2,
+blitz::Array<double,1> const &Z1,
+blitz::Array<int,1> const &mask2,
+blitz::Array<double,2> &Z1_r);
+
 /** @param rast1 GCM (grid1) rasterizer --- the main grid we're rasterizing
 @param rast2 ice (grid2) rasterizer: provides elevation class
 @param height_max1 Elevation class definitions per GCM grid cell */
@@ -63,7 +77,6 @@ blitz::Array<double,1> const &elevation2,
 blitz::Array<int,1> const &mask2,
 HeightClassifier &height_classifier,
 blitz::Array<double,2> &Z1_r);
-
 
 
 }
