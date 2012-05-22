@@ -14,7 +14,10 @@ import giss.io.noaa
 import giss.maputil
 import giss.plotutil
 
-
+X=3.6	# inches
+colorbarX=1
+Y=6.1
+DPI=300
 
 # ---------------------------------------------------------------------
 def read_greenland_coastline(data_root, projs) :
@@ -74,7 +77,7 @@ def init_figure(overlap_fname) :
 	print 'llproj=' + sllproj
 
 	projs = (pyproj.Proj(sllproj), pyproj.Proj(sproj))	# src & destination projection
-	greenland_xy = read_greenland_coastline('data', projs)
+	greenland_xy = read_greenland_coastline(os.path.join(sys.path[0], 'data'), projs)
 		
 
 

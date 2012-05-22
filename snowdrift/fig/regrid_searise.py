@@ -19,6 +19,7 @@ import figure
 # ------------------------------------------------------------------
 # See: http://stackoverflow.com/questions/2216273/irregular-matplotlib-date-x-axis-labels
 
+
 # Image plot
 #Acceptable values are None, 'none', 'nearest', 'bilinear', 'bicubic', 'spline16', 'spline36', 'hanning', 'hamming', 'hermite', 'kaiser', 'quadric', 'catrom', 'gaussian', 'bessel', 'mitchell', 'sinc', 'lanczos'
 def plot_image(ax, Z, extent) :

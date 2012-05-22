@@ -95,3 +95,10 @@ clean :
 	-rm `find . -name '*.o'`
 	-rm `find . -name '*.mod'`
 	-rm `find . -name '*.so'`
+
+% =================================================
+
+fig/%.png : fig/%.py
+	python $^
+
+figures : fig/gcm_grid.png fig/gcm_grid_hc.png fig/elevation.png

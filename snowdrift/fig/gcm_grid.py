@@ -39,9 +39,10 @@ def plot_image(ax, Z, extent) :
 
 # ------------------------------------------------------------------
 
-overlap_fname = sys.argv[1]
+#overlap_fname = sys.argv[1]
+overlap_fname = 'searise_ll_overlap-5.nc'
 
-fig = plt.figure(figsize=(4,8), dpi=300)	# Size of figure (inches)
+fig = plt.figure(figsize=(figure.X,figure.Y))	# Size of figure (inches)
 
 figure.init_figure(overlap_fname)
 from figure import *		# Bring in our global variables
@@ -61,7 +62,7 @@ raster_x = ice_nx
 raster_y = ice_ny
 
 # Open our searise data
-searise_nc = netCDF4.Dataset('data/searise/Greenland_5km_v1.1.nc')
+searise_nc = netCDF4.Dataset(os.path.join(sys.path[0], 'data/searise/Greenland_5km_v1.1.nc'))
 
 # ========= Get a simple low-res field (checkerboard)
 ZG = np.zeros(n1)
@@ -74,7 +75,6 @@ for lat in range(0,nlat) :
 
 
 # ========= Get the land mask
-searise_nc = netCDF4.Dataset('data/searise/Greenland_5km_v1.1.nc')
 mask2 = get_landmask(searise_nc)
 
 # ---- Make a simple field based on it
@@ -98,11 +98,12 @@ init_plot(ax, '', x0,x1,y0,y1)
 
 cax2 = plot_image(ax, ZG_r, np.array([x0,x1,y0,y1]))
 #fig.colorbar(cax2)
-ax.plot(greenland_xy[0], greenland_xy[1], 'black', alpha=.3)
+ax.plot(greenland_xy[0], greenland_xy[1], 'grey', alpha=.9)
 
 #fig.savefig('gcm_grid.eps', format='eps')
 #fig.savefig('gcm_grid.pdf', format='pdf')
-fig.savefig('gcm_grid.png', format='png')
+basename = os.path.splitext(sys.argv[0])[0]
+fig.savefig(basename + '.png', format='png', transparent=True, dpi=figure.DPI, bbox_inches='tight')
 
 
 #plt.show()
