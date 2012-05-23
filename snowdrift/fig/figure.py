@@ -15,7 +15,7 @@ import giss.maputil
 import giss.plotutil
 
 X=3.6	# inches
-colorbarX=1
+colorbarX=2
 Y=6.1
 DPI=300
 
