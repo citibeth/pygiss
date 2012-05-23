@@ -19,6 +19,8 @@ colorbarX=2
 Y=6.1
 DPI=300
 
+data_root = os.environ['RPFISCHE_DATA']
+
 # ---------------------------------------------------------------------
 def read_greenland_coastline(data_root, projs) :
 

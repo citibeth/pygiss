@@ -165,11 +165,16 @@ static void Grid_LatLon_netcdf_write(
 {
 	parent();
 
-	NcVar *lonbVar = nc->get_var((generic_name + ".lon_boundaries").c_str());
-	NcVar *latbVar = nc->get_var((generic_name + ".lat_boundaries").c_str());
 
-	lonbVar->put(&grid->lon_boundaries[0], grid->lon_boundaries.size());
-	latbVar->put(&grid->lat_boundaries[0], grid->lat_boundaries.size());
+	if (grid->lon_boundaries.size() > 0) {
+		NcVar *lonbVar = nc->get_var((generic_name + ".lon_boundaries").c_str());
+		lonbVar->put(&grid->lon_boundaries[0], grid->lon_boundaries.size());
+	}
+
+	if (grid->lat_boundaries.size() > 0) {
+		NcVar *latbVar = nc->get_var((generic_name + ".lat_boundaries").c_str());
+		latbVar->put(&grid->lat_boundaries[0], grid->lat_boundaries.size());
+	}
 
 #if 0
 	NcVar *poleVar = nc->get_var((generic_name + ".south_pole").c_str());
@@ -191,15 +196,19 @@ boost::function<void ()> Grid_LatLon::netcdf_define(NcFile &nc, std::string cons
 //	nc.add_var((generic_name + ".south_pole").c_str(), ncInt, oneDim);
 //	nc.add_var((generic_name + ".north_pole").c_str(), ncInt, oneDim);
 
-	NcDim *lonbDim = nc.add_dim((generic_name + ".lon_boundaries.length").c_str(),
-		this->lon_boundaries.size());
-	NcVar *lonbVar = nc.add_var((generic_name + ".lon_boundaries").c_str(),
-		ncDouble, lonbDim);
+	if (lon_boundaries.size() > 0) {
+		NcDim *lonbDim = nc.add_dim((generic_name + ".lon_boundaries.length").c_str(),
+			this->lon_boundaries.size());
+		NcVar *lonbVar = nc.add_var((generic_name + ".lon_boundaries").c_str(),
+			ncDouble, lonbDim);
+	}
 
-	NcDim *latbDim = nc.add_dim((generic_name + ".lat_boundaries.length").c_str(),
-		this->lat_boundaries.size());
-	NcVar *latbVar = nc.add_var((generic_name + ".lat_boundaries").c_str(),
-		ncDouble, latbDim);
+	if (lat_boundaries.size() > 0) {
+		NcDim *latbDim = nc.add_dim((generic_name + ".lat_boundaries.length").c_str(),
+			this->lat_boundaries.size());
+		NcVar *latbVar = nc.add_var((generic_name + ".lat_boundaries").c_str(),
+			ncDouble, latbDim);
+	}
 
 	NcVar *infoVar = nc.get_var((generic_name + ".info").c_str());
 	infoVar->add_att("north_pole_cap", north_pole ? 1 : 0);
@@ -284,14 +293,107 @@ void Grid_LatLon::read_from_netcdf(NcFile &nc, std::string const &vname)
 {
 	Grid::read_from_netcdf(nc, vname);
 
-	lon_boundaries = read_double_vector(nc, vname + ".lon_boundaries");
-	lat_boundaries = read_double_vector(nc, vname + ".lat_boundaries");
+	if (get_var_safe(nc, vname + ".lon_boundaries"))
+		lon_boundaries = read_double_vector(nc, vname + ".lon_boundaries");
+	if (get_var_safe(nc, vname + ".lat_boundaries"))
+		lat_boundaries = read_double_vector(nc, vname + ".lat_boundaries");
 
 	// ... don't bother reading the rest of stuff for now...
 	points_in_side = -1;
 	south_pole = false;
 	north_pole = false;
 	// proj = ...;
+}
+// -----------------------------------------------------------------------------
+/** Reads Lat/Long grid from CESM grid file, eg: griddata_0.9x1.25_USGS_070110.nc */
+std::unique_ptr<Grid_LatLon> Grid_LatLon::read_cesm(
+	std::string const &name,
+	Proj &&_proj,
+	int points_in_side,
+	std::string const &fname,	// File to read from
+	boost::function<bool(double, double, double, double)> const &spherical_clip,
+	boost::function<bool(gc::Polygon_2 const &)> const &euclidian_clip)
+{
+	int const ptside(points_in_side);
+
+	// Get ready to read
+	NcFile nc(fname.c_str(), NcFile::ReadOnly);
+	int lsmlon = nc.get_dim("lsmlon")->size();
+	int lsmlat = nc.get_dim("lsmlat")->size();
+	NcVar *LATN = nc.get_var("LATN");
+	NcVar *LONE = nc.get_var("LONE");
+	NcVar *LATS = nc.get_var("LATS");
+	NcVar *LONW = nc.get_var("LONW");
+	NcVar *AREA = nc.get_var("AREA");
+
+	// Instantiate empty grid
+	int max_index = lsmlon * lsmlat;
+	std::unique_ptr<Grid_LatLon> grid(new Grid_LatLon(name, 1, max_index));
+	grid->points_in_side = points_in_side;
+	grid->proj = std::move(_proj);
+	Proj &proj(grid->proj);
+	Proj llproj(proj.latlong_from_proj());
+
+printf("area_error,ilon,ilat,cesm_area,bob_area,(cesm_area-bob_area)/bob_area\n");
+	gc::Polygon_2 poly;
+	for (int ilat=0; ilat<lsmlat; ++ilat) {
+		if (ilat %10 == 0) printf("   ilat=%d\n", ilat);
+		for (int ilon=0; ilon<lsmlon; ++ilon) {
+			long cur[2] = {ilat, ilon};
+			double lat1,lon1,lat0,lon0,area;
+			LATN->set_cur(cur); LATN->get(&lat1, 1,1);
+			LONE->set_cur(cur); LONE->get(&lon1, 1,1);
+			LATS->set_cur(cur); LATS->get(&lat0, 1,1);
+			LONW->set_cur(cur); LONW->get(&lon0, 1,1);
+			AREA->set_cur(cur); AREA->get(&area, 1,1);
+			area *= 1000000;	// Convert to SI units, m^2
+
+//if (ilat > 0) continue;
+//printf("values = (%d, %d) %f %f %f %f\n", ilat, ilon, lon0, lat0, lon1, lat1);
+
+
+			// Make the polygon now!
+			poly.clear();
+			if (!spherical_clip(lon0, lat0, lon1, lat1)) continue;
+
+			// Project the grid cell boundary to a planar polygon
+			if (lat1 == 90.0) {
+				ll2xy_latitude(llproj, proj, poly, ptside, lon0,lon1, lat0);
+				ll2xy_meridian(llproj, proj, poly, ptside, lon1, lat0,lat1);
+				ll2xy_meridian(llproj, proj, poly, ptside, lon0, lat1,lat0);
+			} else if (lat0 == -90.0) {
+				ll2xy_meridian(llproj, proj, poly, ptside, lon1, lat0,lat1);
+				ll2xy_latitude(llproj, proj, poly, ptside, lon1,lon0, lat1);
+				ll2xy_meridian(llproj, proj, poly, ptside, lon0, lat1,lat0);
+			} else {
+				ll2xy_latitude(llproj, proj, poly, ptside, lon0,lon1, lat0);
+				ll2xy_meridian(llproj, proj, poly, ptside, lon1, lat0,lat1);
+				ll2xy_latitude(llproj, proj, poly, ptside, lon1,lon0, lat1);
+				ll2xy_meridian(llproj, proj, poly, ptside, lon0, lat1,lat0);
+			}
+
+#if 0
+if (ilat == 0) {
+	printf("Polygon (%d, %d):\n", ilat, ilon);
+	for (auto vertex = poly.vertices_begin(); vertex != poly.vertices_end(); ++vertex) {
+		double x = CGAL::to_double(vertex->x());
+		double y = CGAL::to_double(vertex->y());
+		printf("    (%f,%f)\n", x,y);
+	}
+}
+#endif
+			if (!euclidian_clip(poly)) continue;
+
+			double my_area = graticule_area_exact(lat0,lat1,lon0,lon1);
+//printf("area_error,%d,%d,%f,%f,%f\n", ilon+1, ilat+1, area, my_area, (area-my_area)/my_area);
+			int index = (ilat * lsmlon + ilon) + grid->index_base;
+			grid->add_cell(GridCell(poly, index, my_area));
+//			if (grid->size() > 4) goto end_loop;
+		}
+	}
+
+end_loop :
+	return grid;
 }
 
 

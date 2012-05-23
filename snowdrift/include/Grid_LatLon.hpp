@@ -48,7 +48,17 @@ public:
 		boost::function<bool(double, double, double, double)> const &spherical_clip,
 		boost::function<bool(gc::Polygon_2 const &)> const &euclidian_clip);
 
-	 virtual boost::function<void()> netcdf_define(NcFile &nc, std::string const &generic_name) const;
+	/** Reads Lat/Long grid from CESM grid file, eg: griddata_0.9x1.25_USGS_070110.nc */
+	static std::unique_ptr<Grid_LatLon> read_cesm(
+		std::string const &name,
+		Proj &&proj,
+		int points_in_side,
+		std::string const &fname,	// File to read from
+		boost::function<bool(double, double, double, double)> const &spherical_clip,
+		boost::function<bool(gc::Polygon_2 const &)> const &euclidian_clip);
+
+
+	virtual boost::function<void()> netcdf_define(NcFile &nc, std::string const &generic_name) const;
 
 
 	std::unique_ptr<MapSparseMatrix> get_smoothing_matrix(std::set<int> const &mask)

@@ -70,6 +70,9 @@ snowdrift.so : $(SNOWDRIFT_LIB_OBJ)
 searise_ll_overlap : smain/searise_ll_overlap.o snowdrift.so
 	g++ -o $@ $^ $(SNOWDRIFT_LIB_LIBS)
 
+searise_cesm_overlap : smain/searise_cesm_overlap.o snowdrift.so
+	g++ -o $@ $^ $(SNOWDRIFT_LIB_LIBS)
+
 xy_overlap : smain/xy_overlap.o snowdrift.so
 	g++ -o $@ $^ $(SNOWDRIFT_LIB_LIBS)
 
