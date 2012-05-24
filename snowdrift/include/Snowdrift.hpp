@@ -74,151 +74,43 @@ public:
 	int n1h;	// grid1h.size() = overlaph.nrow
 	int n1hp;	// grid1hp.size() = overlaphp.nrow
 	int n2p;	// grid2.size() = overlaphp.ncol
-	int n1hq, n2q;
-
-	std::vector<int> _i1hp_to_i1hq;
-	std::vector<int> _i1hq_to_i1hp;
-
-
-	/// Overlap matrix between grid1h and grid2 (including things that were eliminated for EQP)
-	// std::unique_ptr<VectorSparseMatrix> overlaph;
-	std::vector<int> _i1h_to_i1hp;		// Converts i1h --> i1hp
-	std::vector<int> _i1hp_to_i1h;			// Converts i1hp --> i1h
+	int n2q;
 
 	// If != "", write to this file just before we solve.
 	std::string problem_file;
-
-#if 0
-	inline int i1h_to_i1hp(int i1h)
-		{ return _i1h_to_i1hp[i1h]; }
-	inline int i1hp_to_i1h(int i1hp)
-		{ return _i1hp_to_i1h[i1hp]; }
-#else
-	inline int i1h_to_i1hp(int i1h)
-	{
-		if (i1h < 0 || i1h >= _i1h_to_i1hp.size()) {
-			fprintf(stderr, "i1h=%d is out of range (%d, %d)\n", i1h, 0, _i1h_to_i1hp.size());
-			throw std::exception();
-		}
-		int i1hp = _i1h_to_i1hp[i1h];
-		if (i1hp < 0) {
-			fprintf(stderr, "i1h=%d produces invalid i1hp=%d\n", i1h, i1hp);
-			throw std::exception();
-		}
-		return i1hp;
-	}
-	inline int i1hp_to_i1h(int i1hp)
-	{
-		if (i1hp < 0 || i1hp >= _i1hp_to_i1h.size()) {
-			fprintf(stderr, "i1hp=%d is out of range (%d, %d)\n", i1hp, 0, _i1hp_to_i1h.size());
-			throw std::exception();
-		}
-		int i1h = _i1hp_to_i1h[i1hp];
-		if (i1h < 0) {
-			fprintf(stderr, "i1hp=%d produces invalid i1h=%d\n", i1hp, i1h);
-			throw std::exception();
-		}
-		return i1h;
-	}
-#endif
-
-
-	inline int i1hp_to_i1hq(int i1hp)
-	{
-		if (i1hp < 0 || i1hp >= _i1hp_to_i1hq.size()) {
-			fprintf(stderr, "i1hp=%d is out of range (%d, %d)\n", i1hp, 0, _i1hp_to_i1hq.size());
-			throw std::exception();
-		}
-		int i1hq = _i1hp_to_i1hq[i1hp];
-		if (i1hq < 0) {
-			fprintf(stderr, "i1hp=%d produces invalid i1hq=%d\n", i1hp, i1hq);
-			throw std::exception();
-		}
-		return i1hq;
-	}
-	inline int i1hq_to_i1hp(int i1hq)
-	{
-		if (i1hq < 0 || i1hq >= _i1hq_to_i1hp.size()) {
-			fprintf(stderr, "i1hq=%d is out of range (%d, %d)\n", i1hq, 0, _i1hq_to_i1hp.size());
-			throw std::exception();
-		}
-		int i1hp = _i1hq_to_i1hp[i1hq];
-		if (i1hp < 0) {
-			fprintf(stderr, "i1hq=%d produces invalid i1h=%d\n", i1hq, i1hp);
-			throw std::exception();
-		}
-		return i1hp;
-	}
-
-
-
-
 
 	inline int i1h_to_i1(int i1h)
 		{ return i1h / num_hclass; }
 	inline int get_hclass(int i1h, int i1)
 		{ return i1h - i1 * num_hclass; }
 
-	std::vector<int> _i2_to_i2p;		// Converts i2 --> i2p
-	std::vector<int> _i2p_to_i2;			// Converts i2p --> i2
 
-	std::vector<int> _i2p_to_i2q;		// Converts i2 --> i2p
-	std::vector<int> _i2q_to_i2p;			// Converts i2p --> i2
+	/// Overlap matrix between grid1h and grid2 (including things that were eliminated for EQP)
+	// std::unique_ptr<VectorSparseMatrix> overlaph;
+	IndexTranslator trans_1h_1hp;
+		inline int i1h_to_i1hp(int i1h)
+			{ return trans_1h_1hp.a2b(i1h); }
+		inline int i1hp_to_i1h(int i1hp)
+			{ return trans_1h_1hp.b2a(i1hp); }
 
-	inline int i2_to_i2p(int i2)
-	{
-		if (i2 < 0 || i2 >= _i2_to_i2p.size()) {
-			fprintf(stderr, "i2=%d is out of range (%d, %d)\n", i2, 0, _i2_to_i2p.size());
-			throw std::exception();
-		}
-		int i2p = _i2_to_i2p[i2];
-		if (i2p < 0) {
-			fprintf(stderr, "i2=%d produces invalid i2p=%d\n", i2, i2p);
-			throw std::exception();
-		}
-		return i2p;
-	}
-	inline int i2p_to_i2(int i2p)
-	{
-		if (i2p < 0 || i2p >= _i2p_to_i2.size()) {
-			fprintf(stderr, "i2p=%d is out of range (%d, %d)\n", i2p, 0, _i2p_to_i2.size());
-			throw std::exception();
-		}
-		int i2 = _i2p_to_i2[i2p];
-		if (i2 < 0) {
-			fprintf(stderr, "i2p=%d produces invalid i2=%d\n", i2p, i2);
-			throw std::exception();
-		}
-		return i2;
-	}
+	IndexTranslator trans_2_2p;
+		inline int i2_to_i2p(int i2)
+			{ return trans_2_2p.a2b(i2); }
+		inline int i2p_to_i2(int i2p)
+			{ return trans_2_2p.b2a(i2p); }
 
+	// ------------- *p <--> *q indices (subspace to Galahad-subspace)
+	IndexTranslator trans_1hp_1hq;
+		inline int i1hp_to_i1hq(int i1hp)
+			{ return trans_1hp_1hq.a2b(i1hp); }
+		inline int i1hq_to_i1hp(int i1hq)
+			{ return trans_1hp_1hq.b2a(i1hq); }
+	IndexTranslator trans_2p_2q;
+		inline int i2p_to_i2q(int i2p)
+			{ return trans_2p_2q.a2b(i2p); }
+		inline int i2q_to_i2p(int i2q)
+			{ return trans_2p_2q.b2a(i2q); }
 
-	inline int i2p_to_i2q(int i2p)
-	{
-		if (i2p < 0 || i2p >= _i2p_to_i2q.size()) {
-			fprintf(stderr, "i2p=%d is out of range (%d, %d)\n", i2p, 0, _i2p_to_i2q.size());
-			throw std::exception();
-		}
-		int i2q = _i2p_to_i2q[i2p];
-		if (i2q < 0) {
-			fprintf(stderr, "i2p=%d produces invalid i2q=%d\n", i2p, i2q);
-			throw std::exception();
-		}
-		return i2q;
-	}
-	inline int i2q_to_i2p(int i2q)
-	{
-		if (i2q < 0 || i2q >= _i2q_to_i2p.size()) {
-			fprintf(stderr, "i2q=%d is out of range (%d, %d)\n", i2q, 0, _i2q_to_i2p.size());
-			throw std::exception();
-		}
-		int i2p = _i2q_to_i2p[i2q];
-		if (i2p < 0) {
-			fprintf(stderr, "i2q=%d produces invalid i2=%d\n", i2q, i2p);
-			throw std::exception();
-		}
-		return i2p;
-	}
 
 
 

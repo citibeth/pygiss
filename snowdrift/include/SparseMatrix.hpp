@@ -460,13 +460,95 @@ public:
 // ------------------------------------------------------------
 /** Copy a to b.  Does not clear b */
 template<class SparseMatrixT1, class SparseMatrixT2>
-void copy(SparseMatrixT1 &a, SparseMatrixT2 &b, SparseMatrix::DuplicatePolicy dups)
+void copy(SparseMatrixT1 &a, SparseMatrixT2 &b, SparseMatrix::DuplicatePolicy dups = DuplicatePolicy::REPLACE)
 {
+	b.clear();
 	for (typename SparseMatrixT1::iterator ii = a.begin(); ii != a.end(); ++ii) {
 		b.set(ii.row(), ii.col(), ii.val(), dups);
 	}
 }
-
 // ------------------------------------------------------------
+template<class SparseMatrixT1, class SparseMatrixT2>
+inline void make_used_translators(SparseMatrixT1 &a,
+IndexTranslator &trans_row,
+IndexTranslator &trans_col,
+std::set<int> *_used_row,	// If not NULL, output to here.
+std::set<int> *_used_col)	// If not NULL, output to here.
+
+{
+	// Figure out what is used
+	std::set<int> used_row;
+	std::set<int> used_col;
+	for (typename SparseMatrixT1::iterator ii = a.begin(); ii != a.end(); ++ii) {
+		used_row.insert(ii.row());
+		used_col.insert(ii.col());
+	}
+
+	// Convert used sets to translators
+	trans_row.init(a.nrow, used_row);
+	trans_col.init(a.ncol, used_col);
+
+	if (_used_row) *_used_row = std::move(used_row);
+	if (_used_col) *_used_col = std::move(used_col);
+}
+
+
+template<class SparseMatrixT1>
+inline void make_used_row_translator(SparseMatrixT1 &a,
+IndexTranslator &trans_row,
+std::set<int> *_used_row)	// If not NULL, output to here.
+{
+	// Figure out what is used
+	std::set<int> used_row;
+	for (typename SparseMatrixT1::iterator ii = a.begin(); ii != a.end(); ++ii) {
+		used_row.insert(ii.row());
+	}
+
+	// Convert used sets to translators
+	trans_row.init(a.nrow, used_row);
+	if (_used_row) *_used_row = std::move(used_row);
+}
+
+template<class SparseMatrixT1>
+inline void make_used_col_translator(SparseMatrixT1 &a,
+IndexTranslator &trans_col,
+std::set<int> *_used_col)	// If not NULL, output to here.
+{
+	// Figure out what is used
+	std::set<int> used_col;
+	for (typename SparseMatrixT1::iterator ii = a.begin(); ii != a.end(); ++ii) {
+		used_col.insert(ii.col());
+	}
+
+	// Convert used sets to translators
+	trans_col.init(a.ncol, used_col);
+	if (_used_col) *_used_col = std::move(used_col);
+}
+
+
+
+template<class SparseMatrixT1, class SparseMatrixT2>
+inline void translate_indices(SparseMatrixT1 &a, SparseMatrixT2 &b,
+IndexTranslator const &trans_row,
+IndexTranslator const &trans_col,
+double *row_sum = NULL,		// Place to sum row and column values, if it exists
+double *col_sum = NULL,
+SparseMatrix::DuplicatePolicy dups = DuplicatePolicy::REPLACE)
+{
+	b.clear();
+	if (row_sum) for (int i=0; i<b.nrow; ++i) row_sum[i] = 0;
+	if (col_sum) for (int i=0; i<b.ncol; ++i) col_sum[i] = 0;
+	for (typename SparseMatrixT1::iterator ii = a.begin(); ii != a.end(); ++ii) {
+		int arow = ii.row();
+		int brow = trans_row.a2b(arow);
+		int acol = ii.col();
+		int bcol = trans_col.a2b(acol);
+
+		b.set(brow, bcol, ii.val(), dups);
+		if (row_sum) row_sum[brow] += ii.val();
+		if (col_sum) col_sum[bcol] += ii.val();
+	}
+}
+// ----------------------------------------------------
 
 }	// namespace giss

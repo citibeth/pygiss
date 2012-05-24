@@ -123,111 +123,18 @@ std::vector<blitz::Array<double,1>> &height_max)
 
 // -------------------------------------------------------------
 /** Change this to a boost function later */
-static std::unique_ptr<VectorSparseMatrix> get_constraints(VectorSparseMatrix &overlap)
+static std::unique_ptr<VectorSparseMatrix> get_constraints(Snowdrift &sd, VectorSparseMatrix &overlap)
 {
+#if 0
 	// For now, just copy the overlap matrix
 	std::unique_ptr<VectorSparseMatrix> constraints(new VectorSparseMatrix(overlap));
 	for (auto oi = overlap.begin(); oi != overlap.end(); ++oi) {
 		constraints->set(oi.row(), oi.col(), oi.val());
 	}
 	return constraints;
-}
-// -------------------------------------------------------------
 
-/**
-@param overlap [n1 x n2] Overlap matrix between grid1 and grid2
-@param mask2 [n2] (bool) Which grid cells in grid2 we want to actually use
-@param elevation2 [n2] Topography
-@param height_max1 [num_hclass][n1] Height class boundaries for each cell in grid1.
-                   From LISMB_COM.F90 in ModelE.
-*/
-void Snowdrift::init(
-blitz::Array<double,1> const &elevation2,
-blitz::Array<int,1> const &mask2,
-std::vector<blitz::Array<double,1>> &height_max)
-{
 
-//set_height_max(*overlap, elevation2, mask2, height_max);
 
-	HeightClassifier height_classifier(&height_max);
-
-	num_hclass = height_classifier.num_hclass();
-	n1h = n1 * num_hclass;
-
-	// ========= Construct overlaph: height-classified overlap matrix
-	std::set<int> used1h_set;	// Grid cells used in overlap matrix
-	std::set<int> used2_set;
-
-	std::unique_ptr<VectorSparseMatrix> overlaph(new VectorSparseMatrix(SparseDescr(
-		n1h, n2, overlap->index_base)));
-
-	for (auto oi = overlap->begin(); oi != overlap->end(); ++oi) {
-		int i2 = oi.col();
-		if (!mask2(i2)) continue;	// Exclude this cell
-
-		int i1 = oi.row();
-
-		// Determine which height class this small grid cell is in,
-		// (or at least, the portion that overlap the big grid cell)
-		// Element should be in range [bot, top)
-
-		// upper_bound returns first item > ele
-		int hc = height_classifier.get_hclass(i1, elevation2(i2));
-
-		// Determine the height-classified grid cell in grid1h
-		int i1h = i1 * num_hclass + hc;
-
-		// Store it in the height-classified overlap matrix
-		overlaph->set(i1h, i2, oi.val());
-		used1h_set.insert(i1h);
-		used2_set.insert(i2);
-	}
-
-	// ========== Get constraint matrix
-	std::unique_ptr<VectorSparseMatrix> constraintsh(get_constraints(*overlaph));
-
-	// ========== Construct translator between (full) and (*p) spaces
-	n1hp = used1h_set.size();
-	n2p = used2_set.size();
-
-	// Set up vectors for scatter-gather of subselected matrix
-	// Gather value for subselected matrix
-	_i1h_to_i1hp.clear(); _i1h_to_i1hp.resize(n1h, -1);
-	_i1hp_to_i1h.clear(); _i1hp_to_i1h.reserve(n1hp);
-	for (auto i1h = used1h_set.begin(); i1h != used1h_set.end(); ++i1h) {
-		int i1hp = _i1hp_to_i1h.size();
-		_i1hp_to_i1h.push_back(*i1h);
-		_i1h_to_i1hp[*i1h] = i1hp;
-	}
-
-	_i2_to_i2p.clear(); _i2_to_i2p.resize(n2, -1);
-	_i2p_to_i2.clear(); _i2p_to_i2.reserve(n2p);
-	for (auto i2 = used2_set.begin(); i2 != used2_set.end(); ++i2) {
-		int i2p = _i2p_to_i2.size();
-		_i2p_to_i2.push_back(*i2);
-		_i2_to_i2p[*i2] = i2p;
-	}
-
-	// ========== Construct overlaphp
-	// Compute overlaphp (subselect overlaph)
-	overlaphp.reset(new VectorSparseMatrix(SparseDescr(
-		n1hp, n2p, overlap->index_base)));
-	overlap_area1hp.clear(); overlap_area1hp.resize(n1hp, 0);
-	overlap_area2p.clear(); overlap_area2p.resize(n2p, 0);
-	// std::vector<int> row_count1hp(n1hp);	// For computation of *q space below.
-	for (auto oi = overlaph->begin(); oi != overlaph->end(); ++oi) {
-		int i1h = oi.row();
-
-		int i1hp = i1h_to_i1hp(i1h);
-		int i2p = i2_to_i2p(oi.col());
-		overlaphp->set(i1hp, i2p, oi.val());
-
-		overlap_area1hp[i1hp] += oi.val();
-		// ++row_count1hp[i1hp];
-		overlap_area2p[i2p] += oi.val();
-	}
-
-	// ========== Construct constraintshp
 	VectorSparseMatrix constraintshp(SparseDescr(
 		n1hp, n2p, overlap->index_base));
 	std::vector<int> row_count1hp(n1hp);	// For computation of *q space below.
@@ -241,29 +148,6 @@ std::vector<blitz::Array<double,1>> &height_max)
 		++row_count1hp[i1hp];
 	}
 
-
-	// ========== Set up gridcell pointers for *p space
-	grid2p.clear();  grid2p.reserve(n2p);
-	for (int i2p=0; i2p<n2p; ++i2p) {
-		int i2 = i2p_to_i2(i2p);
-		GridCell const &gc2((*grid2).operator[](i2));
-		grid2p.push_back(GCInfo(gc2.native_area, gc2.proj_area));
-	}
-
-	// Compute native area by comparing to original cells
-	grid1hp.clear(); grid1hp.reserve(n1hp);
-	for (int i1hp=0; i1hp<n1hp; ++i1hp) {
-		int i1h = i1hp_to_i1h(i1hp);
-		int i1 = i1h_to_i1(i1h);
-		GridCell const &gc1((*grid1).operator[](i1));
-
-		double proj_area = overlap_area1hp[i1hp];
-		double native_area = overlap_area1hp[i1hp] * (gc1.native_area / gc1.proj_area);
-		grid1hp.push_back(GCInfo(native_area, proj_area));
-	}
-	constraintshp.sort(SparseMatrix::SortOrder::ROW_MAJOR);
-
-	// ================= Set up *q space (subspace of *p space)
 
 	// Eliminate GCM grid cells with just one ice grid cell intersection.
 	// Removes columns that would generate too few terms in the constraints matrix
@@ -289,7 +173,8 @@ std::vector<blitz::Array<double,1>> &height_max)
 	}
 
 	// Count number of elements in constraintshq, and get definitive set of rows and cols
-	used1h_set.clear();			// Indies in (full) space
+	// used1h_set.clear();			// Indies in (full) space
+	std::set<int> used1hp_set;
 	used2_set.clear();
 	for (auto oi = constraintshp.begin(); oi != constraintshp.end(); ++oi) {
 		int i1hp = oi.row();
@@ -301,75 +186,138 @@ std::vector<blitz::Array<double,1>> &height_max)
 		if (delete2_set.find(i2) != delete2_set.end()) continue;
 
 		++constraintshq_size;		// Count so we know how much to allocate below
-		used1h_set.insert(i1h);
+		used1hp_set.insert(i1hp);
 		used2_set.insert(i2);
 	}
-	n1hq = used1h_set.size();
+	n1hq = used1hp_set.size();
 	n2q = used2_set.size();
 
-	_i1hp_to_i1hq.clear(); _i1hp_to_i1hq.resize(n1hp, -1);
-	_i1hq_to_i1hp.clear(); _i1hq_to_i1hp.reserve(n1hq);
-	for (auto i1h = used1h_set.begin(); i1h != used1h_set.end(); ++i1h) {
-		int i1hp = i1h_to_i1hp(*i1h);
-		int i1hq = _i1hq_to_i1hp.size();
-		_i1hq_to_i1hp.push_back(i1hp);
-		_i1hp_to_i1hq[i1hp] = i1hq;
+	trans_hp_hq.init(n1hp, used1hp_set);
+
+
+#else
+	// For now, just copy the overlap matrix
+	std::unique_ptr<VectorSparseMatrix> constraints(new VectorSparseMatrix(overlap));
+	for (auto oi = overlap.begin(); oi != overlap.end(); ++oi) {
+		constraints->set(oi.row(), oi.col(), oi.val());
+	}
+	return constraints;
+#endif
+}
+// -------------------------------------------------------------
+
+/**
+@param overlap [n1 x n2] Overlap matrix between grid1 and grid2
+@param mask2 [n2] (bool) Which grid cells in grid2 we want to actually use
+@param elevation2 [n2] Topography
+@param height_max1 [num_hclass][n1] Height class boundaries for each cell in grid1.
+                   From LISMB_COM.F90 in ModelE.
+*/
+void Snowdrift::init(
+blitz::Array<double,1> const &elevation2,
+blitz::Array<int,1> const &mask2,
+std::vector<blitz::Array<double,1>> &height_max)
+{
+
+//set_height_max(*overlap, elevation2, mask2, height_max);
+
+	HeightClassifier height_classifier(&height_max);
+
+	num_hclass = height_classifier.num_hclass();
+	n1h = n1 * num_hclass;
+
+	// ========= Construct overlaph: height-classified overlap matrix
+	std::unique_ptr<VectorSparseMatrix> overlaph(new VectorSparseMatrix(SparseDescr(
+		n1h, n2, overlap->index_base)));
+
+	for (auto oi = overlap->begin(); oi != overlap->end(); ++oi) {
+		int i2 = oi.col();
+		if (!mask2(i2)) continue;	// Exclude this cell
+
+		int i1 = oi.row();
+
+		// Determine which height class this small grid cell is in,
+		// (or at least, the portion that overlap the big grid cell)
+		// Element should be in range [bot, top)
+
+		// upper_bound returns first item > ele
+		int hc = height_classifier.get_hclass(i1, elevation2(i2));
+
+		// Determine the height-classified grid cell in grid1h
+		int i1h = i1 * num_hclass + hc;
+
+		// Store it in the height-classified overlap matrix
+		overlaph->set(i1h, i2, oi.val());
 	}
 
-	_i2p_to_i2q.clear(); _i2p_to_i2q.resize(n2p, -1);
-	_i2q_to_i2p.clear(); _i2q_to_i2p.reserve(n2q);
-	for (auto i2 = used2_set.begin(); i2 != used2_set.end(); ++i2) {
-		int i2p = i2_to_i2p(*i2);
-		int i2q = _i2q_to_i2p.size();
-		_i2q_to_i2p.push_back(i2p);
-		_i2p_to_i2q[i2p] = i2q;
+	// ========== Construct overlaphp (needed for HNTR regridding)
+	make_used_translators(overlaph, trans_1h_1hp, trans_2_2p);
+	n1hp = trans_1h_1hp.nb();
+	n2p = trans_2_2p.nb();
+	overlaphp.reset(new VectorSparseMatrix(SparseDescr(
+		n1hp, n2p, overlap->index_base)));
+	overlap_area1hp.clear(); overlap_area1hp.resize(n1hp, 0);
+	overlap_area2p.clear(); overlap_area2p.resize(n2p, 0);
+	translate_indices(overlaph, *overlaphp,
+		trans_1h_1hp, trans_2_2p,
+		&overlap_area1hp[0], &overlap_area2p[0]);
+
+	// ========== Set up gridcell pointers for *p space
+	grid2p.clear();  grid2p.reserve(n2p);
+	for (int i2p=0; i2p<n2p; ++i2p) {
+		int i2 = i2p_to_i2(i2p);
+		GridCell const &gc2((*grid2).operator[](i2));
+		grid2p.push_back(GCInfo(gc2.native_area, gc2.proj_area));
 	}
 
-	// ------- Allocate our problem for GALAHAD (to be filled in later...)
-	// Get smoothing matrix (sub-select it later)
-	std::unique_ptr<Grid::SmoothingFunction> smooth2(grid2->get_smoothing_function(used2_set));
-	prob.reset(new QPT_problem(n1hq, n2q, constraintshq_size, smooth2->H.size(), 1));
+	// Compute native area by comparing to original cells
+	grid1hp.clear(); grid1hp.reserve(n1hp);
+	for (int i1hp=0; i1hp<n1hp; ++i1hp) {
+		int i1h = i1hp_to_i1h(i1hp);
+		int i1 = i1h_to_i1(i1h);
+		GridCell const &gc1((*grid1).operator[](i1));
+
+		double proj_area = overlap_area1hp[i1hp];
+		double native_area = overlap_area1hp[i1hp] * (gc1.native_area / gc1.proj_area);
+		grid1hp.push_back(GCInfo(native_area, proj_area));
+	}
+
+	// ========== Get constraint matrix, set up *2q space
+	// NOTE: constraints matrix can have unused rows if you like, they will be eliminated later.
+	std::unique_ptr<VectorSparseMatrix> constraintsh(get_constraints(*overlaph));
+	constraintsh->sort(SparseMatrix::SortOrder::ROW_MAJOR);
+	std::set<int> constraintsh_used_2;
+	IndexTranslator trans_1h_1hq;	// Only used to eliminate blank rows in constraintsh
+	make_used_translators(*constraintsh, trans_1h_1hq, trans_2_2q, null, &constraintsh_used_2);
+	int nconstraints = trans_1h_1hq.nb();
+	n2q = trans_2_2q.nb();
+
+	// ========== Get smoothing function based on geometry of grid2
+	// and the set of ice grid cells we're using.
+	std::unique_ptr<Grid::SmoothingFunction> smooth2(grid2->get_smoothing_function(constraintsh_used_2));
+
+	// =========== Allocate our problem for GALAHAD (to be filled in later...)
+	prob.reset(new QPT_problem(nconstraints, n2q, constraintsh->size(), smooth2->H.size(), 1));
 	constraintshq.reset(new ZD11SparseMatrix(prob->A, 0));
 
-	// -------- Extract constraintshq out of constraintshp
-//	constraintshp_extra.reset(new VectorSparseMatrix(SparseDescr(
-//		n1hp, n2p, constraintshp.index_base)));
-	overlap_area1hq.clear(); overlap_area1hq.resize(n1hq, 0);
-	overlap_area2q.clear(); overlap_area2q.resize(n2q, 0);
-	for (auto oi = constraintshp.begin(); oi != constraintshp.end(); ++oi) {
-		int i1hp = oi.row();
-		int i1h = i1hp_to_i1h(i1hp);
-		int i2p = oi.col();
-		int i2 = i2p_to_i2(i2p);
+	// ========== Compute constraintshq
+	// (eliminate any unconstrained variables, also eliminate spurious blank rows)
+	translate_indices(*constraintsh, constraintshq, trans_1h_1hq, trans_2_2q);
 
-		if (delete1h_set.find(i1h) != delete1h_set.end()) continue;
-		if (delete2_set.find(i2) != delete2_set.end()) continue;
-
-//		if (row_count1hp[i1hp] >= min_row_count) {
-			int i1hq = i1hp_to_i1hq(i1hp);	// Shouldn't be <0
-			int i2q = i2p_to_i2q(i2p);
-			constraintshq->set(i1hq, i2q, oi.val());
-			overlap_area1hq[i1hq] += oi.val();
-			overlap_area2q[i2q] += oi.val();
-//		} else {
-//			printf("Excluding (%d,%d) area=%f from constraintshq\n", i1hp, i2p, oi.val());
-//		}
-	}
-
-	// ------- Renumber rows and cols on smoothing function, for *q space
+	// ========== Compute smooth2q (manually translate indices here)
 	smooth2q_H.reset(new ZD11SparseMatrix(prob->H, 0));
 	smooth2q_G0.clear(); smooth2q_G0.resize(n2q);
 	for (auto ii = smooth2->H.begin(); ii != smooth2->H.end(); ++ii) {
-		int row2q = i2p_to_i2q(i2_to_i2p(ii.row()));
-		int col2q = i2p_to_i2q(i2_to_i2p(ii.col()));
+		int row2q = trans_2_2q.a2b(ii.row());
+		int col2q = trans_1h_1hq.a2b(ii.col());
 		smooth2q_H->set(row2q, col2q, ii.val());
 	}
 	for (int i2q=0; i2q<n2q; ++i2q) {
-		int i2p = i2q_to_i2p(i2q);
-		int i2 = i2p_to_i2(i2p);
+		int i2 = trans_2_2q.b2a(i2q);
 		smooth2q_G0[i2q] = smooth2->G0[i2];
 	}
 	smooth2.reset();
+
 
 
 	// ============== Set up other things for the QP problem
