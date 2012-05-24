@@ -121,8 +121,18 @@ std::vector<blitz::Array<double,1>> &height_max)
 	}
 }
 
-
-
+// -------------------------------------------------------------
+/** Change this to a boost function later */
+static std::unique_ptr<VectorSparseMatrix> get_constraints(VectorSparseMatrix &overlap)
+{
+	// For now, just copy the overlap matrix
+	std::unique_ptr<VectorSparseMatrix> constraints(new VectorSparseMatrix(overlap));
+	for (auto oi = overlap.begin(); oi != overlap.end(); ++oi) {
+		constraints->set(oi.row(), oi.col(), oi.val());
+	}
+	return constraints;
+}
+// -------------------------------------------------------------
 
 /**
 @param overlap [n1 x n2] Overlap matrix between grid1 and grid2
@@ -173,6 +183,9 @@ std::vector<blitz::Array<double,1>> &height_max)
 		used2_set.insert(i2);
 	}
 
+	// ========== Get constraint matrix
+	std::unique_ptr<VectorSparseMatrix> constraintsh(get_constraints(*overlaph));
+
 	// ========== Construct translator between (full) and (*p) spaces
 	n1hp = used1h_set.size();
 	n2p = used2_set.size();
@@ -201,7 +214,7 @@ std::vector<blitz::Array<double,1>> &height_max)
 		n1hp, n2p, overlap->index_base)));
 	overlap_area1hp.clear(); overlap_area1hp.resize(n1hp, 0);
 	overlap_area2p.clear(); overlap_area2p.resize(n2p, 0);
-	std::vector<int> row_count1hp(n1hp);	// For computation of *q space below.
+	// std::vector<int> row_count1hp(n1hp);	// For computation of *q space below.
 	for (auto oi = overlaph->begin(); oi != overlaph->end(); ++oi) {
 		int i1h = oi.row();
 
@@ -210,9 +223,24 @@ std::vector<blitz::Array<double,1>> &height_max)
 		overlaphp->set(i1hp, i2p, oi.val());
 
 		overlap_area1hp[i1hp] += oi.val();
-		++row_count1hp[i1hp];
+		// ++row_count1hp[i1hp];
 		overlap_area2p[i2p] += oi.val();
 	}
+
+	// ========== Construct constraintshp
+	VectorSparseMatrix constraintshp(SparseDescr(
+		n1hp, n2p, overlap->index_base));
+	std::vector<int> row_count1hp(n1hp);	// For computation of *q space below.
+	for (auto oi = constraintsh->begin(); oi != constraintsh->end(); ++oi) {
+		int i1h = oi.row();
+
+		int i1hp = i1h_to_i1hp(i1h);
+		int i2p = i2_to_i2p(oi.col());
+		constraintshp.set(i1hp, i2p, oi.val());
+
+		++row_count1hp[i1hp];
+	}
+
 
 	// ========== Set up gridcell pointers for *p space
 	grid2p.clear();  grid2p.reserve(n2p);
@@ -233,7 +261,7 @@ std::vector<blitz::Array<double,1>> &height_max)
 		double native_area = overlap_area1hp[i1hp] * (gc1.native_area / gc1.proj_area);
 		grid1hp.push_back(GCInfo(native_area, proj_area));
 	}
-	overlaphp->sort(SparseMatrix::SortOrder::ROW_MAJOR);
+	constraintshp.sort(SparseMatrix::SortOrder::ROW_MAJOR);
 
 	// ================= Set up *q space (subspace of *p space)
 
@@ -245,10 +273,11 @@ std::vector<blitz::Array<double,1>> &height_max)
 	std::set<int> delete1h_set;
 	std::set<int> delete2_set;
 //	int const min_row_count = 2;		// Correct value for this
-	int const min_row_count = 1;
+	int const min_row_count = 7;		// Needed for Smoothed SMB (cesm.py)
+//	int const min_row_count = 1;
 //	int const min_row_count = 100000;
-	int overlaphq_size = 0;
-	for (auto oi = overlaphp->begin(); oi != overlaphp->end(); ++oi) {
+	int constraintshq_size = 0;
+	for (auto oi = constraintshp.begin(); oi != constraintshp.end(); ++oi) {
 		int i1hp = oi.row();
 		int i1h = i1hp_to_i1h(i1hp);
 		int i2p = oi.col();
@@ -259,10 +288,10 @@ std::vector<blitz::Array<double,1>> &height_max)
 		}
 	}
 
-	// Count number of elements in overlaphq, and get definitive set of rows and cols
+	// Count number of elements in constraintshq, and get definitive set of rows and cols
 	used1h_set.clear();			// Indies in (full) space
 	used2_set.clear();
-	for (auto oi = overlaphp->begin(); oi != overlaphp->end(); ++oi) {
+	for (auto oi = constraintshp.begin(); oi != constraintshp.end(); ++oi) {
 		int i1hp = oi.row();
 		int i1h = i1hp_to_i1h(i1hp);
 		int i2p = oi.col();
@@ -271,7 +300,7 @@ std::vector<blitz::Array<double,1>> &height_max)
 		if (delete1h_set.find(i1h) != delete1h_set.end()) continue;
 		if (delete2_set.find(i2) != delete2_set.end()) continue;
 
-		++overlaphq_size;		// Count so we know how much to allocate below
+		++constraintshq_size;		// Count so we know how much to allocate below
 		used1h_set.insert(i1h);
 		used2_set.insert(i2);
 	}
@@ -299,15 +328,15 @@ std::vector<blitz::Array<double,1>> &height_max)
 	// ------- Allocate our problem for GALAHAD (to be filled in later...)
 	// Get smoothing matrix (sub-select it later)
 	std::unique_ptr<Grid::SmoothingFunction> smooth2(grid2->get_smoothing_function(used2_set));
-	prob.reset(new QPT_problem(n1hq, n2q, overlaphq_size, smooth2->H.size(), 1));
-	overlaphq.reset(new ZD11SparseMatrix(prob->A, 0));
+	prob.reset(new QPT_problem(n1hq, n2q, constraintshq_size, smooth2->H.size(), 1));
+	constraintshq.reset(new ZD11SparseMatrix(prob->A, 0));
 
-	// -------- Separate overlaphp into overlaphq and overlaphp_extra
-//	overlaphp_extra.reset(new VectorSparseMatrix(SparseDescr(
-//		n1hp, n2p, overlaphp->index_base)));
+	// -------- Extract constraintshq out of constraintshp
+//	constraintshp_extra.reset(new VectorSparseMatrix(SparseDescr(
+//		n1hp, n2p, constraintshp.index_base)));
 	overlap_area1hq.clear(); overlap_area1hq.resize(n1hq, 0);
 	overlap_area2q.clear(); overlap_area2q.resize(n2q, 0);
-	for (auto oi = overlaphp->begin(); oi != overlaphp->end(); ++oi) {
+	for (auto oi = constraintshp.begin(); oi != constraintshp.end(); ++oi) {
 		int i1hp = oi.row();
 		int i1h = i1hp_to_i1h(i1hp);
 		int i2p = oi.col();
@@ -319,11 +348,11 @@ std::vector<blitz::Array<double,1>> &height_max)
 //		if (row_count1hp[i1hp] >= min_row_count) {
 			int i1hq = i1hp_to_i1hq(i1hp);	// Shouldn't be <0
 			int i2q = i2p_to_i2q(i2p);
-			overlaphq->set(i1hq, i2q, oi.val());
+			constraintshq->set(i1hq, i2q, oi.val());
 			overlap_area1hq[i1hq] += oi.val();
 			overlap_area2q[i2q] += oi.val();
 //		} else {
-//			printf("Excluding (%d,%d) area=%f from overlaphq\n", i1hp, i2p, oi.val());
+//			printf("Excluding (%d,%d) area=%f from constraintshq\n", i1hp, i2p, oi.val());
 //		}
 	}
 

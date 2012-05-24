@@ -61,7 +61,7 @@ figure.init_figure(overlap_fname)
 from figure import *		# Bring in our global variables
 
 # =============== Read a hi-res function on the ice grid
-searise_nc = netCDF4.Dataset('data/searise/Greenland_5km_v1.1.nc')
+searise_nc = netCDF4.Dataset(os.path.join(figure.data_root, 'searise/Greenland_5km_v1.1.nc'))
 #ZH0 = np.ndarray.flatten(np.array(searise_nc.variables[field_name], dtype='d'))
 ZH0 = np.array(searise_nc.variables[field_name], dtype='d').flatten('C')
 print 'ZH0 has %d elements, vs (%d x %d) = %d' % (ZH0.shape[0], ice_nx, ice_ny, ice_nx * ice_ny)

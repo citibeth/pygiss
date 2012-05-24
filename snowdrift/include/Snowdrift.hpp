@@ -60,9 +60,9 @@ public:
 	std::unique_ptr<QPT_problem> prob;	// Data structure for QP solver
 	double infinity;					// Value used for infinity in QP solver
 	std::unique_ptr<VectorSparseMatrix> overlaphp;
-	std::unique_ptr<ZD11SparseMatrix> overlaphq;	// Overlap (constratints) matrix used for QP problem.  Pesky cells have been removed, and rows/columns have been renumbered to remove blank rows and columns.
+	std::unique_ptr<ZD11SparseMatrix> constraintshq;	// Overlap (constratints) matrix used for QP problem.  Pesky cells have been removed, and rows/columns have been renumbered to remove blank rows and columns.
 
-	/** Cells of overlaphp that were not included in overlaphq.
+	/** Cells of overlaphp that were not included in constraintshq.
 	This happens for rows with only 1 element in them, since they mess up the EQP solver. */
 //	std::unique_ptr<VectorSparseMatrix> overlaphp_extra;
 
@@ -227,7 +227,7 @@ public:
 	std::vector<double> overlap_area1hp;
 	std::vector<double> overlap_area2p;
 
-	// Based on overlaps in overlaphq
+	// Based on overlaps in constraintshq
 	std::vector<double> overlap_area1hq;
 	std::vector<double> overlap_area2q;
 
