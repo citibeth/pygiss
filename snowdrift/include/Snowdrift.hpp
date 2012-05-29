@@ -24,6 +24,7 @@ namespace giss {
 </pre>
 */
 class Snowdrift {
+
 	class GCInfo {
 	public:
 		double native_area;
@@ -44,6 +45,29 @@ class Snowdrift {
 		double proj_by_native() const { return proj_area / native_area; }
 	};
 public:
+	struct SmoothingFunction {
+		/** The Hessian matrix, used in QP */
+		MapSparseMatrix H;
+
+		/** Linear term to QP objective function.  Must be pairwise-multiplied
+		by Z0, the HNTR regridding result.  Constant term is also available
+		from this */
+		std::vector<double> G0;
+
+		SmoothingFunction(MapSparseMatrix &&_H) : H(_H), G0(H.ncol) {}
+	};
+
+#if 0
+	struct Constraints {
+		VectorSparseMatrix A;	/// The constraints matrix (nconstraints x n2 --- ice grid)
+		/** Right-hand-side matrix for equality constratints: */
+		RHS * Z1 = constraints.
+		VectorSparseMatrix RHSEQ;
+
+	};
+#endif
+
+
 	int num_hclass;
 
 	enum class MergeOrReplace {MERGE, REPLACE};
@@ -75,6 +99,7 @@ public:
 	int n1hp;	// grid1hp.size() = overlaphp.nrow
 	int n2p;	// grid2.size() = overlaphp.ncol
 	int n2q;
+	int nconstraints;
 
 	// If != "", write to this file just before we solve.
 	std::string problem_file;
@@ -99,17 +124,20 @@ public:
 		inline int i2p_to_i2(int i2p)
 			{ return trans_2_2p.b2a(i2p); }
 
+#if 0
 	// ------------- *p <--> *q indices (subspace to Galahad-subspace)
 	IndexTranslator trans_1hp_1hq;
 		inline int i1hp_to_i1hq(int i1hp)
 			{ return trans_1hp_1hq.a2b(i1hp); }
 		inline int i1hq_to_i1hp(int i1hq)
 			{ return trans_1hp_1hq.b2a(i1hq); }
-	IndexTranslator trans_2p_2q;
-		inline int i2p_to_i2q(int i2p)
-			{ return trans_2p_2q.a2b(i2p); }
-		inline int i2q_to_i2p(int i2q)
-			{ return trans_2p_2q.b2a(i2q); }
+#endif
+	IndexTranslator trans_2_2q;
+
+// 		inline int i2_to_i2q(int i2p)
+// 			{ return trans_2_2q.a2b(i2p); }
+// 		inline int i2q_to_i2p(int i2q)
+// 			{ return trans_2_2q.b2a(i2q); }
 
 
 

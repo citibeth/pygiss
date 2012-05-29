@@ -141,6 +141,7 @@ std::unique_ptr<Grid::SmoothingFunction> Grid_XY::get_smoothing_function(std::se
 
 	for (auto ii = mask.begin(); ii != mask.end(); ++ii) {
 		int index0 = *ii;
+//printf("index0 = %d\n", index0);
 
 		int y0i = index0 / nx;
 		int x0i = index0 - y0i*nx;

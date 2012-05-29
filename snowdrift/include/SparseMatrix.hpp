@@ -5,6 +5,7 @@
 #include <boost/bind.hpp>
 #include "hsl_zd11_x.hpp"
 #include "ncutil.hpp"
+#include "IndexTranslator.hpp"
 
 class NcFile;
 
@@ -299,7 +300,8 @@ public:
 	size_t size() { return _nnz_cur; }
 
 protected:
-	void _set(int const row, int const col, double const val, DuplicatePolicy dups)
+	/** NOTE: row and col already adjusted for index_base */
+	void _set(int row, int col, double const val, DuplicatePolicy dups)
 	{
 		if (_nnz_cur >= zd11().ne) {
 			fprintf(stderr, "ZD11SparseMatrix is full with %d elements\n", zd11().ne);
@@ -368,6 +370,7 @@ public:
 	size_t size() { return val.size(); }
 
 protected :
+	/** NOTE: row and col already adjusted for index_base */
 	void _set(int row, int col, double _val, DuplicatePolicy dups)
 	{
 		indx.push_back(row);
@@ -434,6 +437,7 @@ public:
 	size_t size() { return _cells.size(); }
 
 protected :
+	/** NOTE: row and col already adjusted for index_base */
 	void _set(int row, int col, double const val, DuplicatePolicy dups)
 	{
 		// Could make this find-insert operation a bit more efficient
@@ -460,7 +464,7 @@ public:
 // ------------------------------------------------------------
 /** Copy a to b.  Does not clear b */
 template<class SparseMatrixT1, class SparseMatrixT2>
-void copy(SparseMatrixT1 &a, SparseMatrixT2 &b, SparseMatrix::DuplicatePolicy dups = DuplicatePolicy::REPLACE)
+void copy(SparseMatrixT1 &a, SparseMatrixT2 &b, SparseMatrix::DuplicatePolicy dups = SparseMatrix::DuplicatePolicy::REPLACE)
 {
 	b.clear();
 	for (typename SparseMatrixT1::iterator ii = a.begin(); ii != a.end(); ++ii) {
@@ -468,12 +472,13 @@ void copy(SparseMatrixT1 &a, SparseMatrixT2 &b, SparseMatrix::DuplicatePolicy du
 	}
 }
 // ------------------------------------------------------------
-template<class SparseMatrixT1, class SparseMatrixT2>
+/** Converts from a used-set to a translator */
+template<class SparseMatrixT1>
 inline void make_used_translators(SparseMatrixT1 &a,
 IndexTranslator &trans_row,
 IndexTranslator &trans_col,
-std::set<int> *_used_row,	// If not NULL, output to here.
-std::set<int> *_used_col)	// If not NULL, output to here.
+std::set<int> *_used_row = NULL,	// If not NULL, output to here.
+std::set<int> *_used_col = NULL)	// If not NULL, output to here.
 
 {
 	// Figure out what is used
@@ -496,7 +501,7 @@ std::set<int> *_used_col)	// If not NULL, output to here.
 template<class SparseMatrixT1>
 inline void make_used_row_translator(SparseMatrixT1 &a,
 IndexTranslator &trans_row,
-std::set<int> *_used_row)	// If not NULL, output to here.
+std::set<int> *_used_row = NULL)	// If not NULL, output to here.
 {
 	// Figure out what is used
 	std::set<int> used_row;
@@ -512,7 +517,7 @@ std::set<int> *_used_row)	// If not NULL, output to here.
 template<class SparseMatrixT1>
 inline void make_used_col_translator(SparseMatrixT1 &a,
 IndexTranslator &trans_col,
-std::set<int> *_used_col)	// If not NULL, output to here.
+std::set<int> *_used_col = NULL)	// If not NULL, output to here.
 {
 	// Figure out what is used
 	std::set<int> used_col;
@@ -533,7 +538,7 @@ IndexTranslator const &trans_row,
 IndexTranslator const &trans_col,
 double *row_sum = NULL,		// Place to sum row and column values, if it exists
 double *col_sum = NULL,
-SparseMatrix::DuplicatePolicy dups = DuplicatePolicy::REPLACE)
+SparseMatrix::DuplicatePolicy dups = SparseMatrix::DuplicatePolicy::REPLACE)
 {
 	b.clear();
 	if (row_sum) for (int i=0; i<b.nrow; ++i) row_sum[i] = 0;

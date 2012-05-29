@@ -1,8 +1,8 @@
 #include "Snowdrift.hpp"
 #include "eqp_x.hpp"
 #include "qpt_x.hpp"
-
 #include "Python.h"
+
 extern PyTypeObject SnowdriftType;
 
 namespace giss {
@@ -122,87 +122,67 @@ std::vector<blitz::Array<double,1>> &height_max)
 }
 
 // -------------------------------------------------------------
+/** Removes constraints with fewer than a minimum number of variables (columns).
+Also removes all trace of variables mentioned in those constraints,
+as well as any other constraints that now have too few variables, etc...
+@param min_count Minimum number of variables a constraint must have to survive. */
+static void remove_small_constraints(VectorSparseMatrix &in, VectorSparseMatrix &out, int min_count)
+{
+}
+
+
+
 /** Change this to a boost function later */
 static std::unique_ptr<VectorSparseMatrix> get_constraints(Snowdrift &sd, VectorSparseMatrix &overlap)
 {
-#if 0
-	// For now, just copy the overlap matrix
-	std::unique_ptr<VectorSparseMatrix> constraints(new VectorSparseMatrix(overlap));
-	for (auto oi = overlap.begin(); oi != overlap.end(); ++oi) {
-		constraints->set(oi.row(), oi.col(), oi.val());
-	}
-	return constraints;
+	int const min_row_count = 2;
+	std::set<int> delete_row;		// Rows to delete
+	std::set<int> delete_col;		// Cols to delete
 
+	// Make sure there are no constraints (rows) with too few variables (columns).
+	// Uses an iterative process
+	std::vector<int> row_count(overlap.nrow);
+	for (;;) {
+		// Count rows
+		row_count.clear(); row_count.resize(overlap.nrow);
+		for (auto oi = overlap.begin(); oi != overlap.end(); ++oi) {
+			// Loop if it's already in our delete_row and delete_col sets
+			if (delete_row.find(oi.row()) != delete_row.end()) continue;
+			if (delete_col.find(oi.col()) != delete_col.end()) continue;
 
-
-	VectorSparseMatrix constraintshp(SparseDescr(
-		n1hp, n2p, overlap->index_base));
-	std::vector<int> row_count1hp(n1hp);	// For computation of *q space below.
-	for (auto oi = constraintsh->begin(); oi != constraintsh->end(); ++oi) {
-		int i1h = oi.row();
-
-		int i1hp = i1h_to_i1hp(i1h);
-		int i2p = i2_to_i2p(oi.col());
-		constraintshp.set(i1hp, i2p, oi.val());
-
-		++row_count1hp[i1hp];
-	}
-
-
-	// Eliminate GCM grid cells with just one ice grid cell intersection.
-	// Removes columns that would generate too few terms in the constraints matrix
-	// This is necessary to keep certain matrices positive-definite in the EQP solver
-
-	// Determine indices used in the *q space
-	std::set<int> delete1h_set;
-	std::set<int> delete2_set;
-//	int const min_row_count = 2;		// Correct value for this
-	int const min_row_count = 7;		// Needed for Smoothed SMB (cesm.py)
-//	int const min_row_count = 1;
-//	int const min_row_count = 100000;
-	int constraintshq_size = 0;
-	for (auto oi = constraintshp.begin(); oi != constraintshp.end(); ++oi) {
-		int i1hp = oi.row();
-		int i1h = i1hp_to_i1h(i1hp);
-		int i2p = oi.col();
-		int i2 = i2p_to_i2(i2p);
-		if (row_count1hp[i1hp] < min_row_count) {
-			delete1h_set.insert(i1h);
-			delete2_set.insert(i2);
+			++row_count[oi.row()];
 		}
+
+
+		// Add to our deletion set
+		bool deleted = false;
+		for (auto oi = overlap.begin(); oi != overlap.end(); ++oi) {
+			// Loop if it's already in our delete_row and delete_col sets
+			if (delete_row.find(oi.row()) != delete_row.end()) continue;
+			if (delete_col.find(oi.col()) != delete_col.end()) continue;
+
+			if (row_count[oi.row()] < min_row_count) {
+				deleted = true;
+				delete_row.insert(oi.row());
+				delete_col.insert(oi.col());
+			}
+		}
+
+		// Terminate if we didn't remove anything on this round
+		if (!deleted) break;
 	}
 
-	// Count number of elements in constraintshq, and get definitive set of rows and cols
-	// used1h_set.clear();			// Indies in (full) space
-	std::set<int> used1hp_set;
-	used2_set.clear();
-	for (auto oi = constraintshp.begin(); oi != constraintshp.end(); ++oi) {
-		int i1hp = oi.row();
-		int i1h = i1hp_to_i1h(i1hp);
-		int i2p = oi.col();
-		int i2 = i2p_to_i2(i2p);
 
-		if (delete1h_set.find(i1h) != delete1h_set.end()) continue;
-		if (delete2_set.find(i2) != delete2_set.end()) continue;
-
-		++constraintshq_size;		// Count so we know how much to allocate below
-		used1hp_set.insert(i1hp);
-		used2_set.insert(i2);
-	}
-	n1hq = used1hp_set.size();
-	n2q = used2_set.size();
-
-	trans_hp_hq.init(n1hp, used1hp_set);
-
-
-#else
-	// For now, just copy the overlap matrix
+	// Copy over the matrix, deleting rows and columns as planned
 	std::unique_ptr<VectorSparseMatrix> constraints(new VectorSparseMatrix(overlap));
 	for (auto oi = overlap.begin(); oi != overlap.end(); ++oi) {
+		// Loop if it's already in our delete_row and delete_col sets
+		if (delete_row.find(oi.row()) != delete_row.end()) continue;
+		if (delete_col.find(oi.col()) != delete_col.end()) continue;
+
 		constraints->set(oi.row(), oi.col(), oi.val());
 	}
 	return constraints;
-#endif
 }
 // -------------------------------------------------------------
 
@@ -251,14 +231,14 @@ std::vector<blitz::Array<double,1>> &height_max)
 	}
 
 	// ========== Construct overlaphp (needed for HNTR regridding)
-	make_used_translators(overlaph, trans_1h_1hp, trans_2_2p);
+	make_used_translators(*overlaph, trans_1h_1hp, trans_2_2p);
 	n1hp = trans_1h_1hp.nb();
 	n2p = trans_2_2p.nb();
 	overlaphp.reset(new VectorSparseMatrix(SparseDescr(
 		n1hp, n2p, overlap->index_base)));
 	overlap_area1hp.clear(); overlap_area1hp.resize(n1hp, 0);
 	overlap_area2p.clear(); overlap_area2p.resize(n2p, 0);
-	translate_indices(overlaph, *overlaphp,
+	translate_indices(*overlaph, *overlaphp,
 		trans_1h_1hp, trans_2_2p,
 		&overlap_area1hp[0], &overlap_area2p[0]);
 
@@ -284,12 +264,12 @@ std::vector<blitz::Array<double,1>> &height_max)
 
 	// ========== Get constraint matrix, set up *2q space
 	// NOTE: constraints matrix can have unused rows if you like, they will be eliminated later.
-	std::unique_ptr<VectorSparseMatrix> constraintsh(get_constraints(*overlaph));
+	std::unique_ptr<VectorSparseMatrix> constraintsh(get_constraints(*this, *overlaph));
 	constraintsh->sort(SparseMatrix::SortOrder::ROW_MAJOR);
 	std::set<int> constraintsh_used_2;
 	IndexTranslator trans_1h_1hq;	// Only used to eliminate blank rows in constraintsh
-	make_used_translators(*constraintsh, trans_1h_1hq, trans_2_2q, null, &constraintsh_used_2);
-	int nconstraints = trans_1h_1hq.nb();
+	make_used_translators(*constraintsh, trans_1h_1hq, trans_2_2q, NULL, &constraintsh_used_2);
+	nconstraints = trans_1h_1hq.nb();
 	n2q = trans_2_2q.nb();
 
 	// ========== Get smoothing function based on geometry of grid2
@@ -302,18 +282,23 @@ std::vector<blitz::Array<double,1>> &height_max)
 
 	// ========== Compute constraintshq
 	// (eliminate any unconstrained variables, also eliminate spurious blank rows)
-	translate_indices(*constraintsh, constraintshq, trans_1h_1hq, trans_2_2q);
+	translate_indices(*constraintsh, *constraintshq, trans_1h_1hq, trans_2_2q);
 
 	// ========== Compute smooth2q (manually translate indices here)
 	smooth2q_H.reset(new ZD11SparseMatrix(prob->H, 0));
 	smooth2q_G0.clear(); smooth2q_G0.resize(n2q);
+//printf("smooth2->H.index_base = %d\n", smooth2->H.index_base);
 	for (auto ii = smooth2->H.begin(); ii != smooth2->H.end(); ++ii) {
-		int row2q = trans_2_2q.a2b(ii.row());
-		int col2q = trans_1h_1hq.a2b(ii.col());
+//printf("smooth2-H %d %d\n", ii.row(), ii.col());
+		int row2q = trans_2_2q.a2b(ii.row(), false);
+		if (row2q < 0) continue;
+		int col2q = trans_2_2q.a2b(ii.col(), false);
+		if (col2q < 0) continue;
 		smooth2q_H->set(row2q, col2q, ii.val());
 	}
 	for (int i2q=0; i2q<n2q; ++i2q) {
-		int i2 = trans_2_2q.b2a(i2q);
+		int i2 = trans_2_2q.b2a(i2q, false);
+		if (i2 < 0) continue;
 		smooth2q_G0[i2q] = smooth2->G0[i2];
 	}
 	smooth2.reset();
@@ -385,12 +370,14 @@ bool use_snowdrift)
 		// Subselect out Z2q
 		double * const Z2q(prob->X);
 		for (int i2q=0; i2q < n2q; ++i2q) {
-			int i2p = i2q_to_i2p(i2q);
+			int i2 = trans_2_2q.b2a(i2q);
+			int i2p = trans_2_2p.a2b(i2);
 			Z2q[i2q] = Z2p[i2p];
+//printf("Z2q[%d] = (Z2p[%d]=%g)\n", i2q, i2p, Z2p[i2p]);
 		}
 
 		// Zero things out for QP algo
-		for (int i1hq=0; i1hq<n1hq; ++i1hq) {
+		for (int i1hq=0; i1hq<nconstraints; ++i1hq) {
 			prob->Y[i1hq] = 0;
 		}
 		for (int i2q=0; i2q<n2q; ++i2q) {
@@ -409,29 +396,19 @@ bool use_snowdrift)
 			prob->f     +=        weight * Z2q[i2q]*Z2q[i2q];
 		}
 
-printf("prob = %p\n", &*prob);
-printf("prob->C = %p\n", prob->C);
-		// RHS of equality constraints
-printf("*** n1hp=%d, n1hq=%d\n", n1hp, n1hq);
-		for (int i1hq=0; i1hq<n1hq; ++i1hq) {
-			int i1hp = i1hq_to_i1hp(i1hq);
-			double val = Z1hp[i1hp] * overlap_area1hq[i1hq];
-#if 0
-//			double val = Z1hp[i1hp] * overlap_area1hp[i1hp];
-double frac = (overlap_area1hq[i1hq] - overlap_area1hp[i1hp]) / overlap_area1hp[i1hp];
-//if (std::abs(frac) > 1e-14) {
-if (overlap_area1hq[i1hq] != overlap_area1hp[i1hp]) {
-	printf("i1hq=%d, i1hp=%d, o1hq=%f, o1hp=%f\n", i1hq, i1hp, overlap_area1hq[i1hq], overlap_area1hp[i1hp]);
-}
-#endif
-
-			// We have "-val" here because the constraint is phrased as "Ax + c = 0"
-			// See the GALAHAD documentation eqp.pdf
-			prob->C[i1hq] = -val;
-			// prob->C_l[i1hq] = -val;
-			// prob->C_u[i1hq] = -val;
+		// ========= RHS of equality constraints.
+		// For now, let RHS = constraintshq * Z2q
+		for (int i1hq=0; i1hq<nconstraints; ++i1hq) prob->C[i1hq] = 0;
+		// We have "-= oi.val()..." here because the constraint is phrased as "Ax + c = 0"
+		// See the GALAHAD documentation eqp.pdf
+		for (auto oi = constraintshq->begin(); oi != constraintshq->end(); ++oi) {
+			int i1hq = oi.row();
+			int i2q = oi.col();
+			prob->C[i1hq] -= oi.val() * Z2q[i2q];
+//printf("prob->C[%d] -= %g * (Z2q[%d]=%g)\n", i1hq, oi.val(), i2q, Z2q[i2q]);
 		}
-printf("*** done\n");
+//printf("n2q = %d\n", n2q);
+//for (int i1hq=0; i1hq < nconstraints; ++i1hq) printf("prob->C[%d] = %g\n", i1hq, prob->C[i1hq]);
 
 		// Write the problem
 		if (problem_file != "") {
@@ -445,7 +422,8 @@ printf("*** done\n");
 
 		// Put answer back int Z2p (leaving cells we're not responsible for alone)
 		for (int i2q=0; i2q < n2q; ++i2q) {
-			int i2p = i2q_to_i2p(i2q);
+			int i2 = trans_2_2q.b2a(i2q);
+			int i2p = trans_2_2p.a2b(i2);
 			Z2p[i2p] = Z2q[i2q];
 		}
 #if 0
