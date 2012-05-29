@@ -382,7 +382,7 @@ protected :
 class VectorSparseMatrix : public SparseMatrix1<VectorSparseMatrix0>
 {
 public:
-	VectorSparseMatrix(SparseDescr const &descr) :
+	explicit VectorSparseMatrix(SparseDescr const &descr) :
 	SparseMatrix1<VectorSparseMatrix0>(descr)
 	{}
 
@@ -400,6 +400,9 @@ public:
 	}
 
 	void sort(SparseMatrix::SortOrder sort_order = SortOrder::ROW_MAJOR);
+
+	/** Sums together items in the matrix with duplicate (row, col) */
+	void sum_duplicates();
 
 	static std::unique_ptr<VectorSparseMatrix> netcdf_read(NcFile &nc, std::string const &vname);
 

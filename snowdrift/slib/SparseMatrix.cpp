@@ -60,6 +60,45 @@ printf("\n");
 	jndx = std::move(itmp);	
 }
 
+void VectorSparseMatrix::sum_duplicates()
+{
+	// Decide on how we'll sort
+	CmpIndex2 cmp;
+	cmp.init(&indx[0], &jndx[0]);
+
+	// Generate a sorted permuatation
+	int n = size();
+	std::vector<int> perm; perm.reserve(n);
+	for (int i=0; i<n; ++i) perm.push_back(i);
+	std::sort(perm.begin(), perm.end(), cmp);
+
+	// Output arrays
+	std::vector<int> nindx;
+	std::vector<int> njndx;
+	std::vector<double> nval;
+
+	// Identify duplicates
+	nindx.push_back(indx[perm[0]]);
+	njndx.push_back(jndx[perm[0]]);
+	nval.push_back(val[perm[0]]);
+	for (int i=1; i<indx.size(); ++i) {
+		int row = indx[perm[i]];
+		int col = jndx[perm[i]];
+//printf("remove_dup: %d %d\n", row, col);
+		if ((row == nindx.back()) && (col == njndx.back())) {
+			nval.back() += val[perm[i]];
+		} else {
+			nindx.push_back(indx[perm[i]]);
+			njndx.push_back(jndx[perm[i]]);
+			nval.push_back(val[perm[i]]);
+		}
+	}
+
+	indx = std::move(nindx);
+	jndx = std::move(njndx);
+	val = std::move(nval);
+}
+
 
 std::unique_ptr<VectorSparseMatrix> VectorSparseMatrix::netcdf_read(
 	NcFile &nc, std::string const &vname)

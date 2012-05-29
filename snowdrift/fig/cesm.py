@@ -116,7 +116,7 @@ elevation2 = topg + thk
 
 # ============= Set up Snowdrift data structures
 sd = snowdrift.Snowdrift(overlap_fname)
-sd.init(elevation2, mask2, height_max1)
+sd.init(elevation2, mask2, height_max1, constraints='cesm')
 
 # ============== Read the SMB per height class
 cesm_nc = netCDF4.Dataset(os.path.join(figure.data_root, 'cesm/smb_CESM.nc'))
@@ -127,6 +127,10 @@ for hc in range(0,num_hclass) :
 	smb_hc[abs(smb_hc) > 1e10] = np.nan
 	smb_hc *= 31556000.0	# Convert from kg m-2 s-2 to mm/yr 
 	smb1h[:,hc] = smb_hc
+
+# Fix problem with CESM data whereby NaN values intersect with non-masked-out ice cells
+smb1h[np.isnan(smb1h)] = 0
+
 
 # ============== Plot height-classified SMB
 smb1h_r = np.zeros((raster_x, raster_y))

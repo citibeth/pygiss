@@ -105,8 +105,8 @@ print elevation2
 
 
 # See p. 14 of "The CESM Land Ice Model: Documentation and User's Guide" by William Lipscomb (June 2010)
-tops = np.array([10000], dtype='d')
-#tops = np.array([200,400,700,1000,1300,1600,2000,2500,3000,10000], dtype='d')
+#tops = np.array([10000], dtype='d')
+tops = np.array([200,400,700,1000,1300,1600,2000,2500,3000,10000], dtype='d')
 #tops = np.array([400, 700, 1000, 1300, 1600, 2000, 2500, 3000, 10000], dtype='d')
 #tops = np.array([100000], dtype='d')
 num_hclass = tops.shape[0]

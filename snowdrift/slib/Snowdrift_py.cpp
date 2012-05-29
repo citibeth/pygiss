@@ -59,15 +59,24 @@ static PyObject *Snowdrift_init(SnowdriftDict *self, PyObject *args, PyObject *k
 	PyArrayObject *mask_py;
 	PyArrayObject *height_max_py;
 	char const *problem_file = "";
-	
-	static char const *keyword_list[] = {"elevation", "mask", "height_max", "problem_file", NULL};
+	char const *sconstraints = "default";
+
+	static char const *keyword_list[] = {"elevation", "mask", "height_max", "problem_file", "constraints", NULL};
 	if (!PyArg_ParseTupleAndKeywords(
-		args, keywords, "OOO|s",
+		args, keywords, "OOO|ss",
 		const_cast<char **>(keyword_list),
-		&elevation_py, &mask_py, &height_max_py, &problem_file))
+		&elevation_py, &mask_py, &height_max_py, &problem_file, &sconstraints))
 	{
 		// Throw an exception...
 		PyErr_SetString(PyExc_ValueError, "Snowdrift_init(): invalid arguments."); return NULL;
+	}
+
+	// ========== Get a boost::function from the constraints
+	boost::function<std::unique_ptr<VectorSparseMatrix> (VectorSparseMatrix &)> constraints;
+	if (strcmp(sconstraints, "cesm") == 0) {
+		constraints = boost::bind(&Snowdrift::get_constraints_cesm, sd, _1);
+	} else {
+		constraints = boost::bind(&Snowdrift::get_constraints_default, _1);
 	}
 
 	// =========== Typecheck bounds on the arrays
@@ -79,7 +88,7 @@ static PyObject *Snowdrift_init(SnowdriftDict *self, PyObject *args, PyObject *k
 		auto height_max(py_to_blitz_Z1(height_max_py));
 
 	// ========== Finish initialization
-	self->snowdrift->init(elevation, mask, height_max);
+	self->snowdrift->init(elevation, mask, height_max, constraints);
 	self->snowdrift->problem_file = std::string(problem_file);
 
 //printf("Snowdrift::init(%s) called, snowdrift=%p\n", fname, self->snowdrift);

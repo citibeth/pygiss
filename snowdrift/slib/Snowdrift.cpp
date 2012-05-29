@@ -2,6 +2,7 @@
 #include "eqp_x.hpp"
 #include "qpt_x.hpp"
 #include "Python.h"
+#include <cmath>
 
 extern PyTypeObject SnowdriftType;
 
@@ -122,30 +123,19 @@ std::vector<blitz::Array<double,1>> &height_max)
 }
 
 // -------------------------------------------------------------
-/** Removes constraints with fewer than a minimum number of variables (columns).
-Also removes all trace of variables mentioned in those constraints,
-as well as any other constraints that now have too few variables, etc...
-@param min_count Minimum number of variables a constraint must have to survive. */
-static void remove_small_constraints(VectorSparseMatrix &in, VectorSparseMatrix &out, int min_count)
-{
-}
-
-
-
 /** Change this to a boost function later */
-static std::unique_ptr<VectorSparseMatrix> get_constraints(Snowdrift &sd, VectorSparseMatrix &overlap)
+static std::unique_ptr<VectorSparseMatrix> remove_small_constraints(VectorSparseMatrix &in_constraints, int min_row_count)
 {
-	int const min_row_count = 2;
 	std::set<int> delete_row;		// Rows to delete
 	std::set<int> delete_col;		// Cols to delete
 
 	// Make sure there are no constraints (rows) with too few variables (columns).
 	// Uses an iterative process
-	std::vector<int> row_count(overlap.nrow);
+	std::vector<int> row_count(in_constraints.nrow);
 	for (;;) {
 		// Count rows
-		row_count.clear(); row_count.resize(overlap.nrow);
-		for (auto oi = overlap.begin(); oi != overlap.end(); ++oi) {
+		row_count.clear(); row_count.resize(in_constraints.nrow);
+		for (auto oi = in_constraints.begin(); oi != in_constraints.end(); ++oi) {
 			// Loop if it's already in our delete_row and delete_col sets
 			if (delete_row.find(oi.row()) != delete_row.end()) continue;
 			if (delete_col.find(oi.col()) != delete_col.end()) continue;
@@ -155,34 +145,79 @@ static std::unique_ptr<VectorSparseMatrix> get_constraints(Snowdrift &sd, Vector
 
 
 		// Add to our deletion set
-		bool deleted = false;
-		for (auto oi = overlap.begin(); oi != overlap.end(); ++oi) {
+		int num_deleted = 0;
+		for (auto oi = in_constraints.begin(); oi != in_constraints.end(); ++oi) {
 			// Loop if it's already in our delete_row and delete_col sets
 			if (delete_row.find(oi.row()) != delete_row.end()) continue;
 			if (delete_col.find(oi.col()) != delete_col.end()) continue;
 
 			if (row_count[oi.row()] < min_row_count) {
-				deleted = true;
+				++num_deleted;
 				delete_row.insert(oi.row());
 				delete_col.insert(oi.col());
 			}
 		}
 
 		// Terminate if we didn't remove anything on this round
-		if (!deleted) break;
+printf("num_deleted = %d\n", num_deleted);
+		if (num_deleted == 0) break;
 	}
 
 
 	// Copy over the matrix, deleting rows and columns as planned
-	std::unique_ptr<VectorSparseMatrix> constraints(new VectorSparseMatrix(overlap));
-	for (auto oi = overlap.begin(); oi != overlap.end(); ++oi) {
+	std::unique_ptr<VectorSparseMatrix> out_constraints(new VectorSparseMatrix(SparseDescr(in_constraints)));
+	for (auto oi = in_constraints.begin(); oi != in_constraints.end(); ++oi) {
 		// Loop if it's already in our delete_row and delete_col sets
 		if (delete_row.find(oi.row()) != delete_row.end()) continue;
 		if (delete_col.find(oi.col()) != delete_col.end()) continue;
 
-		constraints->set(oi.row(), oi.col(), oi.val());
+		out_constraints->set(oi.row(), oi.col(), oi.val());
 	}
-	return constraints;
+	return out_constraints;
+}
+// -------------------------------------------------------------
+/** Change this to a boost function later */
+std::unique_ptr<VectorSparseMatrix> Snowdrift::get_constraints_default(VectorSparseMatrix &overlap)
+{
+	printf("get_constraints_default()\n");
+	int const min_row_count = 2;
+	return remove_small_constraints(overlap, min_row_count);
+}
+// -------------------------------------------------------------
+/** Change this to a boost function later */
+std::unique_ptr<VectorSparseMatrix> Snowdrift::get_constraints_cesm(VectorSparseMatrix &overlap)
+{
+	printf("get_constraints_cesm()\n");
+	std::unique_ptr<VectorSparseMatrix> constraints(new VectorSparseMatrix(SparseDescr(overlap)));
+
+	int const nlon = 288;		// TODO: This should really be readable from the CESM overlap file
+	int const nlat = 192;
+	for (auto oi = overlap.begin(); oi != overlap.end(); ++oi) {
+		int i1h = oi.row();
+		int i1 = this->i1h_to_i1(i1h);
+		int hclass = this->get_hclass(i1h, i1);
+		int ilat = i1 / nlon;
+		int ilon = i1 - (ilat * nlon);
+
+		int i2 = oi.col();
+
+		// Group into 2x2 cells
+		int ng = 2;
+		int hclass_new = (hclass / 2) * 2;
+		int ilat_new = ng * (ilat / ng);
+		int ilon_new = ng * (ilon / ng);
+		int i1_new = ilat_new * nlon + ilon_new;
+		int i1h_new = i1_new * this->num_hclass + hclass_new;
+
+// printf ("i1h: %d -> %d\n", i1h, i1h_new);
+//i1h_new = 0;	// Just 1 constraint! (This test was successful)
+		constraints->set(i1h_new, i2, oi.val());
+	}
+
+	constraints->sum_duplicates();
+	auto ret(remove_small_constraints(*constraints, 2));
+printf("get_constraints(): ret->nrow = %d, ret->ncol = %d\n", ret->nrow, ret->ncol);
+	return ret;
 }
 // -------------------------------------------------------------
 
@@ -196,7 +231,8 @@ static std::unique_ptr<VectorSparseMatrix> get_constraints(Snowdrift &sd, Vector
 void Snowdrift::init(
 blitz::Array<double,1> const &elevation2,
 blitz::Array<int,1> const &mask2,
-std::vector<blitz::Array<double,1>> &height_max)
+std::vector<blitz::Array<double,1>> &height_max,
+boost::function<std::unique_ptr<VectorSparseMatrix> (VectorSparseMatrix &)> const &get_constraints)
 {
 
 //set_height_max(*overlap, elevation2, mask2, height_max);
@@ -264,12 +300,21 @@ std::vector<blitz::Array<double,1>> &height_max)
 
 	// ========== Get constraint matrix, set up *2q space
 	// NOTE: constraints matrix can have unused rows if you like, they will be eliminated later.
-	std::unique_ptr<VectorSparseMatrix> constraintsh(get_constraints(*this, *overlaph));
-	constraintsh->sort(SparseMatrix::SortOrder::ROW_MAJOR);
+	std::unique_ptr<VectorSparseMatrix> constraintsh(get_constraints(*overlaph));
+	//constraintsh->sort(SparseMatrix::SortOrder::ROW_MAJOR);
 	std::set<int> constraintsh_used_2;
+//std::set<int> used_1h;
+
 	IndexTranslator trans_1h_1hq;	// Only used to eliminate blank rows in constraintsh
 	make_used_translators(*constraintsh, trans_1h_1hq, trans_2_2q, NULL, &constraintsh_used_2);
+
+//printf("used_1h = ");
+//for (auto ii=used_1h.begin(); ii != used_1h.end(); ++ii) printf("%d, ", *ii);
+//printf("\n");
+
+
 	nconstraints = trans_1h_1hq.nb();
+printf("nconstraints = %d\n", nconstraints);
 	n2q = trans_2_2q.nb();
 
 	// ========== Get smoothing function based on geometry of grid2
@@ -345,7 +390,10 @@ bool use_snowdrift)
 
 	// Compute |Z1hp|
 	double Z1hp_sum = 0;
-	for (int i1hp=0; i1hp < n1hp; ++i1hp) Z1hp_sum += overlap_area1hp[i1hp] * Z1hp[i1hp];
+	for (int i1hp=0; i1hp < n1hp; ++i1hp) {
+if (std::isnan(Z1hp[i1hp])) printf("Z1hp[%d] = %g\n", i1hp, Z1hp[i1hp]);
+		Z1hp_sum += overlap_area1hp[i1hp] * Z1hp[i1hp];
+	}
 	printf("downgrid: |Z1hp| = %1.15g\n", Z1hp_sum);
 
 	// Get initial approximation of answer (that satisfies our constraints)

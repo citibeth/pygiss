@@ -175,7 +175,9 @@ public:
 	void init(
 	blitz::Array<double,1> const &elevation2,
 	blitz::Array<int,1> const &mask2,
-	std::vector<blitz::Array<double,1>> &height_max);
+	std::vector<blitz::Array<double,1>> &height_max,
+	boost::function<std::unique_ptr<VectorSparseMatrix>
+		(VectorSparseMatrix &)> const &get_constraints);
 
 	/**
 	@param Z1 Field to downgrid. [num_hclass][n1]
@@ -197,6 +199,11 @@ public:
 	blitz::Array<double,1> const &Z2,
 	std::vector<blitz::Array<double,1>> &Z1,
 	MergeOrReplace merge_or_replace);
+
+	// ================= Different constraints matrices
+	// Controls degree of smoothing in final result.
+	static std::unique_ptr<VectorSparseMatrix> get_constraints_default(VectorSparseMatrix &overlap);
+	std::unique_ptr<VectorSparseMatrix> get_constraints_cesm(VectorSparseMatrix &overlap);
 
 };
 
