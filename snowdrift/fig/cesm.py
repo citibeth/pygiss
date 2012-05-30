@@ -169,5 +169,5 @@ ax.plot(greenland_xy[0], greenland_xy[1], 'grey', alpha=.9)
 # ============= Store output
 basename = os.path.splitext(sys.argv[0])[0]
 fig.savefig(basename + '.png', format='png',
-#	transparent=True,
+	transparent=True,
 	dpi=figure.DPI, bbox_inches='tight')

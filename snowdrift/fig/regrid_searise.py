@@ -51,8 +51,12 @@ def plot_image(ax, Z, extent) :
 # ------------------------------------------------------------------
 
 
-overlap_fname = sys.argv[1]
-field_name = sys.argv[2]
+#overlap_fname = sys.argv[1]
+#field_name = sys.argv[2]
+
+overlap_fname = 'searise_ll_overlap-5.nc'
+field_name = 'presprcp'
+
 
 fig = plt.figure(figsize=(1000/80,400/80))	# Size of figure (inches)
 
@@ -80,7 +84,8 @@ snowdrift.rasterize(rast2, ZH0, ZH0_r)
 
 ax = fig.add_subplot(1,3,curplot)
 curplot += 1
-init_plot(ax, field_name, x0,x1,y0,y1)
+init_plot(ax, 'Precipitation', x0,x1,y0,y1)
+#init_plot(ax, field_name, x0,x1,y0,y1)
 
 cax2 = plot_image(ax, ZH0_r, np.array([x0,x1,y0,y1]))
 fig.colorbar(cax2)
@@ -197,4 +202,11 @@ print 'np.nansum(ZH0) = %f' % np.nansum(ZH0)
 print 'np.nansum(ZH1) = %f' % np.nansum(ZH1)
 
 
-plt.show()
+# ============= Store output
+basename = os.path.splitext(sys.argv[0])[0]
+fig.savefig(basename + '.png', format='png',
+	transparent=True,
+	dpi=figure.DPI, bbox_inches='tight')
+
+
+#plt.show()

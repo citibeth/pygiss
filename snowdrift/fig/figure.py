@@ -64,8 +64,8 @@ def init_figure(overlap_fname) :
 	ice_nx = xb.shape[0]-1
 	ice_ny = yb.shape[0]-1
 
-	raster_x = ice_nx/3
-	raster_y = ice_ny/3
+	raster_x = ice_nx
+	raster_y = ice_ny
 
 	curplot = 1
 

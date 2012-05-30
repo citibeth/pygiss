@@ -1,5 +1,5 @@
 import matplotlib
-import numpy
+import numpy as np
 import re
 import math
 
@@ -30,8 +30,8 @@ class AsymmetricNormalize(matplotlib.colors.Normalize):
 			vmin = float(vmin)
 			vmax = float(vmax)
 			if clip:
-				mask = numpy.ma.getmask(result)
-				result = numpy.ma.array(numpy.clip(result.filled(vmax), vmin, vmax),
+				mask = np.ma.getmask(result)
+				result = np.ma.array(np.clip(result.filled(vmax), vmin, vmax),
 								  mask=mask)
 			# ma division is very slow; we can take a shortcut
 			resdat = result.data
@@ -39,7 +39,7 @@ class AsymmetricNormalize(matplotlib.colors.Normalize):
 			resdat[resdat>0] /= vmax
 			resdat[resdat<0] /= -vmin
 			resdat=resdat/2.+0.5
-			result = numpy.ma.array(resdat, mask=result.mask, copy=False)
+			result = np.ma.array(resdat, mask=result.mask, copy=False)
 
 		if is_scalar:
 			result = result[0]
@@ -52,7 +52,7 @@ class AsymmetricNormalize(matplotlib.colors.Normalize):
 		vmin, vmax = self.vmin, self.vmax
 
 		if matplotlib.cbook.iterable(value):
-			val = numpy.ma.asarray(value)
+			val = np.ma.asarray(value)
 			val=2*(val-0.5) 
 			val[val>0]*=vmax
 			val[val<0]*=-vmin
@@ -167,3 +167,34 @@ def read_cpt(fname) :
 	cdict = {'red' : rgbs[0], 'green' : rgbs[1], 'blue' : rgbs[2]}
 	cmap =  matplotlib.colors.LinearSegmentedColormap('my_colormap', cdict, 1024)
 	return (cmap, vmin, vmax)
+# -------------------------------------------------------
+# Converts .points and .polygons array in netCDF file into
+# arrays that can be directly plotted
+def points_to_plotlines(polygons, points) :
+
+	npoly = len(polygons)-1		# -1 for sentinel
+	npoints = len(points)
+	xdata = np.zeros(npoints + npoly * 2)
+	ydata = np.zeros(npoints + npoly * 2)
+
+	ipoint_dst = 0
+	for ipoly in range(0,npoly) :
+		ipoint_src = polygons[ipoly]
+		npoints_this = polygons[ipoly+1] - ipoint_src
+		xdata[ipoint_dst:ipoint_dst + npoints_this] = points[ipoint_src:ipoint_src + npoints_this,0]
+		ydata[ipoint_dst:ipoint_dst + npoints_this] = points[ipoint_src:ipoint_src + npoints_this,1]
+		ipoint_dst += npoints_this
+
+		# Repeat the first point in the polygon
+		xdata[ipoint_dst] = points[ipoint_src,0]
+		ydata[ipoint_dst] = points[ipoint_src,1]
+		ipoint_dst += 1
+
+		# Add a NaN
+		xdata[ipoint_dst] = np.nan
+		ydata[ipoint_dst] = np.nan
+		ipoint_dst += 1
+
+	return (xdata, ydata)
+# ----------------------------------------------------
+

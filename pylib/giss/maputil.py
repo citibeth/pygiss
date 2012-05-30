@@ -87,7 +87,7 @@ def horizontal_longitude_intersection(y, lon, lat0, lat1, projs) :
 			lat1 = lat2
 
 # Puts graticules on a plot, also sets the axis labels
-def plot_graticules(ax, lons, lats, x0,x1,y0,y1, projs) :
+def plot_graticules(ax, lons, lats, x0,x1,y0,y1, projs, draw_graticules = True) :
 	fmt = u'%#d\u00b0'
 
 	plt = ([], [])
@@ -179,8 +179,10 @@ def plot_graticules(ax, lons, lats, x0,x1,y0,y1, projs) :
 	ax.yaxis.set_ticklabels(y0labels)
  	# ax.yaxis.set_label('Latitude')
 
-	ax.plot(plt[0], plt[1], 'gray', alpha=.9)
+	if draw_graticules :
+		ax.plot(plt[0], plt[1], 'gray', alpha=.9)
 
+	return plt
 
 # -------------------------------------------------------------------------
 # def set_cartesian_axes() :
