@@ -116,7 +116,7 @@ def rgb2hsv(r, g, b):
 # http://osdir.com/ml/python.matplotlib.general/2005-01/msg00023.html
 # http://assorted-experience.blogspot.com/2007/07/custom-colormaps.html
 color_modelRE = re.compile('#\s*COLOR_MODEL\s*=\s*(.*)')
-lineRE = re.compile('([-+0123456789\.]\S*)\s+(\S*)\s+(\S*)\s+(\S*)\s+(\S*)\s+(\S*)\s+(\S*)\s+(\S*)')
+lineRE = re.compile('\s*([-+0123456789\.]\S*)\s+(\S*)\s+(\S*)\s+(\S*)\s+(\S*)\s+(\S*)\s+(\S*)\s+(\S*)')
 def read_cpt(fname) :
 
 	# --------- Read the file
@@ -133,16 +133,16 @@ def read_cpt(fname) :
 			if match is not None :
 #				print 'matched: ' + line
 				for base in [1, 5] :
-#					print 'base=' + str(base)
 					val = match.group(base)
 					c1 = match.group(base+1)
 					c2 = match.group(base+2)
 					c3 = match.group(base+3)
+#					print 'base=' + str(base) + ', tuple=',val,c1,c2,c3, use_hsv
 					if use_hsv :
 						rgb = hsv2rgb(int(c1), float(c2), float(c3))
 						cmapx.append((float(val), rgb))
 					else :
-#						print 'val="' + val + '"'
+#						print (float(val), (int(c1), int(c2), int(c3)))
 						cmapx.append((float(val), (int(c1), int(c2), int(c3))))
 
 	# ------------ Get the colormap's range
@@ -152,19 +152,28 @@ def read_cpt(fname) :
 	# ------------- Create the colormap, converting the form it's in
 	vrange = vmax - vmin
 	rgbs = ([],[],[])
+
+	c0 = cmapx[0]
+	cur_val = c0[0]
+	cur_rgb = c0[1]
 	for k in range(0,3) :
-		rgbs[k].append(( (cmapx[0][0]-vmin) / vrange, cmapx[0][1][k]/255.0, cmapx[0][1][0]/255.0))
+		rgbs[k].append(( (cur_val-vmin) / vrange, cur_rgb[k]/255.0, cur_rgb[k]/255.0))
+
 	for i in range(1,len(cmapx)-1,2) :
-		c0 = cmapx[i]
-		c1 = cmapx[i+1]
-#		print c0
+		cur_rgb = cmapx[i][1]
+		next_rgb = cmapx[i+1][1]
+		cur_val = cmapx[i][0]	# also equals to next_val
 		for k in range(0,3) :
-			rgbs[k].append(( (c0[0]-vmin)/vrange, c0[1][k]/255.0, c1[1][k]/255.0))
-	n = len(cmapx)-1
+			rgbs[k].append(( (cur_val-vmin)/vrange, cur_rgb[k]/255.0, next_rgb[k]/255.0))
+
+	c0 = cmapx[-1]
+	cur_val = c0[0]
+	cur_rgb = c0[1]
 	for k in range(0,3) :
-		rgbs[k].append(( (cmapx[n][0]-vmin)/vrange, cmapx[n][1][k]/255.0, cmapx[n][1][0]/255.0))
+		rgbs[k].append(( (cur_val-vmin)/vrange, cur_rgb[k]/255.0, cur_rgb[k]/255.0))
 
 	cdict = {'red' : rgbs[0], 'green' : rgbs[1], 'blue' : rgbs[2]}
+#	print cdict
 	cmap =  matplotlib.colors.LinearSegmentedColormap('my_colormap', cdict, 1024)
 	return (cmap, vmin, vmax)
 # -------------------------------------------------------

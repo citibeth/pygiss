@@ -1,0 +1,19 @@
+# additional include pathes necessary to compile the C++ programs
+AM_CXXFLAGS = -std=c++0x -I$(top_srcdir)/include \
+	@NETCDF_CFLAGS@ @PROJ_CFLAGS@ @GMP_CFLAGS@ @BLITZ_CFLAGS@ \
+	@CGAL_CPPFLAGS@ @MPFR_CFLAGS@ \
+	@BOOST_CPPFLAGS@ \
+	@AM_CXXFLAGS@
+
+AM_FCFLAGS = @NETCDF_CFLAGS@
+
+AM_LDFLAGS = \
+	@NETCDF_LIBS@ -lnetcdf_c++ -lnetcdff  @PROJ_LIBS@   @GMP_LIBS@   @BLITZ_LIBS@ \
+	@CGAL_LDFLAGS@  @AM_LDFLAGS@ \
+	@BOOST_SYSTEM_LDFLAGS@ @BOOST_THREAD_LIBS@ \
+	@AM_LDFLAGS@
+
+if HAVE_GALAHAD
+AM_LDFLAGS += -L@GALAHAD_LIB_DIR@ -lgalahad -lgalahad_hsl -lgalahad_pardiso -lgalahad_wsmp -lgalahad_metis -lgalahad_lapack -lgalahad_blas -lgomp
+AM_FCFLAGS += -I @GALAHAD_INC_DIR@ @NETCDF_CFLAGS@
+endif

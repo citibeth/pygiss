@@ -1,5 +1,5 @@
 #include <Python.h>
-#include <arrayobject.h>
+#include <numpy/arrayobject.h>
 #include <math.h>
 #include "Rasterizer.hpp"
 #include "Grid_py.hpp"

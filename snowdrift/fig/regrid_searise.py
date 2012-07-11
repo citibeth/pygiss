@@ -146,7 +146,7 @@ print '==== Plot it!'
 
 ax = fig.add_subplot(1,3,curplot)
 curplot += 1
-init_plot(ax, 'Upscaled', x0,x1,y0,y1)
+init_plot(ax, 'Upgridded', x0,x1,y0,y1)
 
 cax1 = plot_image(ax, ZG0_r, np.array([x0,x1,y0,y1]))
 fig.colorbar(cax1)
@@ -171,7 +171,7 @@ print 'END Rasterize'
 
 ax = fig.add_subplot(1,3,curplot)
 curplot += 1
-init_plot(ax, 'Downscaled', x0,x1,y0,y1)
+init_plot(ax, 'Downgridded', x0,x1,y0,y1)
 
 cax2 = plot_image(ax, ZH1_r, np.array([x0,x1,y0,y1]))
 fig.colorbar(cax2)

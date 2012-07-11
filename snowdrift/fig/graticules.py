@@ -57,16 +57,16 @@ ax.set_ylim((y0, y1))
 
 
 
-# ========= Plot the ice grid lines
-(xdata, ydata) = giss.plotutil.points_to_plotlines(
-	np.array(overlap_nc.variables['grid2.polygons']),
-	np.array(overlap_nc.variables['grid2.points']));
-#ax.plot(xdata, ydata, 'green', alpha=.7, linewidth=.5)
-ax.plot(xdata, ydata, '#800000', alpha=.7, linewidth=.5)
-
-
-ax.plot(greenland_xy[0], greenland_xy[1], 'grey', alpha=.9)
-
+# # ========= Plot the ice grid lines
+# (xdata, ydata) = giss.plotutil.points_to_plotlines(
+# 	np.array(overlap_nc.variables['grid2.polygons']),
+# 	np.array(overlap_nc.variables['grid2.points']));
+# #ax.plot(xdata, ydata, 'green', alpha=.7, linewidth=.5)
+# ax.plot(xdata, ydata, '#800000', alpha=.7, linewidth=.5)
+# 
+# 
+# ax.plot(greenland_xy[0], greenland_xy[1], 'grey', alpha=.9)
+ 
 # ======== Plot the GCM grid lines
 (xdata, ydata) = giss.plotutil.points_to_plotlines(
 	np.array(overlap_nc.variables['grid1.polygons']),

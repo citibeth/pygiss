@@ -1,6 +1,6 @@
 #include <vector>
 #include <Python.h>
-#include <arrayobject.h>
+#include <numpy/arrayobject.h>
 #include <math.h>
 
 extern PyTypeObject SnowdriftType;

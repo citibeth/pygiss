@@ -1,10 +1,7 @@
 #include "Snowdrift.hpp"
 #include "eqp_x.hpp"
 #include "qpt_x.hpp"
-#include "Python.h"
 #include <cmath>
-
-extern PyTypeObject SnowdriftType;
 
 namespace giss {
 

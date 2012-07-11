@@ -1,5 +1,5 @@
 #include <boost/bind.hpp>
-
+#include <cstdlib>
 #include "Grid_LatLon.hpp"
 #include "Grid_XY.hpp"
 #include "OverlapMatrix.hpp"
@@ -12,6 +12,19 @@ using namespace giss;
 
 int main(int argc, char **argv)
 {
+#if 1
+	char *str = getenv("RPFISCHE_DATA");
+	if (!str) str = ".";
+	std::string data_root(str);
+	std::string cesm_fname = data_root + "/cesm/griddata_0.9x1.25_USGS_070110.nc";
+#else
+	if (argc < 2) {
+		fprintf(stderr, "Usage: %s <CESM-gridfile>\n", argv[0]);
+		exit(-1);
+	}
+	std::string cesm_fname(argv[1]);
+#endif
+
 	// ------------- Set up the local ice grid
 	printf("// ------------- Set up the local ice grid\n");
 
@@ -41,15 +54,16 @@ int main(int argc, char **argv)
 		"+proj=stere +lon_0=%f +lat_0=%f +lat_ts=71.0 +ellps=WGS84",
 		proj_lon_0, proj_lat_0);
 
-	// ------------- Set up the GCM Grid
+	// ------------- Set up the GCM Grid (read from CESM)
 	fflush(stdout);
 	printf("// ------------- Set up the GCM Grid\n");
+	printf("Reading CESM file: %s\n", cesm_fname.c_str());
 	// int points_in_side = 10;
 	int points_in_side = 2;
-	std::unique_ptr<Grid_LatLon> gcm_grid = Grid_LatLon::new_grid_2x2_5(
-		"gcm", Proj(sproj), points_in_side,
+	std::unique_ptr<Grid_LatLon> gcm_grid = Grid_LatLon::read_cesm(
+		"gcm", Proj(sproj), points_in_side, cesm_fname,
 		boost::bind(&SphericalClip::azimuthal,
-			proj_lon_0, proj_lat_0, 90, _1, _2, _3, _4),
+			proj_lon_0, proj_lat_0, 40, _1, _2, _3, _4),
 		boost::bind(&EuclidianClip::poly, ice_grid->bounding_box(), _1));
 	printf("GCM grid has %ld cells\n", gcm_grid->size());
 

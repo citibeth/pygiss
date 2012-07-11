@@ -1,0 +1,6 @@
+Snowdrift Regridding Library
+
+The Snowdrift Regridding Library is a library that performs
+conservative regridding between grids of significantly different
+resolution.  It was originally developed at NASA GISS as part of a
+coupler to be used between GCMs and dynamic ice models.

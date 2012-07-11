@@ -1,9 +1,11 @@
 #include <Python.h>
-#include <arrayobject.h>
+#include <numpy/arrayobject.h>
 #include <math.h>
 #include "pyutil.hpp"
 #include "Snowdrift.hpp"
 #include <blitz/array.h>
+
+extern PyTypeObject SnowdriftType;
 
 using namespace giss;
 
