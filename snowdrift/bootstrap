@@ -1,6 +1,0 @@
-# Try autoreconf
-glibtoolize
-aclocal
-autoheader
-autoconf
-automake -a -c
