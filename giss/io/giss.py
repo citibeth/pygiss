@@ -1,10 +1,8 @@
 import sys
 import argparse
-import io
 import struct
 import numpy
 import re
-from giss.util import *
 
 
 # =========================================================================
