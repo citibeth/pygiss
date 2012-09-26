@@ -13,7 +13,7 @@ from odict import odict
 
 # ==========================================================
 # List acc files in a directory, and sort by date
-def list_files(dir, rundeck) :
+def list_acc_files(dir, rundeck) :
 	rundeckRE = re.compile(r'(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)(\d\d\d\d)\.acc%s.nc' % rundeck)
 	lst = []
 	for fname in os.listdir(dir) :
@@ -30,7 +30,7 @@ def list_files(dir, rundeck) :
 	return ret
 
 def list_deck_files(decks_dir, rundeck) :
-	return list_files(os.path.join(decks_dir, rundeck), rundeck)
+	return list_acc_files(os.path.join(decks_dir, rundeck), rundeck)
 # ==========================================================
 # "From:  1949  DEC  1,  Hr  0      To:  1950  JAN  1, Hr  0  Model-Time:    17520     Dif:  31.00 Days" ;
 _fromtoRE = re.compile(r'From:\s+(\d+)\s+([a-zA-Z]+)\s+(\d+),\s+Hr\s+(\d+)\s+To:\s+(\d+)\s+([a-zA-Z]+)\s+(\d+),\s+Hr\s+(\d+)\s+Model-Time:\s+(\d+)\s+.*')
@@ -75,7 +75,7 @@ def _get_vara_real(nc, vname, srt, cnt) :
 
 # -----------------------------------------------------
 # Get the set of all diagnostic categories
-def get_categories(nc) :
+def get_acc_categories(nc) :
 	dcats = set()
 	for vname in nc.variables.iterkeys() :
 		if vname.find('_latlon') >= 0 : continue
@@ -85,11 +85,13 @@ def get_categories(nc) :
 
 # -----------------------------------------------------
 
-def fromto(nc) :
+def acc_fromto(nc) :
 	return _parse_fromto(nc.fromto)
 
 # -----------------------------------------------------
 _infoRE = re.compile(r'\s*(.*?):(.*?)\s*=\s*"(.*?)"\s*;')
+_lonRE = re.compile(r'\s*lon\s=')
+_latRE = re.compile(r'\s*lat\s=')
 class ScaleAcc :
 	def __init__(self, nc, dcat) :
 		self.nc = nc
@@ -119,7 +121,6 @@ class ScaleAcc :
 				rec = {'sname' : var}
 				self.varinfo[var] = rec
 			rec[attr] = val
-		
 
 		# Find the size of the dimension along which to split the data
 		if 'split_dim' in self.dcatvar.__dict__ :

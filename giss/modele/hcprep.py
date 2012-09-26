@@ -24,15 +24,20 @@
 #from odict import odict
 #import snowdrift
 
-from giss.hcmodele.io import *
 import snowdrift
-
+import giss.io.gissfile
+import netCDF4
+import giss.util
+import giss.ncutil
+import numpy as np
+import odict
+from hcinput import *
 
 # ---------------------------------------------------------------
 # The core subroutine that height-classifies variables in GIC and TOPO files
 # @param height_max1h[n1 x nhc] Height class definitions
 # @param overlap_fnames[nis = # ice sheets] Overlap matrix for each ice sheet
-# @param elevations2[nis] DEM for each ice sheet
+# @param elevation2[nis] DEM for each ice sheet
 # @param masks2[nis] Ice landmask for each ice sheet
 # @param ivars Variables needed to do height classification:
 #        fgrnd1, flake1, focean1, fgice1, zatmo1, tlandi1, snowli1
@@ -53,20 +58,20 @@ ivars) :
 	snowli1 = ivars['snowli1']
 
 	# Get dimensions
-	n1 = height_max1h.shape[0]
-	nhc = height_max1h.shape[1]
+	nhc = height_max1h.shape[0]
+	n1 = height_max1h.shape[1]
 
 	# Check dimensions
-	check_shape(fgice1, (n1,), 'fgice1')
-	check_shape(fgrnd1, (n1,), 'fgrnd1')
-	check_shape(zatmo1, (n1,), 'zatmo1')
-	check_shape(tlandi1, (n1,2), 'tlandi1')
-	check_shape(snowli1, (n1,), 'snowli1')
-	check_shape(height_max1h, (n1,nhc), 'height_max1h')
+	giss.util.check_shape(fgice1, (n1,), 'fgice1')
+	giss.util.check_shape(fgrnd1, (n1,), 'fgrnd1')
+	giss.util.check_shape(zatmo1, (n1,), 'zatmo1')
+	giss.util.check_shape(tlandi1, (n1,2), 'tlandi1')
+	giss.util.check_shape(snowli1, (n1,), 'snowli1')
+	giss.util.check_shape(height_max1h, (nhc,n1), 'height_max1h')
 	for descr in ice_sheet_descrs :
-#		print descr.__dict__
-		check_shape(descr.elevation2, (descr.n2,), '%s:elevation2' % descr.overlap_fname)
-		check_shape(descr.mask2, (descr.n2,), '%s:mask2' % descr.overlap_fname)
+		print descr.__dict__
+		giss.util.check_shape(descr.elevation2, (descr.n2,), '%s:elevation2' % descr.overlap_fname)
+		giss.util.check_shape(descr.mask2, (descr.n2,), '%s:mask2' % descr.overlap_fname)
 
 	# Make height-classified versions of vars by copying
 	o_tlandi1h = np.zeros((nhc,n1,2))
@@ -123,7 +128,7 @@ def hc_files(TOPO_iname, GIC_iname, TOPO_oname, GIC_oname, hc_vars, nhc) :
 	ivars = {}
 
 	# ================ Read the TOPO file and get dimensions from it
-	topo = read_gissfile_struct(TOPO_iname)
+	topo = giss.io.gissfile.read_all_struct(TOPO_iname)
 	jm = topo['zatmo'].val.shape[0]		# int
 	im = topo['zatmo'].val.shape[1]		# int
 	n1 = jm * im
@@ -141,7 +146,7 @@ def hc_files(TOPO_iname, GIC_iname, TOPO_oname, GIC_oname, hc_vars, nhc) :
 	# ...from the GIC file
 	ncgic = netCDF4.Dataset(GIC_iname, 'r')
 	for var in ('tlandi', 'snowli') :
-		tuple = read_ncvar_struct(ncgic, var)
+		tuple = giss.ncutil.read_ncvar_struct(ncgic, var)
 		ituples[var] = tuple
 		print tuple.name,n1,str(tuple.val.shape)
 		new_dims = (n1,) + tuple.val.shape[2:]
@@ -214,6 +219,4 @@ def hc_files(TOPO_iname, GIC_iname, TOPO_oname, GIC_oname, hc_vars, nhc) :
 
 	# Define and write the variables
 	write_netcdf(GIC_oname, wvars)
-
-# -------------------------------------------------------------
 

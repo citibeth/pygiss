@@ -1,0 +1,13 @@
+#!/usr/bin/env python
+#
+
+import giss.io.gissfile
+import sys
+
+if len(sys.argv) < 2 :
+	sys.stderr.write('Usage: %s <giss-file>\n' % sys.argv[0])
+
+fname = sys.argv[1]
+
+for rec in giss.io.gissfile.reader(fname) :
+	print rec.var,rec.comment

@@ -30,12 +30,12 @@ def test() :
 		ice_sheet_descrs.append(giss.util.Struct({
 			'overlap_fname' : overlap_fname,
 			'n2' : elevation2.shape[0],
-			'elevations2' : elevation2,
+			'elevation2' : elevation2,
 			'mask2' : mask2}))
 
 	tops = np.array([200,400,700,1000,1300,1600,2000,2500,3000,10000], dtype='d')
 	height_max1h = const_height_max1h(tops, n1)
 
 	hc_vars = curry(hc_vars_with_snowdrift, height_max1h, ice_sheet_descrs)
-	#overlap_fnames, elevations2, masks2)
+	#overlap_fnames, elevation2, masks2)
 	hc_files(TOPO_in, GIC_in TOPO_out, GIC_out, hc_vars)

@@ -3,7 +3,10 @@ import argparse
 import struct
 import numpy
 import re
-
+import odict
+import numpy as np
+import giss.util
+import netCDF4
 
 # =========================================================================
 # Reader for the GISS data file format (giss.io) used in ModelE
@@ -119,3 +122,17 @@ def read_var(fname, var) :
 #	print rec.data.dtype,rec.var,rec.data.shape
 
 
+# Reads all tuples from a GISS-format file (the TOPO file)
+# @return A odict.odict() topo[name] = {.name, .val, .sdims, .dtype}
+def read_all_struct(fname) :
+	topo = odict.odict()
+	for rec in reader(fname) :
+		val = np.zeros(rec.data.shape)	# Promote to double
+		name = rec.var.lower()
+		val[:] = rec.data[:]
+		topo[name] = giss.util.Struct({
+			'name' : name,
+			'val' : val,
+			'sdims' : (u'jm', u'im'),
+			'dtype' : 'f8'})
+	return topo

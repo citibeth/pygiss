@@ -1,45 +1,8 @@
 import odict
-import giss.io.giss
 import numpy as np
 import netCDF4
+import giss.ncutil
 
-# -----------------------------------------------------------------
-# Read tuple from a netCDF file
-# @return (val, sdims, dtype)
-#   val = The np.array values of the variable
-#   sdim = Tuple of names of the variable's dimensions
-#   dtype = Type of the variable in netCDF
-def read_ncvar_struct(nc, var_name, output_dtype=float) :
-	ncvar = nc.variables[var_name]
-	val = np.zeros(ncvar.shape, dtype=output_dtype)
-	val[:] = ncvar[:]
-	out = {'name' : var_name, 'val' : val, 'sdims' : ncvar.dimensions, 'dtype' : ncvar.dtype}
-	return giss.util.Struct(out)
-
-# Reads all tuples from a GISS-format file (the TOPO file)
-def read_gissfile_struct(fname) :
-	topo = odict.odict()
-	print 'yyyyyyyyyyyyy topo = ',topo
-	for rec in giss.io.giss.reader(fname) :
-		val = np.zeros(rec.data.shape)	# Promote to double
-		name = rec.var.lower()
-		val[:] = rec.data[:]
-		topo[name] = giss.util.Struct({
-			'name' : name,
-			'val' : val,
-			'sdims' : (u'jm', u'im'),
-			'dtype' : 'f8'})
-	return topo
-# -----------------------------------------------------------------
-# Check dimensions of a numpy variable
-def check_shape(var, dims, varname) :
-	if var.shape != dims :
-		raise Exception('%s%s should have dimensions %s' % (varname, str(dims), str(var.shape)))
-
-# Check length of a non-numpy variable
-def check_len(var, llen, varname) :
-	if len(var) != llen :
-		raise Exception('%s(%d) should have length %d' % (varname, len(var), llen))
 # -----------------------------------------------------------------
 
 # -------------------------------------------------------------
@@ -54,7 +17,7 @@ def gread(handle, var_name) :
 	if isinstance(handle, odict.odict) :	# Just fetch the variable from topo
 		return handle[var_name]
 	else :		# We have a netcdf handle
-		return read_ncvar_struct(handle, var_name)
+		return giss.ncutil.read_ncvar_struct(handle, var_name)
 
 # Reads info about a variable, no matther whether that variable is
 # sitting in a netCDF file, or was read in from a GISS-format file

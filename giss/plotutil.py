@@ -2,9 +2,11 @@ import matplotlib
 import numpy as np
 import re
 import math
+import giss.util
 
+# General utilities for makng plots and maps
 
-
+# --------------------------------------------------------------
 # Used to make colormaps with zero in the center but asymmetric range on either side.
 # See: http://stackoverflow.com/questions/7404116/defining-the-midpoint-of-a-colormap-in-matplotlib
 class AsymmetricNormalize(matplotlib.colors.Normalize):	   
@@ -110,6 +112,9 @@ def rgb2hsv(r, g, b):
 	v = mx
 	return h, s, v
 # =============================================================
+def read_cpt_data(leaf_name) :
+	return read_cpt(giss.util.find_data_file(leaf_name))
+
 # Read a .cpt file and construct a colormap from it.
 # See:
 # http://soliton.vm.bytemark.co.uk/pub/cpt-city/
@@ -207,3 +212,41 @@ def points_to_plotlines(polygons, points) :
 	return (xdata, ydata)
 # ----------------------------------------------------
 
+# ------------------------------------------------------------
+# Produces a quadrilateral mesh for a given map
+# @param lats Lats from output of scaleacc (centers of cells)
+# @param lons Lons from output of scaleacc (centers of cells)
+# @return (x[], y[]) arrays describing the mesh
+def make_mesh(basemap, lons, lats) :
+	# Check we have a lat/lon grid
+	if grid.type != 'll' :
+		raise Exception('plot_ll() works only for lat-lon grids')
+
+	# --------- Reprocess lat/lon format for a quadrilateral mesh
+	# (Assume latlon grid)
+	# Shift lats to represent edges of grid boxes
+	latb = np.zeros(len(lats)+1)
+	latb[0] = lats[0]		# -90
+	latb[1] = lats[1] - (lats[2] - lats[1])*.5
+	latb[-1] = lats[-1]		# 90
+	latb[-2] = lats[-2] + (lats[-1] - lats[-2])*.5
+	for i in range(2,len(lats)-1) :
+		latb[i] = (lats[i-1] + lats[i]) * .5
+
+	# Polar projections get upset with pcolormesh()
+	# if we go all the way to the pole
+	if latb[0] < -89.999 : latb[0] = -89.999
+	if latb[-1] > 89.999 : latb[-1] = 89.999
+
+	# Shift lons to represent edges of grid boxes
+	lonb = np.zeros(len(lons)+1)
+	lonb[0] = (lons[0] + (lons[-1]-360.)) * .5	# Assume no overlap
+	for i in range(1,len(lons)) :
+		lonb[i] = (lons[i] + lons[i-1]) * .5
+	lonb[-1] = lonb[0]+360		# SST demo repeated the longitude, don't know if it's needed
+	# compute map projection coordinates of grid.
+	x, y = basemap(*np.meshgrid(lonb, latb))
+
+
+	return x,y
+# ------------------------------------------------------------
