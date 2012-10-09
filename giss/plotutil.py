@@ -3,6 +3,7 @@ import numpy as np
 import re
 import math
 import giss.util
+import StringIO
 
 # General utilities for makng plots and maps
 
@@ -115,6 +116,9 @@ def rgb2hsv(r, g, b):
 def read_cpt_data(leaf_name) :
 	return read_cpt(giss.util.find_data_file(leaf_name))
 
+def read_cpt(fname) :
+	return parse_cpt(open(fname, 'r').read())
+
 # Read a .cpt file and construct a colormap from it.
 # See:
 # http://soliton.vm.bytemark.co.uk/pub/cpt-city/
@@ -122,12 +126,12 @@ def read_cpt_data(leaf_name) :
 # http://assorted-experience.blogspot.com/2007/07/custom-colormaps.html
 color_modelRE = re.compile('#\s*COLOR_MODEL\s*=\s*(.*)')
 lineRE = re.compile('\s*([-+0123456789\.]\S*)\s+(\S*)\s+(\S*)\s+(\S*)\s+(\S*)\s+(\S*)\s+(\S*)\s+(\S*)')
-def read_cpt(fname) :
+def parse_cpt(cpt_str) :
 
 	# --------- Read the file
 	cmapx = []
 	use_hsv = False
-	for line in open(fname, 'r') :
+	for line in StringIO.StringIO(cpt_str) :
 		match = color_modelRE.match(line)
 		if match is not None :
 			smodel = match.group(1)
@@ -212,41 +216,70 @@ def points_to_plotlines(polygons, points) :
 	return (xdata, ydata)
 # ----------------------------------------------------
 
-# ------------------------------------------------------------
-# Produces a quadrilateral mesh for a given map
-# @param lats Lats from output of scaleacc (centers of cells)
-# @param lons Lons from output of scaleacc (centers of cells)
-# @return (x[], y[]) arrays describing the mesh
-def make_mesh(basemap, lons, lats) :
-	# Check we have a lat/lon grid
-	if grid.type != 'll' :
-		raise Exception('plot_ll() works only for lat-lon grids')
+# Draws a simple plot with all the basic extras...
+# @param plotter (giss.modele.Grid1Plotter_LL, giss.snowdrift.Grid2Plotter_XY, giss.snowdrift.Grid1hPlotter, etc)
+# @param ax0 Matplotlib "area" to plot on.  If null, do the whole thing.
+def quick_map(mymap, plotter, var, ax=None, title=None, cb_ticks=None, cb_format=None, fname=None, format=None, dpi=72, **plotargs) :
 
-	# --------- Reprocess lat/lon format for a quadrilateral mesh
-	# (Assume latlon grid)
-	# Shift lats to represent edges of grid boxes
-	latb = np.zeros(len(lats)+1)
-	latb[0] = lats[0]		# -90
-	latb[1] = lats[1] - (lats[2] - lats[1])*.5
-	latb[-1] = lats[-1]		# 90
-	latb[-2] = lats[-2] + (lats[-1] - lats[-2])*.5
-	for i in range(2,len(lats)-1) :
-		latb[i] = (lats[i-1] + lats[i]) * .5
-
-	# Polar projections get upset with pcolormesh()
-	# if we go all the way to the pole
-	if latb[0] < -89.999 : latb[0] = -89.999
-	if latb[-1] > 89.999 : latb[-1] = 89.999
-
-	# Shift lons to represent edges of grid boxes
-	lonb = np.zeros(len(lons)+1)
-	lonb[0] = (lons[0] + (lons[-1]-360.)) * .5	# Assume no overlap
-	for i in range(1,len(lons)) :
-		lonb[i] = (lons[i] + lons[i-1]) * .5
-	lonb[-1] = lonb[0]+360		# SST demo repeated the longitude, don't know if it's needed
-	# compute map projection coordinates of grid.
-	x, y = basemap(*np.meshgrid(lonb, latb))
+	if ax is not None :
+		ax1 = ax
+	else :
+		fig = matplotlib.pyplot.figure(figsize=(8.5,11))		# Size of figure (inches)
+		nrow=1
+		ncol=1
+		curplot=1
+		ax1 = fig.add_subplot(nrow,ncol,curplot)
+		curplot += 1
 
 
-	return x,y
-# ------------------------------------------------------------
+	# draw line around map projection limb.
+	# color background of map projection region.
+	# missing values over land will show up this color.
+	mymap.drawmapboundary(fill_color='0.5')
+	mymap.drawcoastlines()
+
+	# Decide on our colormap
+#	plotargs = {}
+
+	#plotargs['cmap'] = matplotlib.pyplot.cm.jet
+	if 'cmap' not in plotargs :
+		plotargs['cmap'] = matplotlib.pyplot.cm.jet
+	plotargs['shading'] = 'flat'
+
+	# plot our variable
+	im1 = plotter.pcolormesh(mymap, var, **plotargs)
+
+	# draw parallels and meridians, but don't bother labelling them.
+	mymap.drawparallels(np.arange(-90.,120.,30.))
+	mymap.drawmeridians(np.arange(0.,420.,60.))
+
+	# add colorbar
+	cbargs = {}
+	if cb_ticks is not None :
+		cbargs['ticks'] = cb_ticks
+	if cb_format is not None :
+		cbargs['format'] = cb_format #'%0.2f'
+	cb = mymap.colorbar(im1,"bottom", size="5%", pad="2%", **cbargs)
+	if cb_ticks is None :
+		cb.ax.xaxis.set_major_locator(matplotlib.ticker.MaxNLocator(nbins=5))
+#	if cb_ticks is not None :
+#		print cb_ticks
+#		cb.ax.xaxis.set_ticks(cb_ticks)
+#	print cb.ax.get_xticks()
+
+
+	# Add Title
+	#title = '%s\n%s (%s)' % (var.long_name, var.sname, var.units)
+	if title is not None :
+		ax1.set_title(title)
+
+	if ax is None :
+		if fname is None :
+			matplotlib.pyplot.show()
+		else :
+			kwargs = {}
+			if format is not None : kwargs['format'] = format
+			if dpi is not None : kwargs['dpi'] = dpi
+			# print 'quick_plot() writing %s' % fname
+			fig.savefig(fname, **kwargs)
+

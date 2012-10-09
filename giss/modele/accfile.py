@@ -13,24 +13,29 @@ from odict import odict
 
 # ==========================================================
 # List acc files in a directory, and sort by date
-def list_acc_files(dir, rundeck) :
+# @return [(date, fname), ...] list
+# @param date0 Lowest date to accept
+# @param date1 Highest date (+1) to accept
+def list_acc_files(dir, rundeck, date0=None, date1=None) :
 	rundeckRE = re.compile(r'(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)(\d\d\d\d)\.acc%s.nc' % rundeck)
 	lst = []
 	for fname in os.listdir(dir) :
 		match = rundeckRE.match(fname)
 		if match is None: continue
 		month = _monthnums[match.group(1)]
-		year = int(match.group(2))
-		lst.append((datetime.date(year,month,1), os.path.join(dir,fname)))
+       		year = int(match.group(2))
+		dt = datetime.date(year,month,1)
+
+		if date0 is not None and dt < date0 : continue
+		if date1 is not None and dt >= date1 : continue
+
+		lst.append((dt, os.path.join(dir,fname)))
 	lst.sort()
 
-	ret = odict()
-	for item in lst :
-		ret[item[0]] = item[1]
-	return ret
+	return lst
 
-def list_deck_files(decks_dir, rundeck) :
-	return list_acc_files(os.path.join(decks_dir, rundeck), rundeck)
+def list_deck_files(decks_dir, rundeck, **kwargs) :
+	return list_acc_files(os.path.join(decks_dir, rundeck), rundeck, **kwargs)
 # ==========================================================
 # "From:  1949  DEC  1,  Hr  0      To:  1950  JAN  1, Hr  0  Model-Time:    17520     Dif:  31.00 Days" ;
 _fromtoRE = re.compile(r'From:\s+(\d+)\s+([a-zA-Z]+)\s+(\d+),\s+Hr\s+(\d+)\s+To:\s+(\d+)\s+([a-zA-Z]+)\s+(\d+),\s+Hr\s+(\d+)\s+Model-Time:\s+(\d+)\s+.*')

@@ -51,7 +51,7 @@ def gread_dims(handle, name) :
 #        name = Name of variable
 def write_netcdf(ofname, wvars) :
 	print 'Writing netCDF File: %s' % ofname
-	nc = netCDF4.Dataset(ofname, 'w')
+	nc = netCDF4.Dataset(ofname, 'w', format='NETCDF3_CLASSIC')
 
 	# Collect together the dimension names and lengths for each variable
 	wdims = odict.odict()

@@ -9,7 +9,7 @@ import os.path
 
 # Usage
 if len(sys.argv) == 1 :
-	sys.stderr.write('Usage: lsacc <rundeck-dir> [<*|month0 yyyymm> [<*|month1 yyyymm>]]\n')
+	sys.stderr.write('Usage: lsacc <rundeck-dir> [month0 yyyymm] [month1 yyyymm>]\n')
 	sys.stderr.write('   Lists the acc files from a ModelE run, in chronological order.')
 	sys.stderr.write('   Useful for loading the command lines of other utilities')
 	sys.exit(-1)
@@ -36,16 +36,11 @@ else :
 #sys.stderr.write('%s %s\n' % (str(month0), str(month1)))
 
 # See what files are out there
-acc_files = giss.modele.list_acc_files(os.path.join(parent_dir,rundeck), rundeck)
+acc_files = giss.modele.list_acc_files(os.path.join(parent_dir,rundeck), rundeck,
+	date0=month0, date1=month1)
 
 # Filter...
-fnames = []
-for fpair in acc_files.items() :
-	dt = fpair[0]
-	fname = fpair[1]
-	if month0 is not None and dt < month0 : continue
-	if month1 is not None and dt >= month1 : continue
-	fnames.append(fname)
+fnames = [x[1] for x in acc_files]
 
 # Output
 print ' '.join(fnames)
