@@ -4,6 +4,7 @@ import re
 import math
 import giss.util
 import StringIO
+import os
 
 # General utilities for makng plots and maps
 
@@ -113,11 +114,17 @@ def rgb2hsv(r, g, b):
 	v = mx
 	return h, s, v
 # =============================================================
-def read_cpt_data(leaf_name) :
-	return read_cpt(giss.util.find_data_file(leaf_name))
+# Reads directly from Python source tree
+def cpt(cpt_name, **kwargs) :
+	fname = os.path.join(os.path.dirname(__file__), 'cpt', cpt_name + '.cpt')
+	return read_cpt(fname, **kwargs)
 
-def read_cpt(fname) :
-	return parse_cpt(open(fname, 'r').read())
+# Reads from the "data" directory
+def read_cpt_data(leaf_name, **kwargs) :
+	return read_cpt(giss.util.find_data_file(leaf_name), **kwargs)
+
+def read_cpt(fname, **kwargs) :
+	return parse_cpt(open(fname, 'r').read(), **kwargs)
 
 # Read a .cpt file and construct a colormap from it.
 # See:
@@ -126,10 +133,11 @@ def read_cpt(fname) :
 # http://assorted-experience.blogspot.com/2007/07/custom-colormaps.html
 color_modelRE = re.compile('#\s*COLOR_MODEL\s*=\s*(.*)')
 lineRE = re.compile('\s*([-+0123456789\.]\S*)\s+(\S*)\s+(\S*)\s+(\S*)\s+(\S*)\s+(\S*)\s+(\S*)\s+(\S*)')
-def parse_cpt(cpt_str) :
+def parse_cpt(cpt_str, reverse=False) :
 
 	# --------- Read the file
-	cmapx = []
+	cmap_vals = []
+	cmap_rgbs = []
 	use_hsv = False
 	for line in StringIO.StringIO(cpt_str) :
 		match = color_modelRE.match(line)
@@ -140,7 +148,6 @@ def parse_cpt(cpt_str) :
 		else :
 			match = lineRE.match(line)
 			if match is not None :
-#				print 'matched: ' + line
 				for base in [1, 5] :
 					val = match.group(base)
 					c1 = match.group(base+1)
@@ -149,10 +156,15 @@ def parse_cpt(cpt_str) :
 #					print 'base=' + str(base) + ', tuple=',val,c1,c2,c3, use_hsv
 					if use_hsv :
 						rgb = hsv2rgb(int(c1), float(c2), float(c3))
-						cmapx.append((float(val), rgb))
+						cmap_vals.append(float(val))
+						cmap_rgbs.append(rgb)
 					else :
-#						print (float(val), (int(c1), int(c2), int(c3)))
-						cmapx.append((float(val), (int(c1), int(c2), int(c3))))
+						cmap_vals.append(float(val))
+						cmap_rgbs.append((int(c1), int(c2), int(c3)))
+
+	# Assemble into cmapx
+	if reverse : cmap_rgbs.reverse()
+	cmapx = zip(cmap_vals, cmap_rgbs)
 
 	# ------------ Get the colormap's range
 	vmin = cmapx[0][0]
@@ -182,9 +194,9 @@ def parse_cpt(cpt_str) :
 		rgbs[k].append(( (cur_val-vmin)/vrange, cur_rgb[k]/255.0, cur_rgb[k]/255.0))
 
 	cdict = {'red' : rgbs[0], 'green' : rgbs[1], 'blue' : rgbs[2]}
-#	print cdict
 	cmap =  matplotlib.colors.LinearSegmentedColormap('my_colormap', cdict, 1024)
-	return (cmap, vmin, vmax)
+
+	return giss.util.Struct({'cmap' : cmap, 'vmin' : vmin, 'vmax' : vmax})
 # -------------------------------------------------------
 # Converts .points and .polygons array in netCDF file into
 # arrays that can be directly plotted
@@ -219,7 +231,7 @@ def points_to_plotlines(polygons, points) :
 # Draws a simple plot with all the basic extras...
 # @param plotter (giss.modele.Grid1Plotter_LL, giss.snowdrift.Grid2Plotter_XY, giss.snowdrift.Grid1hPlotter, etc)
 # @param ax0 Matplotlib "area" to plot on.  If null, do the whole thing.
-def quick_map(mymap, plotter, var, ax=None, title=None, cb_ticks=None, cb_format=None, fname=None, format=None, dpi=72, **plotargs) :
+def quick_map(mymap, plotter, var, ax=None, title=None, cb_ticks=None, cb_format=None, fname=None, format=None, dpi=None, transparent=None, **plotargs) :
 
 	if ax is not None :
 		ax1 = ax
@@ -260,8 +272,9 @@ def quick_map(mymap, plotter, var, ax=None, title=None, cb_ticks=None, cb_format
 	if cb_format is not None :
 		cbargs['format'] = cb_format #'%0.2f'
 	cb = mymap.colorbar(im1,"bottom", size="5%", pad="2%", **cbargs)
-	if cb_ticks is None :
-		cb.ax.xaxis.set_major_locator(matplotlib.ticker.MaxNLocator(nbins=5))
+#	if cb_ticks is None :
+#		cb.ax.xaxis.set_major_locator(matplotlib.ticker.MaxNLocator(nbins=5))
+
 #	if cb_ticks is not None :
 #		print cb_ticks
 #		cb.ax.xaxis.set_ticks(cb_ticks)
@@ -280,6 +293,24 @@ def quick_map(mymap, plotter, var, ax=None, title=None, cb_ticks=None, cb_format
 			kwargs = {}
 			if format is not None : kwargs['format'] = format
 			if dpi is not None : kwargs['dpi'] = dpi
+			if transparent is not None : kwargs['transparent'] = transparent
 			# print 'quick_plot() writing %s' % fname
 			fig.savefig(fname, **kwargs)
 
+# From: http://mesoscopic.mines.edu/mediawiki/index.php/Contour_Plotting
+# Note: it's a bit buggy on non-continuous colormaps.
+def cmap_xmap(function,cmap):
+    """ Applies function, on the indices of colormap cmap. Beware, function
+    should map the [0, 1] segment to itself, or you are in for surprises.
+ 
+    See also cmap_xmap.
+    """
+    cdict = cmap._segmentdata
+    function_to_map = lambda x : (function(x[0]), x[1], x[2])
+    for key in ('red','green','blue'):
+        cdict[key] = map(function_to_map, cdict[key])
+        cdict[key].sort()
+        assert (cdict[key][0]<0 or cdict[key][-1]>1), "Resulting indices extend out of the [0, 1] segment."
+ 
+ 
+    return matplotlib.colors.LinearSegmentedColormap('colormap',cdict,1024)
