@@ -49,6 +49,9 @@ class Record :
 		return ''.join(['[var=', self.var, ', data=', str(self.data.dtype), ' ', str(self.data.shape), ']' ])
 		
 
+# Guess shape of 2D array based on its 1D length
+_len_shapes = { 3312 : (46, 72), 12960 : (90, 144) }
+
 def reader(ifname) :
 	fin = open(ifname,'rb')
 
@@ -80,7 +83,7 @@ def reader(ifname) :
 				match = title2RE.match(stitle)
 				var = match.group(1)
 				dtype = numpy.dtype('>f')   # Big-endian single precision
-				shape = (46, 72)
+				shape = None # Guess the 2D shape down below, based on 1D length
 			else :
 				var = match.group(1)
 				dtype = datatypes[match.group(2)]
@@ -89,11 +92,11 @@ def reader(ifname) :
 
 			# Read and parse the data now
 			data1d = numpy.frombuffer(sdata, dtype=dtype)
+
+			# Guess the shape based on length read
+			if shape is None :
+				shape = _len_shapes[len(data1d)]
 			data = numpy.reshape(data1d, shape, order='C')
-
-	#		print len(sdata)/4,len(data1d)
-	#		print data1d[1:10]
-
 
 			yield Record(var, data, stitle)
 	finally :
