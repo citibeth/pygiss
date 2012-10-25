@@ -22,7 +22,10 @@ def read_ncvar(nc, varname, dtype=float) :
 #   dtype = Type of the variable in netCDF
 def read_ncvar_struct(nc, var_name, output_dtype=float) :
 	ncvar = nc.variables[var_name]
-	val = np.zeros(ncvar.shape, dtype=output_dtype)
-	val[:] = ncvar[:]
+	if ncvar.shape == () :	# Scalar variable
+		val = ncvar.getValue()
+	else :			# Array variable
+		val = np.zeros(ncvar.shape, dtype=output_dtype)
+		val[:] = ncvar[:]
 	out = {'name' : var_name, 'val' : val, 'sdims' : ncvar.dimensions, 'dtype' : ncvar.dtype}
 	return giss.util.Struct(out)

@@ -6,6 +6,8 @@ import giss.ncutil
 import pyproj
 import numpy.ma as ma
 
+from height_classes import *
+
 # Grabs grid1.size() out of a grid overlap file
 def get_grid1_size(overlap_fname) :
 	nc = netCDF4.Dataset(overlap_fname, 'r')
@@ -81,11 +83,9 @@ class Grid2Plotter_XY :
 #        (This is the opposite convention from numpy masked arrays)
 # @param height_max1h (nhc x n1) array of height class definitions
 class Grid1hPlotter :
-	def __init__(self, grid2_plotter, height_max1h, elevation2, mask2) :
+	def __init__(self, grid2_plotter, snowdrift) :
 		self.grid2_plotter = grid2_plotter
-		self.sd = snowdrift.Snowdrift(grid2_plotter.overlap_fname)
-		self.sd.init(elevation2, mask2, height_max1h)
-		self.mask2 = mask2
+		self.sd = snowdrift
 
 		# Check dims
 		if grid2_plotter.n2 != self.sd.grid2().n :
