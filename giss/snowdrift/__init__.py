@@ -8,6 +8,10 @@ import numpy.ma as ma
 
 from height_classes import *
 
+# Converts cell boundaries to cell centers
+def cell_centers(xb) :
+	return (xb[1:] + xb[0:-1]) * .5
+
 # Grabs grid1.size() out of a grid overlap file
 def get_grid1_size(overlap_fname) :
 	nc = netCDF4.Dataset(overlap_fname, 'r')
@@ -45,10 +49,11 @@ class Grid2Plotter_XY :
 
 		# Get the ice grid projection as well, so we can convert our local
 		# mesh to lat/lon
-#		print nc.variables['grid2.info'].__dict__
-		sproj = str(nc.variables['grid1.info'].getncattr('projection'))
-		sllproj = str(nc.variables['grid1.info'].getncattr('latlon_projection'))
-		projs = (pyproj.Proj(sllproj), pyproj.Proj(sproj))	# src & destination projection
+##		print nc.variables['grid2.info'].__dict__
+#		sproj = str(nc.variables['grid1.info'].getncattr('projection'))
+#		sllproj = str(nc.variables['grid1.info'].getncattr('latlon_projection'))
+#		projs = (pyproj.Proj(sllproj), pyproj.Proj(sproj))	# src & destination projection
+		projs = read_projs(nc, 'grid1')
 
 		# Create a quadrilateral mesh in X/Y space
 		xs, ys = np.meshgrid(xb2, yb2)
@@ -109,6 +114,6 @@ class Grid1hPlotter :
 		# Create a numpy plotting mask with this in mind.
 		#val2_masked = ma.masked_array(val2, np.isnan(val2))
 		val2_masked = ma.masked_invalid(val2)
-
+		print 'Grid1hPlotter: (min,max) = (%f, %f)' % (np.min(val2_masked), np.max(val2_masked))
 		# Plot using our local plotter
 		return self.grid2_plotter.pcolormesh(mymap, val2_masked, **plotargs)

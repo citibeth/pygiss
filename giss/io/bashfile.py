@@ -14,9 +14,10 @@ def read_env(fname = None) :
 		match = _lineRE.match(line)
 		if match is not None :
 			val = match.group(2)
-			if (val[0] == "'" and val[-1] == "'") or (val[0] == '"' and val[-1] == '"') :
-				val = val[1:-1]
+			if len(val) > 0 :
+				if (val[0] == "'" and val[-1] == "'") or (val[0] == '"' and val[-1] == '"') :
+					val = val[1:-1]
 
-			ret[match.group(1)] = val
+				ret[match.group(1)] = val
 
 	return ret

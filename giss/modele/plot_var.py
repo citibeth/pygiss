@@ -1,8 +1,9 @@
 import giss.plotutil
 import giss.util
 import numpy as np
+import numpy.ma as ma
 
-_zero_centered = {'impm', 'evap_lndice', 'imph_lndice', 'impm_lndice', 'netht_lndice'}#, 'sensht_lndice'} #, 'trht_lndice'}
+_zero_centered = {'impm', 'evap_lndice', 'imph_lndice', 'impm_lndice', 'netht_lndice', 'trht_lndice'}#, 'sensht_lndice'} #, 'trht_lndice'}
 
 _reverse_scale = {'impm', 'impm_lndice'}
 
@@ -16,11 +17,16 @@ def plot_var(plotter, mymap, scaled_nc, var_name, val=None, info=None, **_plotar
 
 	# Look up units and long_name
 	if info is None :
-		info = dict(scaled_nc.variables[var_name].__dict__)
+		if var_name in scaled_nc.variables :
+			info = dict(scaled_nc.variables[var_name].__dict__)
+		else :
+			info = {'units' : '<units>', 'long_name' : '<long-name>'}
 
 	# Get the value (if we weren't already passed it)
 	if val is None :
 		val = giss.modele.read_ncvar(scaled_nc, var_name)
+	else :
+		val = ma.copy(val)
 
 	# Rescale the variable if called for
 	if var_name in _rescale_factors :

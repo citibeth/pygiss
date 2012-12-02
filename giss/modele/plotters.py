@@ -4,10 +4,11 @@ import numpy.ma as ma
 
 class Grid1Plotter_LL :
 	# @param boundaries Do lons/lats represent grid cell boundaries?  (Or centers)?
+	# lons/lats should be either lons/lats from Scaled ACC file, or lon_boundaries/lat_boundaries from overlap matrix file
 	def __init__(self, lons, lats, boundaries = False) :
 		if boundaries :
 			self.lonb = lons
-			self.latb = lats
+			self.latb = np.array([-89.999] + list(lats) + [89.999])
 		else :
 			# --------- Reprocess lat/lon format for a quadrilateral mesh
 			# (Assume latlon grid)

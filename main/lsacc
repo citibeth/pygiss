@@ -43,4 +43,4 @@ acc_files = giss.modele.list_acc_files(os.path.join(parent_dir,rundeck), rundeck
 fnames = [x[1] for x in acc_files]
 
 # Output
-print ' '.join(fnames)
+print '\n'.join(fnames)
