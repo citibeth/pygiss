@@ -12,11 +12,36 @@ import os.path
 from odict import odict
 
 # ==========================================================
-# List acc files in a directory, and sort by date
-# @return [(date, fname), ...] list
-# @param date0 Lowest date to accept
-# @param date1 Highest date (+1) to accept
-def list_acc_files(dir, rundeck, date0=None, date1=None) :
+def list_acc_files(dir, rundeck='', date0=None, date1=None) :
+	"""List acc files in a directory, and sort by date.
+
+	Args:
+		dir (string):
+			Directory in which to list files
+		rundeck (string):
+			Name of rundeck of which we're looking for output
+			(omit or set to '' if you wish to list files for all rundecks)
+		date0 (datetime.date):
+			First of the month, for the first month to list
+		date1 (datetime.date):
+			First of the month, for the (last+1) month to list
+
+	Returns:	[(date, fname), ...]
+		List of pairs of (date, fname)
+
+		date (datetime.date):
+			Date of the file
+		fname (string):
+			Name of the file
+
+		If you want two separate lists instead, do:
+			dates, fnames = zip(list_acc_files(...))
+
+	See:
+		lsacc.py
+		http://stackoverflow.com/questions/5917522/unzipping-and-the-operator"""
+
+
 	rundeckRE = re.compile(r'(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)(\d\d\d\d)\.acc%s.nc' % rundeck)
 	lst = []
 	for fname in os.listdir(dir) :
@@ -79,8 +104,14 @@ def _get_vara_real(nc, vname, srt, cnt) :
 	return nc.variables[vname][slices]
 
 # -----------------------------------------------------
-# Get the set of all diagnostic categories
 def get_acc_categories(nc) :
+	"""Get the set of all diagnostic categories
+	Args:
+		nc (netCDF4.Dataset):
+			Open netCDF handle for the ACC file.
+	Returns:	set(string)
+		Set of all diagnostic categories (eg: 'ij', 'ijhc', etc)."""
+
 	dcats = set()
 	for vname in nc.variables.iterkeys() :
 		if vname.find('_latlon') >= 0 : continue
@@ -136,19 +167,21 @@ class ScaleAcc :
 			kacc = 1
 
 		# Read acc metadata needed for scaling
-		self.scale_acc = giss.util.read_ncvar(self.nc, 'scale_' + dcat)
+		self.scale_acc = self.nc['scale_' + dcat][:]
 		if ('denom_' + dcat in nc.variables) :
-			self.denom_acc = giss.util.read_ncvar(self.nc, 'denom_' + dcat, 'i') - 1
+			self.denom_acc = self.nc['denom_' + dcat][:]
+			self.denom_acc -= 1
 		else :
 			self.denom_acc = np.zeros(kacc, 'i') - 1
 
 		# Read counters by which to divide
 		if ('ia_' + dcat in nc.variables) :
 			# Which counter to use for each variable
-			self.ia_acc = giss.util.read_ncvar(self.nc, 'ia_' + dcat, 'i') - 1
+			self.ia_acc = self.nc['ia_' + dcat][:]
+			self.ia_acc -= 1
 
 			# Value of those counters
-			self.idacc = giss.util.read_ncvar(self.nc, 'idacc', 'f8')
+			self.idacc = self.nc['idacc'][:]
 		else :
 			# Just use counter #0 for all variables
 			self.ia_acc = np.array([0],'i')

@@ -1,12 +1,15 @@
-# Stuff for reading the .modelErc file
 import subprocess
 import re
 
 _lineRE = re.compile(r'(.*?)=(.*)\n')
 
-# Parses a Bash file full of variable settings by running it and seeing what happens
-# @return a dict of name/value pairs
 def read_env(fname = None) :
+	"""Parses a Bash file full of variable settings by running it and
+	seeing what happens.
+
+	Returns:	{string : string}
+		Dictionary of the name/value pairs found in the file."""
+
 	cmd = '. %s; set' % fname
 	pipe = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE).stdout
 	ret = {}

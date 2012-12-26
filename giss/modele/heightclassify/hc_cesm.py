@@ -4,9 +4,12 @@
 #import giss.util
 #import giss.ncutil
 import numpy as np
-from hcprep import *
+import hc_snowdrift
 #import odict
 #from hcinput import *
+
+
+# TODO: Re-do, for loadable interpolation matrices in the GCM
 
 # ---------------------------------------------------------------
 # The core subroutine that height-classifies variables in GIC and TOPO files
@@ -24,7 +27,7 @@ ice_sheet_descrs,	# [].{overlap_fname, elevation2, mask2}
 ivars) :
 
 
-	ovars = hc_vars_with_snowdrift(height_max1h, ice_sheet_descrs, ivars)
+	ovars = hc_snowdrift.hc_vars_with_snowdrift(height_max1h, ice_sheet_descrs, ivars)
 
 	elev1h = ovars['elev1h']
 	elev1h[0,:] = height_max1h[0,:] * .5

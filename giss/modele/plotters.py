@@ -1,52 +1,5 @@
 import numpy as np
-import giss.util
-import numpy.ma as ma
-
-class Grid1Plotter_LL :
-	# @param boundaries Do lons/lats represent grid cell boundaries?  (Or centers)?
-	# lons/lats should be either lons/lats from Scaled ACC file, or lon_boundaries/lat_boundaries from overlap matrix file
-	def __init__(self, lons, lats, boundaries = False) :
-		if boundaries :
-			self.lonb = lons
-			self.latb = np.array([-89.999] + list(lats) + [89.999])
-		else :
-			# --------- Reprocess lat/lon format for a quadrilateral mesh
-			# (Assume latlon grid)
-			# Shift lats to represent edges of grid boxes
-			latb = np.zeros(len(lats)+1)
-			latb[0] = lats[0]		# -90
-			latb[1] = lats[1] - (lats[2] - lats[1])*.5
-			latb[-1] = lats[-1]		# 90
-			latb[-2] = lats[-2] + (lats[-1] - lats[-2])*.5
-			for i in range(2,len(lats)-1) :
-				latb[i] = (lats[i-1] + lats[i]) * .5
-
-			# Polar projections get upset with pcolormesh()
-			# if we go all the way to the pole
-#			if latb[0] < -89.999 : latb[0] = -89.999
-#			if latb[-1] > 89.999 : latb[-1] = 89.999
-			if latb[0] < -89.9 : latb[0] = -89.9
-			if latb[-1] > 89.9 : latb[-1] = 89.9
-
-			# Shift lons to represent edges of grid boxes
-			lonb = np.zeros(len(lons)+1)
-			lonb[0] = (lons[0] + (lons[-1]-360.)) * .5	# Assume no overlap
-			for i in range(1,len(lons)) :
-				lonb[i] = (lons[i] + lons[i-1]) * .5
-			lonb[-1] = lonb[0]+360		# SST demo repeated the longitude, don't know if it's neede
-
-			self.lonb = lonb
-			self.latb = latb
-
-		self.nlons = len(self.lonb)-1
-		self.nlats = len(self.latb)-1
-
-	def pcolormesh(self, mymap, val1, **plotargs) :
-		# compute map projection coordinates of grid.
-		xx, yy = mymap(*np.meshgrid(self.lonb, self.latb))
-		val = val1.reshape((self.nlats, self.nlons))
-		return mymap.pcolormesh(xx, yy, val, **plotargs)
-
+import giss.plot
 
 # ====================================================================
 
@@ -96,17 +49,26 @@ _lats_2x2_5 = np.array([
     71., 73., 75., 77., 79., 81., 83., 85., 87., 90.])
 
 
-_plotter_lookup = {
-	(len(_lats_4x5), len(_lons_4x5)) : Grid1Plotter_LL(_lons_4x5, _lats_4x5),
-	(len(_lats_2x2_5), len(_lons_2x2_5)) : Grid1Plotter_LL(_lons_2x2_5, _lats_2x2_5)
+_lon_lat_lookup = {
+	(len(_lats_4x5), len(_lons_4x5)) : (_lons_4x5, _lats_4x5),
+	(len(_lats_2x2_5), len(_lons_2x2_5)) : (_lons_2x2_5, _lats_2x2_5)
 }
 
-# Guesses on a plotter to use, based on the dimension of a field from
-# ModelE.
 def guess_plotter(shape) :
+	"""Guesses on a plotter to use, based on the dimension of a data
+	array from ModelE output.
+	Args:
+		shape : Either
+			(a) A Tuple of integers, representing the shape of an array
+			(b) The np.array itself
+
+	Returns (Plotter):
+		A plotter appropriate to the data, and resolution of the model."""
+
+	# Work just as well on shape tuple or np.array
+	if not isinstance(shape, tuple) :
+		shape = shape.shape
+
 	# Infer the grid from the size of the input array
-	return _plotter_lookup[shape]
-
-
-
-
+	lons, lats = _lon_lat_lookup[shape]
+	return giss.plot.LatLonPlotter(lons, lats)

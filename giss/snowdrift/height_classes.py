@@ -6,36 +6,32 @@ import pyproj
 
 # Stuff to prepare conservation matricies and deal with height classes in Python.
 
-# ----------------------------------------------------------------
-# Read a pair of (proj, llproj) out of a netCDF Overlap file
-# @param var_name (eg: grid1)
-def read_projs(nc, var_name) :
-	info_name = var_name + '.info'
-	sproj = str(nc.variables[info_name].projection)
-	print 'sproj = %s' % sproj
-	sllproj = str(nc.variables[info_name].latlon_projection)
-	print 'sllproj = %s' % sllproj
-	projs = (pyproj.Proj(sllproj), pyproj.Proj(sproj))	# src & destination projection
-	return projs
-
-# ----------------------------------------------------------------
-def read_sparse_matrix(nc, var_name) :
-	descr_var = nc.variables[var_name + '.descr']
-	index_base = descr_var.index_base
-	index = giss.ncutil.read_ncvar(nc, var_name + '.index', dtype=np.int32) - index_base
-	row = index[:,0]
-	col = index[:,1]
-	val = giss.ncutil.read_ncvar(nc, var_name + '.val', dtype='d')
-
-	return scipy.sparse.coo_matrix((val, (row, col)), shape=(descr_var.nrow, descr_var.ncol))
-#	return (row, col, val)
 
 # ----------------------------------------------------------------
 class HeightClassifier :
+	"""HeightClassifier converts elevation to elevation class, for a given GCM grid cell.
+	NOTE: This doesn't really make sense for elevation points."""
+
 	def __init__(self, tops) :
+		"""Args:
+			tops (np.array): Top of each elevation class (m).
+			Maybe be one of two shapes:
+				tops[nhc]: Use same elevation classes for all grid cells
+				tops[nhc, n1]: Use different elevation classes for each grid cell
+		"""
+
 		self.tops = tops
 		self.nhc = tops.shape[0]
 	def get_hclass(self, i1, elevation) :
+	"""Given an elevation and a GCM grid cell index, tells you the elevation class.
+	Args:
+		i1 (int):
+			Index of the GCM grid cell (0-based)
+		elevation:
+			Elevation to convert (m)
+	Returns:	(int)
+		Elevation class of <elevation> in grid cell <i1>.
+	"""
 		# Get tops array just for this grid cell
 		if len(self.tops.shape) == 2 :
 			i1tops = self.tops[:,i1]
@@ -47,9 +43,24 @@ class HeightClassifier :
 		return ret
 # ----------------------------------------------------------------
 def height_classify_overlap(overlap0, elevation2, height_classifier) :
-	rows0 = overlap0[0]
-	cols0 = overlap0[1]
-	vals0 = overlap0[2]
+	"""Height-classify an overlap matrix.
+	That is... given an overlap matrix between the regular GCM grid and the ice grid,
+	and given a set of elevation classes, compute the overlap matrix between the
+	height-classified GCM grid and the ice grid.
+
+	Args:
+		overlap0 (scipy.sparse.coo_matrix):
+			The original overlap matrix, as read from Snowdrift netCDF file.
+		elevation2[n2] (np.array):
+			Elevation of each ice grid cell
+		height_classifier (HeightClassifier):
+			Used to compute elevation classes from elevations.
+	Returns:	(scipy.sparse.coo_matrix)
+		The height-classified overlap matrix."""
+
+	rows0 = overlap0.rows
+	cols0 = overlap0.cols
+	vals0 = overlap0.data
 
 	rows1 = []
 	for ix in range(0, len(rows0)) :
@@ -59,7 +70,11 @@ def height_classify_overlap(overlap0, elevation2, height_classifier) :
 		i1h = i1 * height_classifier.nhc + hc
 		rows1.append(i1h)
 
-	return (rows1, cols0, vals0)
+	n1 = overlap0.shape[0]
+	n2 = overlap0.shape[1]
+	nhc = height_classifier.nhc
+
+	return scipy.sparse.coo_matrix((vals0, (rows1, cols0)), shape=(n1*nhc, n2))
 # ----------------------------------------------------------------
 # Conservation regions by height class, and 2x2 grid cell groups
 def make_conserv2(overlap0, elevation2, height_classifier, nlon, nx=3, ny=3) :

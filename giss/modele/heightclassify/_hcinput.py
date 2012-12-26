@@ -3,9 +3,77 @@ import numpy as np
 import netCDF4
 import giss.ncutil
 
+"""Basic I/O routines to support the height-classification of GIC and
+TOPO files for ModelE.
+
+These might be more general than just that purpose.  But then again,
+they might not.  For now, consider this module to be internal."""
+
 # -----------------------------------------------------------------
+# -----------------------------------------------------------------
+def _check_shape(var, dims, varname) :
+	"""Check dimensions of a numpy array
+
+	Args:
+		var (np.array):
+			Variable to check
+		dims (tuple of int):
+			Expected shape of the variable
+
+	Raises:
+		Exception, if var.shape != dims"""
+	if var.shape != dims :
+		raise Exception('%s%s should have dimensions %s' % (varname, str(dims), str(var.shape)))
+
 
 # -------------------------------------------------------------
+def _read_ncvar_struct(nc, var_name, output_dtype=float) :
+	"""Read a variable from a netCDF file, along with metadata
+	Args:
+		nc (netCDF4.Dataset):
+			Handle to open netCDF file toread
+		var_name (string):
+			Name of variable to read
+		output__dtype (dtype):
+			
+	Returns:
+		.name (string):
+			Name of the variable in the netCDF file
+		.val (np.array, dtype=output_dtype):
+			Value of the variable (netCDF)
+		.sdims[] (string):
+			Names of dimensions of .val
+		.dtype:
+			Data type of the variable in the netCDF file"""
+
+	ncvar = nc.variables[var_name]
+
+	if output_dtype is None :
+		output_dtype = ncvar.dtype
+
+	if ncvar.shape == () :	# Scalar variable
+		val = ncvar.getValue()
+	else :			# Array variable
+		val = np.zeros(ncvar.shape, dtype=output_dtype)
+		val[:] = ncvar[:]
+	out = {'name' : var_name, 'val' : val, 'sdims' : ncvar.dimensions, 'dtype' : ncvar.dtype}
+	return giss.util.Struct(out)
+
+# -------------------------------------------------------------
+# Reads all tuples from a GISS-format file (the TOPO file)
+# @return A odict.odict() topo[name] = {.name, .val, .sdims, .dtype}
+def _read_all_giss_struct(fname) :
+	topo = odict.odict()
+	for rec in giss.gissfile.reader(fname) :
+		val = np.zeros(rec.data.shape)	# Promote to double
+		name = rec.var.lower()
+		val[:] = rec.data[:]
+		topo[name] = giss.util.Struct({
+			'name' : name,
+			'val' : val,
+			'sdims' : (u'jm', u'im'),
+			'dtype' : 'f8'})
+	return topo
 # -------------------------------------------------------------
 # Reads info about a variable, no matther whether that variable is
 # sitting in a netCDF file, or was read in from a GISS-format file
@@ -17,7 +85,7 @@ def gread(handle, var_name) :
 	if isinstance(handle, odict.odict) :	# Just fetch the variable from topo
 		return handle[var_name]
 	else :		# We have a netcdf handle
-		return giss.ncutil.read_ncvar_struct(handle, var_name)
+		return _read_ncvar_struct(handle, var_name, float)
 
 # Reads info about a variable, no matther whether that variable is
 # sitting in a netCDF file, or was read in from a GISS-format file

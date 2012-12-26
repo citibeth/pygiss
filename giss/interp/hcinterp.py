@@ -7,18 +7,40 @@ import scipy.sparse
 import operator
 import bisect
 import sys
+import interp
 
-class HCInterp:
-	def interpolate(self, _val1h) :
-		val1h = _val1h.reshape(reduce(operator.mul, _val1h.shape))	# Convert to 1-D
-		v1h = np.copy(val1h)
-		v1h[np.isnan(val1h)] = 0	# Prepare for multiply
-		val2 = self.M.transpose() * v1h
-		val2[np.logical_not(self.mask2)] = np.nan
-		return val2
+class HCInterp(interp.Interp):
 
-	# @param overlap Read from netCDF file with giss.snowdrift.read_sparse_matrix()
+	"""Initializes, stores and applies an interpolation matrix to go from
+	GCM to ice grid, interpolating in elevation space only.  If you wish to
+	interpolate in X-Y as well, see BilinInterp.
+
+	Definitions:
+		(see Interp)
+
+	Attributes:
+		(see Interp)
+	"""
+
 	def __init__(self, overlap, _elev1h, _elev2, _mask2) :
+	"""Construct the elevation-only interpolation matrix
+
+	Args:
+		overlap[n1, n2] (scipy.sparse.coo_matrix):
+			The overlap matrix between grid1 (GCM) and grid2 (ice).
+		_elev1h[nhc, n1] (np.array):
+			Set of elevation points in each grid cell we're computing on.
+			Frequently, elevation points are the same for all grid cells.
+			(may be any shape, as long as shape[0]=nhc and shape[1:] = n1)
+		_elev2[n2] (np.array):
+			Elevation of each ice grid cell (or grid point)
+			(may be any shape, as long as it has n2 elements)
+		_mask2[n2] (np.array, dtype=bool):
+			True for gridcells in ice grid that have ice.
+			(may be any shape, as long as it has n2 elements)
+			NOTE: The sense of this mask is OPPOSITE that used in numpy.ma
+	"""
+
 		# Reshape arrays to our preferred version
 		nhc = _elev1h.shape[0]
 		n1 = reduce(operator.mul, _elev1h.shape[1:])
