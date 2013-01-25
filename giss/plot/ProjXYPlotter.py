@@ -37,13 +37,14 @@ class ProjXYPlotter :
 
 		# Get the ice grid projection as well, so we can convert our local
 		# mesh to lat/lon
-		projs = giss.proj.make_projs(sproj)
+		self.sproj = sproj
+		(llproj, xyproj) = giss.proj.make_projs(sproj)
 
 		# Create a quadrilateral mesh in X/Y space
 		xs, ys = np.meshgrid(xb2, yb2)
 
 		# Transform it to lat/lon space
-		self.mesh_lons, self.mesh_lats = pyproj.transform(projs[1], projs[0], xs, ys)
+		self.mesh_lons, self.mesh_lats = pyproj.transform(xyproj, llproj, xs, ys)
 
 
 	# @param basemap the basemap instance we wish to plot on

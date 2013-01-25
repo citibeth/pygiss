@@ -92,7 +92,7 @@ def greenland_laea(ax=None) :
 #lat_0 	center of desired map domain (in degrees).
 
 # ---------------------------------------------------------------
-def drawcoastline(mymap, lons, lats, **kwargs) :
+def plot_lines(mymap, lons, lats, **kwargs) :
 	"""Plots a custom coastline.  This plots simple lines, not
 	ArcInfo-style SHAPE files.
 
