@@ -65,4 +65,9 @@ class LatLonPlotter :
 		# compute map projection coordinates of grid.
 		xx, yy = mymap(*np.meshgrid(self.lonb, self.latb))
 		val = val1.reshape((self.nlats, self.nlons))
+
+		if not issubclass(type(val), ma.MaskedArray) :
+			# Not a masked array, mask out invalid values (eg NaN)
+			val = ma.masked_invalid(val)
+
 		return mymap.pcolormesh(xx, yy, val, **plotargs)

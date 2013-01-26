@@ -2,6 +2,7 @@ import giss.proj
 import numpy as np
 import pyproj
 import operator
+import numpy.ma as ma
 
 class ProjXYPlotter :
 	"""A plotter for Cartesian-gridded data projected onto the sphere.
@@ -73,6 +74,10 @@ class ProjXYPlotter :
 		# Reshape back to xy
 		# Careful of dimension order, it needs to match dims in the quadrilateral mesh
 		val2xy = _val2.reshape((self.ny2, self.nx2))
+
+		if not issubclass(type(val2xy), ma.MaskedArray) :
+			# Not a masked array, mask out invalid values (eg NaN)
+			val2xy = ma.masked_invalid(val2xy)
 
 		# Plot our result using the quadrilateral mesh
 		return basemap.pcolormesh(mesh_mapx, mesh_mapy, val2xy, **plotargs)
