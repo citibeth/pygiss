@@ -2,6 +2,7 @@ import giss.plot
 import pyproj
 import numpy as np
 import giss.proj
+import netCDF4
 
 class Grid :
 	# Read Grid from a netCDF file
@@ -96,6 +97,8 @@ class Grid :
 
 
 def Grid_XY_read_plotter(grid_fname, vname) :
+	"""Reads an plotter out of a netCDF file for a simple Cartesian grid"""
+
 	nc = netCDF4.Dataset(grid_fname)
 
 	# ======= Read our own grid2 info from the overlap file
@@ -107,6 +110,8 @@ def Grid_XY_read_plotter(grid_fname, vname) :
 	xb2 = nc.variables[vname + '.x_boundaries'][:]
 	yb2 = nc.variables[vname + '.y_boundaries'][:]
 	info_var = nc.variables[vname + '.info']
-	sproj = info_var.sproj
+	sproj = info_var.projection
 
-	return ProjXYPlotter(xb2, yb2, sproj)
+	ret = giss.plot.ProjXYPlotter(xb2, yb2, sproj)
+	nc.close()
+	return ret

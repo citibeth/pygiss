@@ -1,4 +1,7 @@
 import giss.proj
+import numpy as np
+import pyproj
+import operator
 
 class ProjXYPlotter :
 	"""A plotter for Cartesian-gridded data projected onto the sphere.

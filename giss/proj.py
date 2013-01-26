@@ -1,4 +1,5 @@
 import pyproj
+import unicodedata
 
 def make_projs(sproj) :
 	""" Construts a tuple of Proj.4 instances from a Proj.4 string.
@@ -11,7 +12,10 @@ def make_projs(sproj) :
 		proj[1] = X/Y
 	"""
 
-	print 'sproj = %s' % sproj
+#	sproj = u'+proj=stere +lon_0=-39 +lat_0=90 +lat_ts=71.0 +ellps=WGS84'
+	sproj = unicodedata.normalize('NFKD', sproj).encode('ascii','ignore')
+	print 'sproj = "%s"' % sproj
+
 	xyproj = pyproj.Proj(sproj)
 	llproj = pyproj.Proj(sproj)
 	llproj.to_latlong()
