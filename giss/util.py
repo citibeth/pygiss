@@ -72,3 +72,9 @@ def search_file(filename, search_path):
 	# Not found :(
 	return None
 # -----------------------------------------------------------
+def sum_by_cols(matrix) :
+	return np.array(matrix.sum(axis=0)).reshape(-1)
+
+def sum_by_rows(matrix) :
+	return np.array(matrix.sum(axis=1)).reshape(-1)
+

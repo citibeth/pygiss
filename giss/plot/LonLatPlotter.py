@@ -1,6 +1,7 @@
 import numpy as np
+import numpy.ma as ma
 
-class LatLonPlotter :
+class LonLatPlotter :
 	"""A plotter for lat/lon GCM grid cell data.
 
 	Plotters provide a pcolormesh() subroutine that abstracts away
@@ -28,6 +29,7 @@ class LatLonPlotter :
 		"""
 		if boundaries :
 			self.lonb = lons
+			# TODO: Handle pole stuff properly here
 			self.latb = np.array([-89.999] + list(lats) + [89.999])
 		else :
 			# --------- Reprocess lat/lon format for a quadrilateral mesh

@@ -96,22 +96,31 @@ class Grid :
 		return None
 
 
-def Grid_XY_read_plotter(grid_fname, vname) :
+def _Grid_XY_read_plotter(nc, vname) :
 	"""Reads an plotter out of a netCDF file for a simple Cartesian grid"""
-
-	nc = netCDF4.Dataset(grid_fname)
 
 	# ======= Read our own grid2 info from the overlap file
 	# Assumes an XY grid for grid2
-
-	if nc.variables[vname + '.info'].__dict__['type'] != 'xy' :
-		raise Exception('Expecting grid2.info:type == "xy"')
-
 	xb2 = nc.variables[vname + '.x_boundaries'][:]
 	yb2 = nc.variables[vname + '.y_boundaries'][:]
 	info_var = nc.variables[vname + '.info']
 	sproj = info_var.projection
+	return giss.plot.ProjXYPlotter(xb2, yb2, sproj)
 
-	ret = giss.plot.ProjXYPlotter(xb2, yb2, sproj)
+def _Grid_LonLat_read_plotter(nc, vname) :
+	lonb2 = nc.variables[vname + '.lon_boundaries'][:]
+	latb2 = nc.variables[vname + '.lat_boundaries'][:]
+	return giss.plot.LonLatPlotter(lonb2, latb2, True)
+
+# -------------------------------
+read_plotter_fn = {'xy' : _Grid_XY_read_plotter,
+	'lonlat' : _Grid_LonLat_read_plotter}
+
+def Grid_read_plotter(grid_fname, vname) :
+	nc = netCDF4.Dataset(grid_fname)
+	stype = nc.variables[vname + '.info'].__dict__['type']
+	read_fn = read_plotter_fn[stype]
+	ret = read_fn(nc, vname)
 	nc.close()
 	return ret
+

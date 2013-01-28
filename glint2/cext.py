@@ -20,6 +20,9 @@ def _tuple_to_coo(tuple) :
 # Puts A*x into y, does not overwrite unused elements of y
 # @param yy OUTPUT
 def coo_matvec(coomat, xx, yy) :
+	yy = yy.reshape(-1)
+	xx = xx.reshape(-1)
+
 	_glint2.coo_matvec(_coo_to_tuple(coomat), xx, yy)
 	return
 
@@ -31,5 +34,11 @@ def coo_multiply(coomat, xx, fill=np.nan) :
 
 def grid1_to_grid2(overlap) :
 	tret = _glint2.grid1_to_grid2(_coo_to_tuple(overlap))
+	return _tuple_to_coo(tret)
+
+def mask_out(overlap, mask1, mask2) :
+	if mask1 is not None : mask1 = mask1.reshape(-1)
+	if mask2 is not None : mask2 = mask2.reshape(-1)
+	tret = _glint2.mask_out(_coo_to_tuple(overlap), mask1, mask2)
 	return _tuple_to_coo(tret)
 
