@@ -17,8 +17,7 @@ def make_projs(sproj) :
 	print 'sproj = "%s"' % sproj
 
 	xyproj = pyproj.Proj(sproj)
-	llproj = pyproj.Proj(sproj)
-	llproj.to_latlong()
+	llproj = xyproj.to_latlong()
 
 	return (llproj, xyproj)
 
