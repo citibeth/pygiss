@@ -4,6 +4,9 @@ import numpy as np
 
 # Interface with C++ extension
 
+# Pass-through class to glint2 module
+Grid = _glint2.Grid
+
 def _coo_to_tuple(coo) :
 	return (coo._shape[0], coo._shape[1],
 		coo.row, coo.col, coo.data)
@@ -42,3 +45,14 @@ def mask_out(overlap, mask1, mask2) :
 	tret = _glint2.mask_out(_coo_to_tuple(overlap), mask1, mask2)
 	return _tuple_to_coo(tret)
 
+proj_native_area_correct = _glint2.proj_native_area_correct
+
+def multiply_bydiag(a1, a2) :
+#	print type(a1)
+#	print type(a2)
+	if issubclass(type(a1), scipy.sparse.coo_matrix) :
+		a1 = _coo_to_tuple(a1)
+	else :
+		a2 = _coo_to_tuple(a2)
+#	print a1
+	return _glint2.multiply_bydiag(a1, a2)

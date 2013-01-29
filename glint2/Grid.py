@@ -4,7 +4,7 @@ import numpy as np
 import giss.proj
 import netCDF4
 
-class Grid :
+class pyGrid :
 	# Read Grid from a netCDF file
 	def __init__(self, nc, vname) :
 		info = nc.variables[vname + '.info']
