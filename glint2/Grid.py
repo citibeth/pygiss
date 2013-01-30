@@ -29,7 +29,7 @@ class pyGrid :
 		if self.coordinates == 'xy' :
 			print 'Projection = "' + self.projection + '"'
 			print type(self.projection)
-			(self.llproj, self.xyproj) = giss.proj.make_projs(str(self.projection))
+			(self.llproj, self.xyproj) = giss.proj.make_projs(self.projection)
 		else :
 			self.xyproj = None
 

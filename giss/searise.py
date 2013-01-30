@@ -14,7 +14,7 @@ def _get_landmask(searise_nc) :
 	landcover:standard_name = "land_cover" ;"""
 
 	mask2 = np.array(searise_nc.variables['landcover'], dtype=np.int32).flatten('C')
-	mask2 = np.where(mask2==4,np.int32(1),np.int32(0))
+	mask2 = np.where(mask2==4,np.int32(0),np.int32(1))
 	return mask2
 # -------------------------------------------------------------
 def read_elevation2_mask2(searise_fname) :
@@ -23,7 +23,7 @@ def read_elevation2_mask2(searise_fname) :
 		elevation2[n2] (np.array):
 			Elevation of each ice grid cell (m)
 		mask2[n2] (np.array, dtype=bool):
-			True for ice grid cells, false for unused cells
+			False for ice grid cells, True for unused cells
 	"""
 
 	# =============== Read stuff from ice grid (mask2, elevation2)
