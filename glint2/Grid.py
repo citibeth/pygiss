@@ -4,6 +4,12 @@ import numpy as np
 import giss.proj
 import netCDF4
 
+# Local imports
+import sys
+from overlap import *
+from cext import *
+glint2 = sys.modules[__name__]
+
 class pyGrid :
 	# Read Grid from a netCDF file
 	def __init__(self, nc, vname) :
@@ -124,3 +130,36 @@ def Grid_read_plotter(grid_fname, vname) :
 	nc.close()
 	return ret
 
+# ---------------------------------------------------
+# Plots Height-Classified Data
+#
+# (elevation2, mask2) can come from giss.searise.read_elevation2_mask2
+# @param overlap The overlap matrix between grid1 (GCM) and grid2 (ice).
+#        OR: Name of exchange grid file.
+# @param height_max1h (nhc x n1) array of height class definitions
+class Plotter_HC :
+	def __init__(self, grid2_plotter, overlap, elev2, hcmax) :
+		self.grid2_plotter = grid2_plotter
+
+		# Read overlap matrix if we were just given name of
+		# Exchange Grid file.
+		if issubclass(type(overlap), str) :
+			nc = netCDF4.Dataset(overlap)
+			overlap = glint2.read_overlap(nc, 'grid')
+			nc.close()
+
+		# Height-classify the overlap matrix
+		# (Do not correct for native/proj area, since this is for plotting)
+		self.overlaph = glint2.height_classify(overlap, elev2, hcmax)
+
+	def pcolormesh(self, mymap, val1h, **plotargs) :
+		val1h = val1h.reshape(-1)
+
+		# Mask overlap matrix based on the data we're given.
+		mask1h = (np.isnan(val1h)).astype(np.int32)
+		overlaph_m = glint2.mask_out(self.overlaph, mask1h, mask2=None)
+		mat_1h_to_2 = glint2.grid1_to_grid2(overlaph_m)
+
+		val2 = glint2.coo_multiply(mat_1h_to_2, val1h, fill=np.nan)
+
+		return self.grid2_plotter.pcolormesh(mymap, val2, **plotargs)
