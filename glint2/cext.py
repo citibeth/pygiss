@@ -6,6 +6,7 @@ import numpy as np
 
 # Pass-through class to glint2 module
 Grid = _glint2.Grid
+MatrixMaker = _glint2.MatrixMaker
 
 def _coo_to_tuple(coo) :
 	return (coo._shape[0], coo._shape[1],
@@ -69,3 +70,5 @@ def multiply_bydiag(a1, a2) :
 		a2 = _coo_to_tuple(a2)
 #	print a1
 	return _glint2.multiply_bydiag(a1, a2)
+
+# --------------------------------------------------------

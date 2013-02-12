@@ -4,10 +4,25 @@ import numpy as np
 import giss.proj
 import netCDF4
 
+# Re-name variables for grid data files coming from ISSM
+def standardize_names(ivars) :
+	ovars = {}
+	for vname,var in ivars.items() :
+		print vname
+		if vname != 'grid.info' and 'name' in var.__dict__ :
+			ovars[var.name] = var
+		else :
+			print '********* ' + vname
+			ovars[vname] = var
+	return ovars
+
 class pyGrid :
 	# Read Grid from a netCDF file
 	def __init__(self, nc, vname) :
-		info = nc.variables[vname + '.info']
+#		variables = standardize_names(nc.variables)
+		variables = nc.variables
+
+		info = variables[vname + '.info']
 
 		# Read all attributes under .info:
 		# name, type, cells.num_full, vertices.num_full
@@ -15,15 +30,19 @@ class pyGrid :
 		self.cells_num_full = self.__dict__['cells.num_full']
 		self.vertices_num_full = self.__dict__['vertices.num_full']
 
-		self.vertices_index = nc.variables[vname + '.vertices.index'][:]
+		self.vertices_index = variables[vname + '.vertices.index'][:]
 
-		self.vertices_xy = nc.variables[vname + '.vertices.xy'][:]
-		self.cells_index = nc.variables[vname + '.cells.index'][:]
-		self.cells_ijk = nc.variables[vname + '.cells.ijk'][:]
-		self.cells_area = nc.variables[vname + '.cells.area'][:]
-#		self.cells_proj_area = nc.variables[vname + '.cells.proj_area'][:]
-		self.cells_vertex_refs = nc.variables[vname + '.cells.vertex_refs'][:]
-		self.cells_vertex_refs_start = nc.variables[vname + '.cells.vertex_refs_start'][:]
+		self.vertices_xy = variables[vname + '.vertices.xy'][:]
+		self.cells_index = variables[vname + '.cells.index'][:]
+		if vname + '.cells.ijk' in variables :
+			self.cells_ijk = variables[vname + '.cells.ijk'][:]
+		self.cells_area = variables[vname + '.cells.area'][:]
+#		self.cells_proj_area = variables[vname + '.cells.proj_area'][:]
+		self.cells_vertex_refs = variables[vname + '.cells.vertex_refs'][:]
+		self.cells_vertex_refs_start = variables[vname + '.cells.vertex_refs_start'][:]
+
+		# Correct ISSM file
+#		self.cells_vertex_refs = self.cells_vertex_refs - 1
 
 		
 		if self.coordinates == 'xy' :
@@ -34,8 +53,8 @@ class pyGrid :
 			self.xyproj = None
 
 		if self.type == 'xy' :
-			self.x_boundaries = nc.variables[vname + '.x_boundaries'][:]
-			self.y_boundaries = nc.variables[vname + '.y_boundaries'][:]
+			self.x_boundaries = variables[vname + '.x_boundaries'][:]
+			self.y_boundaries = variables[vname + '.y_boundaries'][:]
 
 
 	def plot(self, basemap, **kwargs) :
@@ -57,6 +76,9 @@ class pyGrid :
 			iinext = self.cells_vertex_refs_start[ipoly+1]
 			npoints_this = iinext - iistart
 
+#			print ipoint_dst, npoints_this, len(xdata)
+#			print iistart, iinext, len(self.cells_vertex_refs)
+#			print len(self.vertices_xy), self.cells_vertex_refs[iistart:iinext]
 			xdata[ipoint_dst:ipoint_dst + npoints_this] = \
 				self.vertices_xy[self.cells_vertex_refs[iistart:iinext], 0]
 			ydata[ipoint_dst:ipoint_dst + npoints_this] = \
