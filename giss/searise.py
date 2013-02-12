@@ -27,7 +27,7 @@ def read_elevation2_mask2(searise_fname) :
 	"""
 
 	# =============== Read stuff from ice grid (mask2, elevation2)
-	print 'Opening ice data file %s' % searise_fname
+#	print 'Opening ice data file %s' % searise_fname
 	searise_nc = netCDF4.Dataset(searise_fname)
 
 	# --- mask2
