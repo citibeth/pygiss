@@ -31,7 +31,7 @@ plot_args = pp['plot_args']
 plot_args['vmin'] = 1.e-10
 #plot_args['vmax'] = 1.e2
 plot_args['cmap'] = giss.plot.cpt('precip2_17lev.cpt').cmap
-plot_args['cmap'] = giss.plot.cpt('nd/pink/Neutral_01.cpt').cmap
+#plot_args['cmap'] = giss.plot.cpt('nd/pink/Neutral_01.cpt').cmap
 plot_args['norm'] = matplotlib.colors.LogNorm()		# Do a log plot
 #plot_args['norm'] = giss.plot.AsymmetricNormalize()  # Center on zero
 
