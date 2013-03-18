@@ -37,6 +37,7 @@ class pyGrid :
 		self.vertices_num_full = self.__dict__['vertices.num_full']
 
 		self.vertices_index = variables[vname + '.vertices.index'][:]
+		self.vertices_pos = dict()		# Position (by index) of each vertex in our arrays
 
 		self.vertices_xy = variables[vname + '.vertices.xy'][:]
 		self.cells_index = variables[vname + '.cells.index'][:]
@@ -47,18 +48,22 @@ class pyGrid :
 		self.cells_vertex_refs = variables[vname + '.cells.vertex_refs'][:]
 		self.cells_vertex_refs_start = variables[vname + '.cells.vertex_refs_start'][:]
 
+		# Compute vertices_pos
+		for i in range(0, len(self.vertices_index)) :
+			self.vertices_pos[self.vertices_index[i]] = i
+
 		# Correct ISSM file
 #		self.cells_vertex_refs = self.cells_vertex_refs - 1
 
 		
-		if self.coordinates == 'xy' :
+		if self.coordinates == 'XY' :
 			print 'Projection = "' + self.projection + '"'
 			print type(self.projection)
 			(self.llproj, self.xyproj) = giss.proj.make_projs(self.projection)
 		else :
 			self.xyproj = None
 
-		if self.type == 'xy' :
+		if self.type == 'XY' :
 			self.x_boundaries = variables[vname + '.x_boundaries'][:]
 			self.y_boundaries = variables[vname + '.y_boundaries'][:]
 
@@ -73,8 +78,10 @@ class pyGrid :
 
 		npoly = len(self.cells_vertex_refs_start)-1		# -1 for sentinel
 		npoints = len(self.cells_vertex_refs)
-		xdata = np.zeros(npoints + npoly * 2)
-		ydata = np.zeros(npoints + npoly * 2)
+#		xdata = np.zeros(npoints + npoly * 2)
+#		ydata = np.zeros(npoints + npoly * 2)
+		xdata = []
+		ydata = []
 
 		ipoint_dst = 0
 		for ipoly in range(0,npoly) :
@@ -85,33 +92,50 @@ class pyGrid :
 #			print ipoint_dst, npoints_this, len(xdata)
 #			print iistart, iinext, len(self.cells_vertex_refs)
 #			print len(self.vertices_xy), self.cells_vertex_refs[iistart:iinext]
-			xdata[ipoint_dst:ipoint_dst + npoints_this] = \
-				self.vertices_xy[self.cells_vertex_refs[iistart:iinext], 0]
-			ydata[ipoint_dst:ipoint_dst + npoints_this] = \
-				self.vertices_xy[self.cells_vertex_refs[iistart:iinext], 1]
+
+#			xdata[ipoint_dst:ipoint_dst + npoints_this] = \
+#				self.vertices_xy[self.cells_vertex_refs[iistart:iinext], 0]
+#			ydata[ipoint_dst:ipoint_dst + npoints_this] = \
+#				self.vertices_xy[self.cells_vertex_refs[iistart:iinext], 1]
+
+			refs = self.cells_vertex_refs[iistart:iinext]
+			for i in range(0,len(refs)) :
+				refs[i] = self.vertices_pos[refs[i]]
+#			print refs
+			xdata += list(self.vertices_xy[refs, 0])
+			ydata += list(self.vertices_xy[refs, 1])
 
 			ipoint_dst += npoints_this
 
 			# Repeat the first point in the polygon
-			xdata[ipoint_dst] = \
-				self.vertices_xy[self.cells_vertex_refs[iistart], 0]
-			ydata[ipoint_dst] = \
-				self.vertices_xy[self.cells_vertex_refs[iistart], 1]
+#			xdata[ipoint_dst] = \
+#				self.vertices_xy[self.cells_vertex_refs[iistart], 0]
+#			ydata[ipoint_dst] = \
+#				self.vertices_xy[self.cells_vertex_refs[iistart], 1]
+
+			xdata.append(self.vertices_xy[self.cells_vertex_refs[iistart], 0])
+			ydata.append(self.vertices_xy[self.cells_vertex_refs[iistart], 1])
+
+
 			ipoint_dst += 1
 
 			# Add a NaN
-			xdata[ipoint_dst] = np.nan
-			ydata[ipoint_dst] = np.nan
+#			xdata[ipoint_dst] = np.nan
+#			ydata[ipoint_dst] = np.nan
+			xdata.append(np.nan)
+			ydata.append(np.nan)
 			ipoint_dst += 1
 
-		
+		xdata = np.array(xdata)
+		ydata = np.array(ydata)
 
+		
 		if self.xyproj is not None :	# translate xy->ll
 			londata, latdata = pyproj.transform(self.xyproj, self.llproj, xdata, ydata)
 			londata[np.isnan(xdata)] = np.nan
 			latdata[np.isnan(ydata)] = np.nan
 
-		else :		# Alreayd in lon/lat coordinates
+		else :		# Already in lon/lat coordinates
 			londata = xdata
 			latdata = ydata
 
@@ -119,7 +143,7 @@ class pyGrid :
 
 
 	def plotter(self) :
-		if self.type == 'xy' :
+		if self.type == 'XY' :
 			return ProjXYPlotter(self.x_boundaries, self.y_boundaries, self.sproj)
 		return None
 
@@ -141,8 +165,8 @@ def _Grid_LonLat_read_plotter(nc, vname) :
 	return giss.plot.LonLatPlotter(lonb2, latb2, True)
 
 # -------------------------------
-read_plotter_fn = {'xy' : _Grid_XY_read_plotter,
-	'lonlat' : _Grid_LonLat_read_plotter}
+read_plotter_fn = {'XY' : _Grid_XY_read_plotter,
+	'LONLAT' : _Grid_LonLat_read_plotter}
 
 def Grid_read_plotter(grid_fname, vname) :
 	nc = netCDF4.Dataset(grid_fname)

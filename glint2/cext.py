@@ -50,7 +50,8 @@ def grid1_to_grid2(overlap) :
 	return _tuple_to_coo(tret)
 
 def grid2_to_grid1(overlap) :
-	tret = _glint2.grid2_to_grid1(_coo_to_tuple(overlap))
+	tup = _coo_to_tuple(overlap)
+	tret = _glint2.grid2_to_grid1(tup)
 	return _tuple_to_coo(tret)
 
 def mask_out(overlap, mask1, mask2) :
