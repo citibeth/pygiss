@@ -71,4 +71,4 @@ def guess_plotter(shape) :
 
 	# Infer the grid from the size of the input array
 	lons, lats = _lon_lat_lookup[shape]
-	return giss.plot.LatLonPlotter(lons, lats)
+	return giss.plot.LonLatPlotter(lons, lats)

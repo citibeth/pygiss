@@ -12,9 +12,8 @@ def read_ncvar(nc, var_name) :
 	Understands the missing_value attribute (or without it, just
 	treates anything >1e10 as missing).
 
-	Returns:	(np.ma.MaskedArray)
-		The variable.  Invalid values are masked
-		out.  Inside the data array, they are also set to np.nan
+	Returns:	(Numpy Array)
+		The variable.  Invalid values are set to np.nan
 
 	"""
 
