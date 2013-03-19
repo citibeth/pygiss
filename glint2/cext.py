@@ -5,6 +5,7 @@ import numpy as np
 # Interface with C++ extension
 
 # Pass-through class to glint2 module
+NcFile = _glint2.NcFile
 Grid = _glint2.Grid
 MatrixMaker = _glint2.MatrixMaker
 
