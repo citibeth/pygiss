@@ -3,7 +3,6 @@ import argparse
 import struct
 import numpy
 import re
-import odict
 import numpy as np
 import giss.util
 import netCDF4
@@ -158,7 +157,7 @@ def read_var(fname, var) :
 
 	Raises:
 		Exception:
-			If the variable could not be found.""
+			If the variable could not be found."""
 
 
 	vars = read_vars(fname, (var,))
