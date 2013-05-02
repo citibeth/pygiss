@@ -49,10 +49,21 @@ _lats_2x2_5 = np.array([
     71., 73., 75., 77., 79., 81., 83., 85., 87., 90.])
 
 
+by_name = {
+	'4x5' : (_lons_4x5, _lats_4x5),
+	'2x2.5' : (_lons_2x2_5, _lats_2x2_5)
+}
+
 _lon_lat_lookup = {
 	(len(_lats_4x5), len(_lons_4x5)) : (_lons_4x5, _lats_4x5),
 	(len(_lats_2x2_5), len(_lons_2x2_5)) : (_lons_2x2_5, _lats_2x2_5)
 }
+
+
+def get_byname(name) :
+	lons, lats = by_name[name]
+	return giss.plot.LonLatPlotter(lons, lats)
+
 
 def guess_plotter(shape) :
 	"""Guesses on a plotter to use, based on the dimension of a data

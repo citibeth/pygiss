@@ -1,0 +1,47 @@
+#!/usr/bin/env python
+#
+
+import giss.basemap
+import giss.modele
+import sys
+import matplotlib.pyplot
+import numpy as np
+
+gridname = sys.argv[1]
+ii = int(sys.argv[2]) - 1
+jj = int(sys.argv[3]) - 1
+
+print '(i,j) zero-based = (%d, %d)' % (ii,jj)
+
+plotter = giss.modele.plotters.get_byname(gridname)
+lons, lats = plotter.cell_poly(ii,jj)
+
+
+# Plot multiple plots on one page
+figure = matplotlib.pyplot.figure(figsize=(11,8.5))
+
+ax = figure.add_subplot(111)
+
+# Use a custom basemap
+#basemap = giss.basemap.greenland_laea()
+basemap = giss.basemap.global_map()
+#basemap = giss.basemap.south_laea()
+
+basemap.ax = ax
+
+# ---------- Draw other stuff on the map
+# draw line around map projection limb.
+# color background of map projection region.
+# missing values over land will show up this color.
+basemap.drawmapboundary(fill_color='0.5')
+basemap.drawcoastlines()
+
+# draw parallels and meridians, but don't bother labelling them.
+basemap.drawparallels(np.arange(-90.,120.,30.))
+basemap.drawmeridians(np.arange(0.,420.,60.))
+
+print lons,lats
+giss.basemap.plot_lines(basemap, lons, lats, color='r')
+
+# Display the plot
+matplotlib.pyplot.show()
