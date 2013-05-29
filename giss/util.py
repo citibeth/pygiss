@@ -1,6 +1,7 @@
 import numpy as np
 import os
 import string
+import glob
 
 class Struct:
 	"""Convert a dict() to a struct."""
@@ -78,3 +79,27 @@ def sum_by_cols(matrix) :
 def sum_by_rows(matrix) :
 	return np.array(matrix.sum(axis=1)).reshape(-1)
 
+# -----------------------------------------------------------
+def multiglob_iterator(paths) :
+	"""Iterator liss a bunch of files from a bunch of arguments.  Tries to work like ls
+	Yields:
+		(directory, filename) pairs
+	See:
+		lsacc.py
+	"""
+	if len(paths) == 0 :
+		for fname in os.listdir('.') :
+			yield ('', fname)
+		return
+
+	for path in paths :
+		if os.path.isdir(path) :
+			for fname in os.listdir(path) :
+				yield (path, fname)
+
+		elif os.path.isfile(path) :
+			yield os.path.split(path)
+
+		else :
+			for ret in multiglob_iterator(glob.glob(path)) :
+				yield ret

@@ -6,41 +6,103 @@ import re
 import giss.modele
 import datetime
 import os.path
+import argparse
+import subprocess
 
-# Usage
-if len(sys.argv) == 1 :
-	sys.stderr.write('Usage: lsacc <rundeck-dir> [month0 yyyymm] [month1 yyyymm>]\n')
-	sys.stderr.write('   Lists the acc files from a ModelE run, in chronological order.')
-	sys.stderr.write('   Useful for loading the command lines of other utilities')
-	sys.exit(-1)
+# -----------------------------------------------
+_monthnums = {
+	'JAN' : 1,'FEB' : 2,'MAR' : 3,'APR' : 4,'MAY' : 5,'JUN' : 6,
+	'JUL' : 7,'AUG' : 8,'SEP' : 9,'OCT' : 10,'NOV' : 11,'DEC' : 12}
 
-# Parse arguments
-parent_dir, rundeck = os.path.split(sys.argv[1])
+_monthRE0 = re.compile(r'(\d\d\d\d)(\d\d)')
+_monthRE1 = re.compile(r'(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)(\d\d\d\d)', re.IGNORECASE)
 
-# Get the date range we're looking for
-monthRE = re.compile('(\d\d\d\d)(\d\d)')
-if len(sys.argv) <= 2 :
-	month0 = None
+def _parse_month(smonth) :
+	if smonth is None :
+		return None
+	if smonth == '' :
+		return None
+	match = _monthRE0.match(smonth)
+	if match is not None :
+		return datetime.date(int(match.group(1)), int(match.group(2)), 1)
+
+	match = _monthRE1.match(smonth)
+	if match is not None :
+		return datetime.date(int(match.group(2)),
+			_monthnums[match.group(1).upper()], 1)
+
+	raise Exception("Unknown month format, cannot parse '%s'" % smonth)
+# -----------------------------------------------
+def _add_month(dt, n) :
+	year = dt.year
+	month = dt.month + n
+	year += month / 12
+	month = month % 12
+	return datetime.date(year, month, 1)
+# -----------------------------------------------
+_month_rangeRE = re.compile(r'(.*?)-(.*?)|(.*?)')
+def _parse_month_range(smonths) :
+	if smonths is None :
+		return (None, None)
+	dash = smonths.find('-')
+	if dash < 0 :
+		dt0 = _parse_month(smonths)
+		dt1 = _add_month(dt0, 1)
+	else :
+		dt0 = _parse_month(smonths[:dash])
+		dt1 = _add_month(_parse_month(smonths[dash+1:]), 1)
+	return (dt0, dt1)	# Returns range EXCLUSIVE
+# --------------------------------------------
+
+parser = argparse.ArgumentParser()
+parser.add_argument('-m', '--monthrange', type=str,
+	help='Month range to list acc files, inclusive ([m0][-][m1] where m0/m1 is yyyymm or MMMyyyy)')
+parser.add_argument('-r', '--rundeck', type=str,
+	help='Regular Expression for rundecks to include.  If none, include all rundecks')
+#parser.add_argument('paths', nargs='*',
+#	help='Directories/filenames/wildcards/globs to look for acc files')
+
+# ================= Parse the arguments
+args, unknown = parser.parse_known_args()
+
+#print args.__dict__
+
+# Check the date range
+(date0, date1) = _parse_month_range(args.monthrange)
+if date0 is not None and date1 is not None and date1 < date0 :
+	raise Exception("Ending month must be at least as big as starting month")
+
+# Separate paths to examine from flags to pass through to ls
+lsflags = []
+paths = []
+for arg in unknown :
+	if arg[0] == '-' :
+		lsflags.append(arg)
+	else :
+		paths.append(arg)
+
+# ==================== Get the list of files
+acc_files = giss.modele.list_acc_files(
+	giss.util.multiglob_iterator(paths),
+	rundeckRE=args.rundeck,
+	date0=date0, date1=date1)
+
+# Grab out just the file names
+fnames = [os.path.join(x[0], x[3]) for x in acc_files]
+
+# ==================== Output, either directly or through ls
+if len(fnames) == 0 :
+	# No output, we have no files
+	sys.exit(0)
+elif len(lsflags) == 0 :
+	# Output ourselves (for use in command lines)
+	print '\n'.join(fnames)
+	sys.exit(0)
 else :
-	smonth0 = sys.argv[2]
-	match = monthRE.match(smonth0)
-	month0 = datetime.date(int(match.group(1)), int(match.group(2)), 1)
-
-if len(sys.argv) <= 3 :
-	month1 = None
-else :
-	smonth1 = sys.argv[3]
-	match = monthRE.match(smonth1)
-	month1 = datetime.date(int(match.group(1)), int(match.group(2)), 1)
-
-#sys.stderr.write('%s %s\n' % (str(month0), str(month1)))
-
-# See what files are out there
-acc_files = giss.modele.list_acc_files(os.path.join(parent_dir,rundeck), rundeck,
-	date0=month0, date1=month1)
-
-# Filter...
-fnames = [x[1] for x in acc_files]
-
-# Output
-print '\n'.join(fnames)
+	# Output via ls (for user inspection)
+	cmd = ['ls', '-f']	# -f prevents sorting in ls
+	cmd.extend(lsflags)
+	cmd.extend(fnames)
+	# print cmd
+	ret = subprocess.call(cmd)
+	sys.exit(ret)

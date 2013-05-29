@@ -56,7 +56,10 @@ by_name = {
 
 _lon_lat_lookup = {
 	(len(_lats_4x5), len(_lons_4x5)) : (_lons_4x5, _lats_4x5),
-	(len(_lats_2x2_5), len(_lons_2x2_5)) : (_lons_2x2_5, _lats_2x2_5)
+	(len(_lats_2x2_5), len(_lons_2x2_5)) : (_lons_2x2_5, _lats_2x2_5),
+
+	(len(_lats_4x5) * len(_lons_4x5),) : (_lons_4x5, _lats_4x5),
+	(len(_lats_2x2_5) * len(_lons_2x2_5),) : (_lons_2x2_5, _lats_2x2_5)
 }
 
 

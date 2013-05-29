@@ -32,7 +32,7 @@ def _default_plot_boundaries(basemap) :
 	basemap.drawmeridians(np.arange(0.,420.,60.))
 
 
-def plot_params(var_name='', nc=None, val=None) :
+def plot_params(var_name='', nc=None, val=None, plotter=None) :
 	"""Suggests a number of plot parameters for a ModelE ScaledACC output variable.
 	Output to be used directly as kwargs for giss.plot.plot_var()
 
@@ -44,7 +44,9 @@ def plot_params(var_name='', nc=None, val=None) :
 			If set, then data and meta-data will be read from this file.
 		val (np.array, OPTIONAL):
 			Field to plot.  If not set, then will be read from the netCDF file.
-		
+		plotter (OPTIONAL):
+			Plotter to use when plotting data of this shape.
+
 	Returns: Dictionary with the following elements
 		plotter (giss.plot.*Plotter):
 			Abstracts away grid geometry from pcolormesh() call.
@@ -90,7 +92,10 @@ def plot_params(var_name='', nc=None, val=None) :
 		info['val'] = ma.copy(val)
 
 	# Guess a plotter
-	info['plotter'] = plotters.guess_plotter(info['val'])
+	if plotter is None :
+		info['plotter'] = plotters.guess_plotter(info['val'])
+	else :
+		info['plotter'] = plotter
 
 	# Rescale if needed
 	if var_name in _change_units :
@@ -102,8 +107,8 @@ def plot_params(var_name='', nc=None, val=None) :
 		plot_args['norm'] = giss.plot.AsymmetricNormalize()
 		reverse = (var_name in _reverse_scale)
 		plot_args['cmap'] = giss.plot.cpt('giss-cpt/BlRe.cpt', reverse=reverse).cmap
-		plot_args['vmin'] = np.min(info['val'])
-		plot_args['vmax'] = np.max(info['val'])
+		plot_args['vmin'] = np.nanmin(info['val'])
+		plot_args['vmax'] = np.nanmax(info['val'])
 		cb_args['ticks'] = [plot_args['vmin'], 0, plot_args['vmax']]
 		cb_args['format'] = '%0.2f'
 

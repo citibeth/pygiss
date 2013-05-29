@@ -168,44 +168,39 @@ def _Grid_LonLat_read_plotter(nc, vname) :
 read_plotter_fn = {'XY' : _Grid_XY_read_plotter,
 	'LONLAT' : _Grid_LonLat_read_plotter}
 
-def Grid_read_plotter(grid_fname, vname) :
-	nc = netCDF4.Dataset(grid_fname)
+# Creates a plotter to plot data on an ice grid
+# @param grid_nc Open netCDF file that has the ice grid
+# @param vname Name of variable inside the netCDF file
+# @param ice_sheet Name of ice sheet (works if variables follow std convention)
+def Plotter2(nc=None, vname=None, fname=None) :
+	if fname is not None :
+		nc = netCDF4.Dataset(fname)
 	stype = nc.variables[vname + '.info'].__dict__['type']
 	read_fn = read_plotter_fn[stype]
 	ret = read_fn(nc, vname)
-	nc.close()
+	if fname is not None :
+		nc.close()
 	return ret
 
 # ---------------------------------------------------
-# Plots Height-Classified Data
-#
-# (elevation2, mask2) can come from giss.searise.read_elevation2_mask2
-# @param overlap The overlap matrix between grid1 (GCM) and grid2 (ice).
-#        OR: Name of exchange grid file.
-# @param height_max1h (nhc x n1) array of height class definitions
-class Plotter_HC :
-	def __init__(self, grid2_plotter, overlap, elev2, hcmax) :
-		self.grid2_plotter = grid2_plotter
+class Plotter1h :
+	# @param mmaker Instance of glint2.MatrixMaker
+	# @param glint2_config Name of GLINT2 config file
+	def __init__(self, glint2_config, ice_sheet, mmaker=None) :
+		if mmaker is None :
+			mmaker = glint2.MatrixMaker(glint2_config)
+		self.mat_1h_to_2 = mmaker.hp_to_ice(ice_sheet)
 
-		# Read overlap matrix if we were just given name of
-		# Exchange Grid file.
-		if issubclass(type(overlap), str) :
-			nc = netCDF4.Dataset(overlap)
-			overlap = glint2.read_overlap(nc, 'grid')
-			nc.close()
-
-		# Height-classify the overlap matrix
-		# (Do not correct for native/proj area, since this is for plotting)
-		self.overlaph = glint2.height_classify(overlap, elev2, hcmax)
+		nc = netCDF4.Dataset(glint2_config)
+		self.plotter2 = Plotter2(nc=nc, vname='m.' + ice_sheet + '.grid2')
+		# self.mask2 = nc.variables['m.' + ice_sheet + '.mask2'][:]
+		nc.close()
 
 	def pcolormesh(self, mymap, val1h, **plotargs) :
-		val1h = val1h.reshape(-1)
+#		val1h = val1h.reshape(-1)
+		print val1h.shape
+		val1h = val1h[1:,:,:].reshape(-1)	# Discard height point for non-model ice
+		print val1h.shape
 
-		# Mask overlap matrix based on the data we're given.
-		mask1h = (np.isnan(val1h)).astype(np.int32)
-		overlaph_m = glint2.mask_out(self.overlaph, mask1h, mask2=None)
-		mat_1h_to_2 = glint2.grid1_to_grid2(overlaph_m)
-
-		val2 = glint2.coo_multiply(mat_1h_to_2, val1h, fill=np.nan)
-
-		return self.grid2_plotter.pcolormesh(mymap, val2, **plotargs)
+		val2 = glint2.coo_multiply(self.mat_1h_to_2, val1h, fill=np.nan, ignore_nan=False)	# Make np.nan
+		return self.plotter2.pcolormesh(mymap, val2, **plotargs)

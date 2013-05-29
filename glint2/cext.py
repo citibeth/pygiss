@@ -7,7 +7,40 @@ import numpy as np
 # Pass-through class to glint2 module
 NcFile = _glint2.NcFile
 Grid = _glint2.Grid
+
+
+# -----------------------------------------------------
 MatrixMaker = _glint2.MatrixMaker
+
+class MatrixMaker(_glint2.MatrixMaker) :
+	# Used to load from existing GLINT2 config file
+	def __init__(self, fname=None, vname='m') :
+		super(MatrixMaker, self).__init__()
+		if fname is not None :
+			# Used to load from GLINT2 config file
+			super(MatrixMaker, self).load(fname, vname)
+			# super(MatrixMaker, self).realize()
+
+	def init(self, *args) :
+		super(MatrixMaker, self).init(*args)
+
+	def add_ice_sheet(self, *args) :
+		super(MatrixMaker, self).add_ice_sheet(*args)
+
+	def hp_to_ice(self, *args) :
+		tret = super(MatrixMaker, self).hp_to_ice(*args)
+		return _tuple_to_coo(tret)
+
+	def hp_to_atm(self, *args) :
+		tret = super(MatrixMaker, self).hp_to_atm(*args)
+		return _tuple_to_coo(tret)
+
+	def realize(self, *args) :
+		super(MatrixMaker, self).realize(*args)
+
+	def write(self, *args) :
+		super(MatrixMaker, self).write(*args)
+# -----------------------------------------------------
 
 def _coo_to_tuple(coo) :
 	return (coo._shape[0], coo._shape[1],
@@ -26,24 +59,21 @@ def height_classify(overlap, elev2, hcmax) :
 	tret = _glint2.height_classify(_coo_to_tuple(overlap), elev2, hcmax)
 	return _tuple_to_coo(tret)
 
-def hp_interp(overlap, elev2, hpdefs) :
-	tret = _glint2.hp_interp(_coo_to_tuple(overlap), elev2, hpdefs)
-	return _tuple_to_coo(tret)
-
 # Puts A*x into y, does not overwrite unused elements of y
 # @param yy OUTPUT
-def coo_matvec(coomat, xx, yy) :
+def coo_matvec(coomat, xx, yy, ignore_nan=False) :
 	yy = yy.reshape(-1)
 	xx = xx.reshape(-1)
 
-	_glint2.coo_matvec(_coo_to_tuple(coomat), xx, yy)
+	_glint2.coo_matvec(_coo_to_tuple(coomat), xx, yy,
+		ignore_nan=(1 if ignore_nan else 0))
 	return
 
-def coo_multiply(coomat, xx, fill=np.nan) :
+def coo_multiply(coomat, xx, fill=np.nan, ignore_nan=False) :
 	xx = xx.reshape(-1)
 	yy = np.zeros(coomat._shape[0])
 	yy[:] = fill
-	coo_matvec(coomat, xx, yy)
+	coo_matvec(coomat, xx, yy, ignore_nan)
 	return yy
 
 def grid1_to_grid2(overlap) :
