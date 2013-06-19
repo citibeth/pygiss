@@ -24,8 +24,11 @@ class MatrixMaker(_glint2.MatrixMaker) :
 	def init(self, *args) :
 		super(MatrixMaker, self).init(*args)
 
-	def add_ice_sheet(self, *args) :
-		super(MatrixMaker, self).add_ice_sheet(*args)
+	def add_ice_sheet(self, grid2_fname, exgrid_fname, elev2, **kwargs) :
+		elev2 = elev2.reshape(-1,)
+		if 'mask2' in kwargs :
+			kwargs['mask2'] = kwargs['mask2'].reshape(-1,)
+		super(MatrixMaker, self).add_ice_sheet(grid2_fname, exgrid_fname, elev2, **kwargs)
 
 	def hp_to_ice(self, *args) :
 		tret = super(MatrixMaker, self).hp_to_ice(*args)
