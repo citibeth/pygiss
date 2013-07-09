@@ -110,6 +110,8 @@ def plot_lines(mymap, lons, lats, **kwargs) :
 
 	# Project onto the map
 	x, y = mymap(lons, lats)
+	x = np.array(x)
+	y = np.array(y)
 
 	# BUG workaround: Basemap projects our NaN's to 1e30.
 	x[x==1e30] = np.nan

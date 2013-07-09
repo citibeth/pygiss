@@ -73,3 +73,15 @@ class LonLatPlotter :
 			val = ma.masked_invalid(val)
 
 		return mymap.pcolormesh(xx, yy, val, **plotargs)
+
+	# Returns the polygon describing a grid cell (spherical coordinates)
+	def cell_poly(self, i,j) :
+		lon0 = self.lonb[i]
+		lon1 = self.lonb[i+1]
+		lat0 = self.latb[i]
+		lat1 = self.latb[i+1]
+
+		lons = [lon0, lon1, lon1, lon0, lon0]
+		lats = [lat0, lat0, lat1, lat1, lat0]
+		return lons, lats
+

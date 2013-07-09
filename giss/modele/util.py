@@ -6,7 +6,7 @@ import giss.bashfile
 import os
 
 
-def read_ncvar(nc, var_name) :
+def read_ncvar(nc, var_name, dtype='d') :
 	"""Reads a variable out of a scaled ACC file (netCDF format).
 
 	Understands the missing_value attribute (or without it, just
@@ -18,7 +18,9 @@ def read_ncvar(nc, var_name) :
 	"""
 
 	var = nc.variables[var_name]
-	val = var[:]
+	val = np.zeros(var.shape, dtype=dtype)
+	val[:] = var[:]
+#	val = var[:]
 
 
 	if 'missing_value' in var.__dict__ :

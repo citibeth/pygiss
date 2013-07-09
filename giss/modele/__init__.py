@@ -1,4 +1,8 @@
 from util import *
 from accfile import *
-from plotters import *
-from plot_params import *
+
+try:
+	from plotters import *
+	from plot_params import *
+except ImportError :
+	pass	# Don't require matplotlib stuff

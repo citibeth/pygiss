@@ -11,55 +11,58 @@ import os
 import os.path
 
 # ==========================================================
-def list_acc_files(dir, rundeck='', date0=None, date1=None) :
+def list_acc_files(file_iterator, rundeckRE=None, date0=None, date1=None) :
 	"""List acc files in a directory, and sort by date.
 
 	Args:
-		dir (string):
-			Directory in which to list files
-		rundeck (string):
-			Name of rundeck of which we're looking for output
+	        file_iterator (see giss.util.multiglob_iterator):
+			Iterator yielding (dir, filename) pairs
+		rundeckRE (string):
+			Regular expression of rundecks to match
 			(omit or set to '' if you wish to list files for all rundecks)
 		date0 (datetime.date):
 			First of the month, for the first month to list
 		date1 (datetime.date):
 			First of the month, for the (last+1) month to list
 
-	Returns:	[(date, fname), ...]
-		List of pairs of (date, fname)
-
+	Returns:	[(dir, rundeck, date, fname), ...]
+		List of tuples (dir, rundeck, date, fname)
+		dir (string):
+			Directory of the file
+		rundeck (string):
+			Name of rundeck implied by this file
 		date (datetime.date):
 			Date of the file
 		fname (string):
-			Name of the file
+			Name of file (leafname)
 
-		If you want two separate lists instead, do:
-			dates, fnames = zip(list_acc_files(...))
+		If you want four separate lists instead, do:
+			dirs, rundecks, dates, fnames = zip(list_acc_files(...))
 
 	See:
 		lsacc.py
 		http://stackoverflow.com/questions/5917522/unzipping-and-the-operator"""
 
+	if rundeckRE is None :
+		rundeckRE = '.*?'
 
-	rundeckRE = re.compile(r'(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)(\d\d\d\d)\.acc%s.nc' % rundeck)
+	fileRE = re.compile(r'(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)(\d\d\d\d)\.acc(%s).nc' % rundeckRE)
 	lst = []
-	for fname in os.listdir(dir) :
-		match = rundeckRE.match(fname)
+	for dir, fname in file_iterator :
+		match = fileRE.match(fname)
 		if match is None: continue
 		month = _monthnums[match.group(1)]
        		year = int(match.group(2))
 		dt = datetime.date(year,month,1)
+		rundeck = match.group(3)
 
 		if date0 is not None and dt < date0 : continue
 		if date1 is not None and dt >= date1 : continue
 
-		lst.append((dt, os.path.join(dir,fname)))
+		lst.append((dir, rundeck, dt, fname))
 	lst.sort()
 
 	return lst
-
-def list_deck_files(decks_dir, rundeck, **kwargs) :
-	return list_acc_files(os.path.join(decks_dir, rundeck), rundeck, **kwargs)
 # ==========================================================
 # "From:  1949  DEC  1,  Hr  0      To:  1950  JAN  1, Hr  0  Model-Time:    17520     Dif:  31.00 Days" ;
 _fromtoRE = re.compile(r'From:\s+(\d+)\s+([a-zA-Z]+)\s+(\d+),\s+Hr\s+(\d+)\s+To:\s+(\d+)\s+([a-zA-Z]+)\s+(\d+),\s+Hr\s+(\d+)\s+Model-Time:\s+(\d+)\s+.*')
