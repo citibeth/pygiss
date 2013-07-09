@@ -144,7 +144,7 @@ class pyGrid :
 
 	def plotter(self) :
 		if self.type == 'XY' :
-			return ProjXYPlotter(self.x_boundaries, self.y_boundaries, self.sproj)
+			return giss.plot.ProjXYPlotter(self.x_boundaries, self.y_boundaries, self.sproj)
 		return None
 
 
