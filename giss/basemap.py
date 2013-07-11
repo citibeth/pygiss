@@ -92,7 +92,7 @@ def greenland_laea(ax=None) :
 #lat_0 	center of desired map domain (in degrees).
 
 # ---------------------------------------------------------------
-def plot_lines(mymap, lons, lats, **kwargs) :
+def plot(mymap, *args, **kwargs) :
 	"""Plots a custom coastline.  This plots simple lines, not
 	ArcInfo-style SHAPE files.
 
@@ -105,20 +105,46 @@ def plot_lines(mymap, lons, lats, **kwargs) :
 		A NaN in lons and lats signifies a new line segment.
 
 	See:
+                http://matplotlib.org/api/pyplot_api.html#matplotlib.pyplot.plot
 		giss.noaa.drawcoastline_file()
 	"""
 
-	# Project onto the map
-	x, y = mymap(lons, lats)
-	x = np.array(x)
-	y = np.array(y)
+	# Convert all arguments from lon/lat to x/y
+	ilons = -1
+	nargs = []
+	i = 0
+	while i < len(args) :
+		if isinstance(args[i], str) :
+			nargs.append(args[i])
+			i += 1
+			continue
+		if ilons < 0 :
+			ilons = i
+		else :
+			lons = args[ilons]
+			lats = args[i]
 
-	# BUG workaround: Basemap projects our NaN's to 1e30.
-	x[x==1e30] = np.nan
-	y[y==1e30] = np.nan
+			# Project onto the map
+			x, y = mymap(lons, lats)
+			x = np.array(x)
+			y = np.array(y)
 
-	# Plot projected line segments.
-	mymap.plot(x, y, **kwargs)
+			# BUG workaround: Basemap projects our NaN's to 1e30.
+			x[x==1e30] = np.nan
+			y[y==1e30] = np.nan
+
+			nargs.append(x)
+			nargs.append(y)
+			ilons = -1
+
+		i += 1
+
+#	print nargs
+
+	mymap.plot(*tuple(nargs), **kwargs)
+
+# Backward compatibility
+plot_lines = plot
 
 
 # Read "Matlab" format files from NOAA Coastline Extractor.
