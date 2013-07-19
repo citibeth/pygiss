@@ -39,7 +39,10 @@ class MatrixMaker(_glint2.MatrixMaker) :
 		return _tuple_to_coo(tret)
 
 	def ice_to_hp(self, f2s, *args) :
-		nparray = super(MatrixMaker, self).ice_to_hp(f2s.items(), *args)
+		f2s_new = []
+		for key, f2 in f2s.items() :
+			f2s_new.append((key, f2.reshape(-1)))
+		nparray = super(MatrixMaker, self).ice_to_hp(f2s_new, *args)
 		return nparray
 
 	def realize(self, *args) :
