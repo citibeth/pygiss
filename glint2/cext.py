@@ -14,12 +14,12 @@ MatrixMaker = _glint2.MatrixMaker
 
 class MatrixMaker(_glint2.MatrixMaker) :
 	# Used to load from existing GLINT2 config file
-	def __init__(self, fname=None, vname='m') :
-		super(MatrixMaker, self).__init__()
+	def __init__(self, fname=None, vname='m', **kwds) :
+		super(MatrixMaker, self).__init__(**kwds)
 		if fname is not None :
 			# Used to load from GLINT2 config file
 			super(MatrixMaker, self).load(fname, vname)
-			# super(MatrixMaker, self).realize()
+			super(MatrixMaker, self).realize()
 
 	def init(self, *args) :
 		super(MatrixMaker, self).init(*args)
@@ -101,7 +101,7 @@ def mask_out(overlap, mask1, mask2) :
 	tret = _glint2.mask_out(_coo_to_tuple(overlap), mask1, mask2)
 	return _tuple_to_coo(tret)
 
-proj_native_area_correct = _glint2.proj_native_area_correct
+#proj_native_area_correct = _glint2.proj_native_area_correct
 
 def multiply_bydiag(a1, a2) :
 #	print type(a1)
