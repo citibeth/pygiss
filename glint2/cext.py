@@ -38,11 +38,11 @@ class MatrixMaker(_glint2.MatrixMaker) :
 		tret = super(MatrixMaker, self).hp_to_atm(*args)
 		return _tuple_to_coo(tret)
 
-	def ice_to_hp(self, f2s, *args) :
+	def ice_to_hp(self, f2s, *args, **kwargs) :
 		f2s_new = []
 		for key, f2 in f2s.items() :
 			f2s_new.append((key, f2.reshape(-1)))
-		nparray = super(MatrixMaker, self).ice_to_hp(f2s_new, *args)
+		nparray = super(MatrixMaker, self).ice_to_hp(f2s_new, *args, **kwargs)
 		return nparray
 
 	def realize(self, *args) :
