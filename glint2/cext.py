@@ -30,19 +30,23 @@ class MatrixMaker(_glint2.MatrixMaker) :
 			kwargs['mask2'] = kwargs['mask2'].reshape(-1,)
 		super(MatrixMaker, self).add_ice_sheet(grid2_fname, exgrid_fname, elev2, **kwargs)
 
-	def hp_to_ice(self, *args) :
-		tret = super(MatrixMaker, self).hp_to_ice(*args)
+	def hp_to_iceinterp(self, *args, **kwargs) :
+		tret = super(MatrixMaker, self).hp_to_iceinterp(*args, **kwargs)
 		return _tuple_to_coo(tret)
 
 	def hp_to_atm(self, *args) :
 		tret = super(MatrixMaker, self).hp_to_atm(*args)
 		return _tuple_to_coo(tret)
 
-	def ice_to_hp(self, f2s, *args, **kwargs) :
+	def iceinterp_to_atm(self, *args, **kwargs) :
+		tret = super(MatrixMaker, self).iceinterp_to_atm(*args, **kwargs)
+		return _tuple_to_coo(tret)
+
+	def iceinterp_to_hp(self, f2s, *args, **kwargs) :
 		f2s_new = []
 		for key, f2 in f2s.items() :
 			f2s_new.append((key, f2.reshape(-1)))
-		nparray = super(MatrixMaker, self).ice_to_hp(f2s_new, *args, **kwargs)
+		nparray = super(MatrixMaker, self).iceinterp_to_hp(f2s_new, *args, **kwargs)
 		return nparray
 
 	def realize(self, *args) :
