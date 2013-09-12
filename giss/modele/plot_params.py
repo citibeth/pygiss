@@ -12,9 +12,9 @@ _reverse_scale = {'impm', 'impm_lndice'}
 # This way, we can do C <--> K conversion as well
 #_rescale_factors = {'impm_lndice' : (86400., 'kg/day*m^2')}
 
-_change_units = {
-	'impm_lndice' : ('kg/day*m^2', lambda x : x * 86400.)
-}
+#_change_units = {
+#	'impm_lndice' : ('kg/day*m^2', lambda x : x * 86400.)
+#}
 
 
 def _default_plot_boundaries(basemap) :
@@ -97,11 +97,11 @@ def plot_params(var_name='', nc=None, val=None, plotter=None) :
 	else :
 		info['plotter'] = plotter
 
-	# Rescale if needed
-	if var_name in _change_units :
-		rs = _change_units[var_name]
-		info['units'] = rs[0]
-		info['val'] = rs[1](info['val'])	# Run the scaling function
+#	# Rescale if needed
+#	if var_name in _change_units :
+#		rs = _change_units[var_name]
+#		info['units'] = rs[0]
+#		info['val'] = rs[1](info['val'])	# Run the scaling function
 
 	if var_name in _zero_centered :
 		plot_args['norm'] = giss.plot.AsymmetricNormalize()

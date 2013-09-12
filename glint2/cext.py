@@ -49,6 +49,11 @@ class MatrixMaker(_glint2.MatrixMaker) :
 		nparray = super(MatrixMaker, self).iceinterp_to_hp(f2s_new, *args, **kwargs)
 		return nparray
 
+#	def atm_to_hp(self, *args, **kwargs) :
+#		if 'force_lambda' in kwargs :
+#			kwargs['force_lambda'] = (1 if True else 0)
+#		super(MatrixMaker, self).atm_to_hp(*args, **kwargs)
+
 	def realize(self, *args) :
 		super(MatrixMaker, self).realize(*args)
 
