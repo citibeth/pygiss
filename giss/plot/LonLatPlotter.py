@@ -63,7 +63,7 @@ class LonLatPlotter :
 		self.nlons = len(self.lonb)-1
 		self.nlats = len(self.latb)-1
 
-	def pcolormesh(self, mymap, val1, **plotargs) :
+	def _plot_data2d(self, mymap, val1, plot_fn, **plotargs) :
 		# compute map projection coordinates of grid.
 		xx, yy = mymap(*np.meshgrid(self.lonb, self.latb))
 		val = val1.reshape((self.nlats, self.nlons))
@@ -72,14 +72,21 @@ class LonLatPlotter :
 			# Not a masked array, mask out invalid values (eg NaN)
 			val = ma.masked_invalid(val)
 
-		return mymap.pcolormesh(xx, yy, val, **plotargs)
+		return plot_fn(xx, yy, val, **plotargs)
+
+	def pcolormesh(self, mymap, val1, **plotargs) :
+		return self._plot_data2d(mymap, val1, mymap.pcolormesh, **plotargs)
+
+	def contour(self, mymap, val1, **plotargs) :
+		return self._plot_data2d(mymap, val1, mymap.contour, **plotargs)
+
 
 	# Returns the polygon describing a grid cell (spherical coordinates)
 	def cell_poly(self, i,j) :
 		lon0 = self.lonb[i]
 		lon1 = self.lonb[i+1]
-		lat0 = self.latb[i]
-		lat1 = self.latb[i+1]
+		lat0 = self.latb[j]
+		lat1 = self.latb[j+1]
 
 		lons = [lon0, lon1, lon1, lon0, lon0]
 		lats = [lat0, lat0, lat1, lat1, lat0]

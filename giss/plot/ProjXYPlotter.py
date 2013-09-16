@@ -44,19 +44,23 @@ class ProjXYPlotter :
 		self.sproj = sproj
 		(llproj, xyproj) = giss.proj.make_projs(sproj)
 
+		# Grid cell centers
+		xc2 = .5 * (xb2[0:-1] + xb2[1:])
+		yc2 = .5 * (yb2[0:-1] + yb2[1:])
+
 		# Create a quadrilateral mesh in X/Y space
-		xs, ys = np.meshgrid(xb2, yb2)
+		xs, ys = np.meshgrid(xc2, yc2)
 
 		# Transform it to lat/lon space
 		self.mesh_lons, self.mesh_lats = pyproj.transform(xyproj, llproj, xs, ys)
 
 
-	# @param basemap the basemap instance we wish to plot on
+	# @param mymap the basemap instance we wish to plot on
 	# @param _val2 a Numpy array or masked array with the values to plot
-	def pcolormesh(self, basemap, _val2, **plotargs) :
+	def _plot_data(self, mymap, _val2, plot_fn, **plotargs) :
 		"""
 		Args:
-			basemap:
+			mymap:
 				The map to plot on.
 			_val2[n2] (np.array):
 				The value to plot (preferably np.ma.MaskedArray)
@@ -69,7 +73,7 @@ class ProjXYPlotter :
 			raise Exception("Plotter's n2 (%d) != data's n2 (%d)" % (self.n2, n2))
 
 		# Convert to map space
-		mesh_mapx, mesh_mapy = basemap(self.mesh_lons, self.mesh_lats)
+		mesh_mapx, mesh_mapy = mymap(self.mesh_lons, self.mesh_lats)
 
 		# Reshape back to xy
 		# Careful of dimension order, it needs to match dims in the quadrilateral mesh
@@ -80,5 +84,11 @@ class ProjXYPlotter :
 			val2xy = ma.masked_invalid(val2xy)
 
 		# Plot our result using the quadrilateral mesh
-		return basemap.pcolormesh(mesh_mapx, mesh_mapy, val2xy, **plotargs)
+		return plot_fn(mesh_mapx, mesh_mapy, val2xy, **plotargs)
 
+
+	def pcolormesh(self, mymap, _val2, **plotargs) :
+		return self._plot_data(mymap, _val2, mymap.pcolormesh, **plotargs)
+
+	def contour(self, mymap, _val2, **plotargs) :
+		return self._plot_data(mymap, _val2, mymap.contour, **plotargs)
