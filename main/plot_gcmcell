@@ -40,7 +40,6 @@ basemap.drawcoastlines()
 basemap.drawparallels(np.arange(-90.,120.,30.))
 basemap.drawmeridians(np.arange(0.,420.,60.))
 
-print lons,lats
 giss.basemap.plot_lines(basemap, lons, lats, color='r')
 
 # Display the plot

@@ -80,6 +80,9 @@ class LonLatPlotter :
 	def contour(self, mymap, val1, **plotargs) :
 		return self._plot_data2d(mymap, val1, mymap.contour, **plotargs)
 
+	def contourf(self, mymap, val1, **plotargs) :
+		return self._plot_data2d(mymap, val1, mymap.contourf, **plotargs)
+
 
 	# Returns the polygon describing a grid cell (spherical coordinates)
 	def cell_poly(self, i,j) :

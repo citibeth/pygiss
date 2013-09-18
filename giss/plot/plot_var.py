@@ -5,7 +5,7 @@ import giss.util
 
 def plot_var(ax=None, basemap=None,
 show=None, fname=None, savefig_args={},
-plotter=None, var_name=None, val=None, title=None, plot_args={}, cb_args={}, plot_boundaries=None,
+plotter=None, var_name=None, val=None, title=None, plot_args={}, cb_args=None, plot_boundaries=None,
 **extra_kwargs) :
 	"""Convenient all-in-one plot routine.
 	Meant to be used in conjunction with a plot_params() function,
