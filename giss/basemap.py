@@ -106,7 +106,7 @@ def plot(mymap, *args, **kwargs) :
 
 	See:
                 http://matplotlib.org/api/pyplot_api.html#matplotlib.pyplot.plot
-		giss.noaa.drawcoastline_file()
+		giss.basemap.drawcoastline_file()
 	"""
 
 	# Convert all arguments from lon/lat to x/y
@@ -178,4 +178,4 @@ def drawcoastline_file(mymap, fname, **kwargs) :
 	"""
 
 	lons, lats = read_coastline(fname, take_every=1)
-	return drawcoastline(mymap, lons, lats, **kwargs)
+	return plot(mymap, lons, lats, **kwargs)
