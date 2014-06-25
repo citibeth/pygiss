@@ -39,8 +39,17 @@ from cext import *
 glint2 = sys.modules[__name__]
 
 class pyGrid :
+	"""Utility class that reads a Grid file in pure python, rather
+	than using C++.  Used mainly to plot grid outlines."""
+
 	# Read Grid from a netCDF file
 	def __init__(self, nc, vname) :
+		"""Read the Grid from a netCDF file.
+
+		    nc : netCDF4
+		        Open netCDF file handle.
+			vname : str
+		        Name of variable from which to read the Grid."""
 #		variables = standardize_names(nc.variables)
 		variables = nc.variables
 

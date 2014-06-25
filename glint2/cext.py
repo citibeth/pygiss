@@ -17,6 +17,7 @@
 import _glint2
 import scipy.sparse
 import numpy as np
+import giss.util
 
 # Interface with C++ extension
 
@@ -26,11 +27,28 @@ Grid = _glint2.Grid
 
 
 # -----------------------------------------------------
-MatrixMaker = _glint2.MatrixMaker
-
+@giss.util.inherit_docs
 class MatrixMaker(_glint2.MatrixMaker) :
+	"""User-level python interface to MatrixMaker object."""
+
 	# Used to load from existing GLINT2 config file
 	def __init__(self, fname=None, vname='m', **kwds) :
+
+		"""Constructor, to be used either for loading existing Glint2
+		config file, or for creating a new one from scratch.
+
+		To create a new MatrixMaker from scratch:
+			Use no arguments.
+
+		To load existing config file, keyword arguments are:
+			fname : str
+				Name of Glint2 configuration file>
+			vname (OPTIONAL):
+				Name of variable to read in config file
+			correct_area1 : int/bool (DEFAULT 1)
+				if non-zero: account for projection error in transformations.
+				For some reason, this is not stored in the Glint2 config file."""
+
 		super(MatrixMaker, self).__init__(**kwds)
 		if fname is not None :
 			# Used to load from GLINT2 config file
