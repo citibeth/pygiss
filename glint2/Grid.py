@@ -38,7 +38,7 @@ from overlap import *
 from cext import *
 glint2 = sys.modules[__name__]
 
-class pyGrid :
+class pyGrid(object) :
 	"""Utility class that reads a Grid file in pure python, rather
 	than using C++.  Used mainly to plot grid outlines."""
 
@@ -169,7 +169,7 @@ class pyGrid :
 
 	def plotter(self) :
 		if self.type == 'XY' :
-			return giss.plot.ProjXYPlotter(self.x_boundaries, self.y_boundaries, self.sproj)
+			return giss.plot.ProjXYPlotter(self.x_boundaries, self.y_boundaries, self.projection)
 		return None
 
 

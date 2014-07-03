@@ -55,38 +55,91 @@ class MatrixMaker(_glint2.MatrixMaker) :
 			super(MatrixMaker, self).load(fname, vname)
 			super(MatrixMaker, self).realize()
 
-	def init(self, *args) :
-		super(MatrixMaker, self).init(*args)
+	def init(self, *args, **kwargs) :
+		if 'mask1' in kwargs :
+			kwargs['mask1'] = giss.util.reshape_no_copy(kwargs['mask1'])
+		super(MatrixMaker, self).init(*args, **kwargs)
 
 	def add_ice_sheet(self, grid2_fname, exgrid_fname, elev2, **kwargs) :
-		elev2 = elev2.reshape(-1,)
+		"""When constructing a MatrixMaker via init() method, use to
+		add an ice sheet to the system.
+
+		grid2_fname : str
+		    Name of the grid file for the ice sheet.
+		exgrid_fname : str
+			Name of the grid file for the exchange grid and the GCM grid
+		    this MatrixMaker was instantiated with.
+		elev2 : double[n2]
+		    Elevation of each ice grid cell
+		mask2 : int[n2] (bool) (OPTIONAL)
+		    If non-zero, marks ice grid cells as unused
+		name : str (OPTIONAL)
+		    Name used to identify this ice sheet later."""
+
+		elev2 = giss.util.reshape_no_copy(elev2, -1)
 		if 'mask2' in kwargs :
 			kwargs['mask2'] = kwargs['mask2'].reshape(-1,)
 		super(MatrixMaker, self).add_ice_sheet(grid2_fname, exgrid_fname, elev2, **kwargs)
 
 	def hp_to_iceinterp(self, *args, **kwargs) :
+
+		"""Returns the regridding matrix to go from the elevation grid
+		to an ice grid (E->I).
+
+		sheetname : str
+		    The ice sheet to which to regrid.
+		dest : glint2::IceInterp (str) (DEFAULT 'ICE')
+		    Specify whether the destination should be the ice grid or
+		    the interpolation grid (which might be the ice grid)
+		returns : scipy.sparse.coo_matrix
+		"""
 		tret = super(MatrixMaker, self).hp_to_iceinterp(*args, **kwargs)
 		return _tuple_to_coo(tret)
 
 	def hp_to_atm(self, *args) :
+		"""Returns the matrix E->A (elevation grid to atmosphere grid)
+		Takes no arguments.  Returns scipy.sparse.coo_matrix""" 
 		tret = super(MatrixMaker, self).hp_to_atm(*args)
 		return _tuple_to_coo(tret)
 
 	def iceinterp_to_atm(self, *args, **kwargs) :
+		"""Returns the matrix I->A, converting the ice to the atmosphere grid.
+
+		sheetname : str
+		    The ice sheet from which to regrid.
+		src : glint2::IceInterp (OPTIONAL, DEFAULT 'ICE')
+			{'ICE' | 'INTERP'}
+		    Specifies whether the source vector space is the ice grid or
+		    the interpolation grid (which might be the ice grid)
+		returns : scipy.sparse.coo_matrix"""
 		tret = super(MatrixMaker, self).iceinterp_to_atm(*args, **kwargs)
 		return _tuple_to_coo(tret)
 
 	def iceinterp_to_hp(self, f2s, *args, **kwargs) :
+		"""Implements the I->E reverse transformation.
+
+		f2s : dict(sheetname -> double[n2]
+		    Specifies the source field to regrid on each ice grid.
+		initial3 : double[n3] (OPTIONAL)
+		    Initial guess at solution.
+		    (n3 = size of elevation grid)
+		src : glint2::IceInterp (OPTIONAL, DEFAULT 'ICE')
+			{'ICE' | 'INTERP'}
+		    Specifies whether the source vector space is the ice grid or
+		    the interpolation grid (which might be the ice grid)
+		qp_algorithm : giss::QPAlgorithm (OPTIONAL, DEFAULT 'SINGLE_QP')
+		    The method used to create a QP program for this problem.
+		    'SINGLE_QP' :
+		        Create one single large QP program.
+		    'MULTI_QP' :
+		        Create a separate QP program for each atmosphere grid
+		        cell.  Only legal if the $RM$ matrix is local.
+		"""
 		f2s_new = []
 		for key, f2 in f2s.items() :
-			f2s_new.append((key, f2.reshape(-1)))
+			f2s_new.append(  (key, giss.util.reshape_no_copy(f2, -1))  )
 		nparray = super(MatrixMaker, self).iceinterp_to_hp(f2s_new, *args, **kwargs)
 		return nparray
-
-#	def atm_to_hp(self, *args, **kwargs) :
-#		if 'force_lambda' in kwargs :
-#			kwargs['force_lambda'] = (1 if True else 0)
-#		super(MatrixMaker, self).atm_to_hp(*args, **kwargs)
 
 	def realize(self, *args) :
 		super(MatrixMaker, self).realize(*args)
@@ -108,10 +161,6 @@ def _tuple_to_coo(tuple) :
 	return scipy.sparse.coo_matrix((data1, (rows1, cols1)), shape=(nrow1, ncol1))
 
 # -------------------------------------------------------
-def height_classify(overlap, elev2, hcmax) :
-	tret = _glint2.height_classify(_coo_to_tuple(overlap), elev2, hcmax)
-	return _tuple_to_coo(tret)
-
 # Puts A*x into y, does not overwrite unused elements of y
 # @param yy OUTPUT
 def coo_matvec(coomat, xx, yy, ignore_nan=False) :
@@ -129,31 +178,12 @@ def coo_multiply(coomat, xx, fill=np.nan, ignore_nan=False) :
 	coo_matvec(coomat, xx, yy, ignore_nan)
 	return yy
 
-def grid1_to_grid2(overlap) :
-	tret = _glint2.grid1_to_grid2(_coo_to_tuple(overlap))
-	return _tuple_to_coo(tret)
-
-def grid2_to_grid1(overlap) :
-	tup = _coo_to_tuple(overlap)
-	tret = _glint2.grid2_to_grid1(tup)
-	return _tuple_to_coo(tret)
-
-def mask_out(overlap, mask1, mask2) :
-	if mask1 is not None : mask1 = mask1.reshape(-1)
-	if mask2 is not None : mask2 = mask2.reshape(-1)
-	tret = _glint2.mask_out(_coo_to_tuple(overlap), mask1, mask2)
-	return _tuple_to_coo(tret)
-
-#proj_native_area_correct = _glint2.proj_native_area_correct
 
 def multiply_bydiag(a1, a2) :
-#	print type(a1)
-#	print type(a2)
 	if issubclass(type(a1), scipy.sparse.coo_matrix) :
 		a1 = _coo_to_tuple(a1)
 	else :
 		a2 = _coo_to_tuple(a2)
-#	print a1
 	return _glint2.multiply_bydiag(a1, a2)
 
 # --------------------------------------------------------

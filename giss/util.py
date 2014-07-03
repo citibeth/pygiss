@@ -131,6 +131,16 @@ def sum_by_cols(matrix) :
 def sum_by_rows(matrix) :
 	return np.array(matrix.sum(axis=1)).reshape(-1)
 
+def reshape_no_copy(arr, *shape) :
+	"""Reshape a np.array, but don't make any copies of it.
+	Throws an exception if the new reshaped view cannot be made
+	(for example, if the original array were non-contiguous"""
+	print arr.shape, shape
+
+	ret = arr.view()
+	ret.shape = shape
+	return ret
+
 # -----------------------------------------------------------
 def multiglob_iterator(paths) :
 	"""Iterator liss a bunch of files from a bunch of arguments.  Tries to work like ls

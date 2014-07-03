@@ -29,7 +29,7 @@ def _get_landmask(searise_nc) :
 	landcover:ocean = 1 ;
 	landcover:standard_name = "land_cover" ;"""
 
-	mask2 = np.array(searise_nc.variables['landcover'], dtype=np.int32)[0,:,:]#.flatten('C')
+	mask2 = np.array(searise_nc.variables['landcover'][:], dtype=np.int32)[0,:,:]
 	mask2 = np.where(mask2==4,np.int32(0),np.int32(1))
 	return mask2
 # -------------------------------------------------------------
@@ -50,8 +50,8 @@ def read_elevation2_mask2(searise_fname) :
 	mask2 = _get_landmask(searise_nc)
 
 	# --- elevation2
-	topg = np.array(searise_nc.variables['topg'], dtype='d')[0,:,:]#.flatten('C')
-	thk = np.array(searise_nc.variables['thk'], dtype='d')[0,:,:]#.flatten('C')
+	topg = np.array(searise_nc.variables['topg'][:], dtype='d')[0,:,:]
+	thk = np.array(searise_nc.variables['thk'][:], dtype='d')[0,:,:]
 	elevation2 = topg + thk
 
 	searise_nc.close()
