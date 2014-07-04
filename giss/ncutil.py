@@ -23,7 +23,7 @@ class copy_nc :
 		"""var_filter : function(var_name) -> bool
 		    Only copy variables where this filter returns True.
 		attrib_filter : function(attrib_name) -> bool
-		    Only copy attributes where this filter returns True.
+		    Only copy attributes where this filter returns True."""
 		self.nc0 = nc0
 		self.ncout = ncout
 		self.var_filter = var_filter
