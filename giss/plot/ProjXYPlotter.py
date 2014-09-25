@@ -29,7 +29,7 @@ class ProjXYPlotter :
 
 	"""
 	
-	def __init__(self, xb2, yb2, sproj):
+	def __init__(self, xb2, yb2, sproj, transpose=False):
 		"""Construct the plotter.
 
 		Args:
@@ -39,6 +39,9 @@ class ProjXYPlotter :
 				Boundaries of grid cells in the Y direction
 			sproj (string):
 				Proj.4 string for the projection used to map between Cartesian and the globe.
+			transpose (bool):
+				False if the data being plotted will be in (y, x) order (as in ModelE's netCDF),
+				rather than (x,y) order (as in PISM's netCDF).
 
 		Attributes:
 			nx2, ny2:
@@ -48,6 +51,8 @@ class ProjXYPlotter :
 			mesh_lons[n2], mesh_lats[n2]:
 				Lat/lon of every grid cell boundary intersection.
 		"""
+
+		self.transpose = transpose
 
 		self.xb2 = xb2
 		self.yb2 = yb2
@@ -66,7 +71,7 @@ class ProjXYPlotter :
 		# ------------- Mesh on cell boundaries (for pcolormesh())
 		# Create a quadrilateral mesh in X/Y space
 		# Quad mesh needs cell BOUNDARIES
-		xs, ys = np.meshgrid(xb2, yb2)
+		xs, ys = np.meshgrid(xb2, yb2, indexing='ij' if self.transpose else 'xy')
 
 		# Transform it to lat/lon space
 		self.bmesh_lons, self.bmesh_lats = pyproj.transform(self.xyproj, self.llproj, xs, ys)
@@ -102,7 +107,10 @@ class ProjXYPlotter :
 
 		# Reshape back to xy
 		# Careful of dimension order, it needs to match dims in the quadrilateral mesh
-		val2xy = _val2.reshape((self.ny2, self.nx2))
+		if self.transpose:
+			val2xy = _val2.reshape((self.nx2, self.ny2))
+		else:
+			val2xy = _val2.reshape((self.ny2, self.nx2))
 
 		if not issubclass(type(val2xy), ma.MaskedArray) :
 			# Not a masked array, mask out invalid values (eg NaN)

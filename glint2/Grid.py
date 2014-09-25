@@ -173,7 +173,7 @@ class pyGrid(object) :
 		return None
 
 
-def _Grid_XY_read_plotter(nc, vname) :
+def _Grid_XY_read_plotter(nc, vname, transpose=False) :
 	"""Reads an plotter out of a netCDF file for a simple Cartesian grid"""
 
 	# ======= Read our own grid2 info from the overlap file
@@ -182,9 +182,9 @@ def _Grid_XY_read_plotter(nc, vname) :
 	yb2 = nc.variables[vname + '.y_boundaries'][:]
 	info_var = nc.variables[vname + '.info']
 	sproj = info_var.projection
-	return giss.plot.ProjXYPlotter(xb2, yb2, sproj)
+	return giss.plot.ProjXYPlotter(xb2, yb2, sproj, transpose=transpose)
 
-def _Grid_LonLat_read_plotter(nc, vname) :
+def _Grid_LonLat_read_plotter(nc, vname, transpose=False) :
 	lonb2 = nc.variables[vname + '.lon_boundaries'][:]
 	latb2 = nc.variables[vname + '.lat_boundaries'][:]
 	return giss.plot.LonLatPlotter(lonb2, latb2, True)
@@ -197,12 +197,12 @@ read_plotter_fn = {'XY' : _Grid_XY_read_plotter,
 # @param grid_nc Open netCDF file that has the ice grid
 # @param vname Name of variable inside the netCDF file
 # @param ice_sheet Name of ice sheet (works if variables follow std convention)
-def Plotter2(nc=None, vname=None, fname=None) :
+def Plotter2(nc=None, vname=None, fname=None, transpose=False) :
 	if fname is not None :
 		nc = netCDF4.Dataset(fname)
 	stype = nc.variables[vname + '.info'].__dict__['type']
 	read_fn = read_plotter_fn[stype]
-	ret = read_fn(nc, vname)
+	ret = read_fn(nc, vname, transpose=transpose)
 	if fname is not None :
 		nc.close()
 	return ret
