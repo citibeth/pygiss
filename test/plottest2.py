@@ -20,12 +20,19 @@ import netCDF4
 import giss.basemap
 import giss.modele
 import matplotlib.pyplot
+import mpl_toolkits.basemap
 
-
-nc = netCDF4.Dataset('data/ANN1950.aijhctest45_lr05.nc')
+fname = '/Users/rpfische/exp/120915-hccontrol/DEC1949.aijhctest45.nc'
+nc = netCDF4.Dataset(fname)
+#nc = netCDF4.Dataset('data/ANN1950.aijhctest45_lr05.nc')
 
 # Use a custom basemap
-basemap = giss.basemap.greenland_laea()
+basemap = giss.basemap.global_map()
+
+basemap = mpl_toolkits.basemap.Basemap(projection='cea',llcrnrlat=-90,urcrnrlat=90,\
+            llcrnrlon=-180,urcrnrlon=180,resolution='c')
+
+
 
 # Plot multiple plots on one page
 figure = matplotlib.pyplot.figure(figsize=(11,8.5))

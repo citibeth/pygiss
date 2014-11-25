@@ -25,8 +25,25 @@ import operator
 import numpy as np
 import os
 import os.path
+import collections
 
 # ==========================================================
+_accRE = re.compile(r'(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)(\d\d\d\d)\.acc(.*?).nc')
+
+ParsedAccFile = collections.namedtuple('ParsedAccFile', 'rundeck date')
+
+def parse_acc_fname(fname) :
+	match = _accRE.match(fname)
+	if match is None: return None
+
+	month = _monthnums[match.group(1)]
+ 	year = int(match.group(2))
+	dt = datetime.date(year,month,1)
+	rundeck = match.group(3)
+
+	return ParsedAccFile(rundeck, dt)
+
+
 def list_acc_files(file_iterator, rundeckRE=None, date0=None, date1=None) :
 	"""List acc files in a directory, and sort by date.
 
@@ -65,17 +82,13 @@ def list_acc_files(file_iterator, rundeckRE=None, date0=None, date1=None) :
 	fileRE = re.compile(r'(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)(\d\d\d\d)\.acc(%s).nc' % rundeckRE)
 	lst = []
 	for dir, fname in file_iterator :
-		match = fileRE.match(fname)
-		if match is None: continue
-		month = _monthnums[match.group(1)]
-       		year = int(match.group(2))
-		dt = datetime.date(year,month,1)
-		rundeck = match.group(3)
+		pfname = parse_acc_fname(fname)
+		if pfname is None : continue
 
-		if date0 is not None and dt < date0 : continue
-		if date1 is not None and dt >= date1 : continue
+		if date0 is not None and pfname.date < date0 : continue
+		if date1 is not None and pfname.date >= date1 : continue
 
-		lst.append((dir, rundeck, dt, fname))
+		lst.append((dir, pfname.rundeck, pfname.date, fname))
 	lst.sort()
 
 	return lst
@@ -143,10 +156,12 @@ def acc_fromto(nc) :
 	return _parse_fromto(nc.fromto)
 
 # -----------------------------------------------------
+ScaleAccRet = collections.namedtuple('ScaleAccRet', 'val sdims')
+
 _infoRE = re.compile(r'\s*(.*?):(.*?)\s*=\s*"(.*?)"\s*;')
 _lonRE = re.compile(r'\s*lon\s=')
 _latRE = re.compile(r'\s*lat\s=')
-class ScaleAcc :
+class ScaleAcc(object) :
 	def __init__(self, nc, dcat) :
 		self.nc = nc
 		self.dcat = dcat
@@ -185,9 +200,9 @@ class ScaleAcc :
 			kacc = 1
 
 		# Read acc metadata needed for scaling
-		self.scale_acc = self.nc['scale_' + dcat][:]
+		self.scale_acc = self.nc.variables['scale_' + dcat][:]
 		if ('denom_' + dcat in nc.variables) :
-			self.denom_acc = self.nc['denom_' + dcat][:]
+			self.denom_acc = self.nc.variables['denom_' + dcat][:]
 			self.denom_acc -= 1
 		else :
 			self.denom_acc = np.zeros(kacc, 'i') - 1
@@ -195,11 +210,11 @@ class ScaleAcc :
 		# Read counters by which to divide
 		if ('ia_' + dcat in nc.variables) :
 			# Which counter to use for each variable
-			self.ia_acc = self.nc['ia_' + dcat][:]
+			self.ia_acc = self.nc.variables['ia_' + dcat][:]
 			self.ia_acc -= 1
 
 			# Value of those counters
-			self.idacc = self.nc['idacc'][:]
+			self.idacc = self.nc.variables['idacc'][:]
 		else :
 			# Just use counter #0 for all variables
 			self.ia_acc = np.array([0],'i')
@@ -258,4 +273,5 @@ class ScaleAcc :
 		#info['rundeck'] = self.rundeck
 		#info['smonth'] = self.smonth
 		#info['dcat'] = self.dcat
-		return giss.util.Struct(info)
+		#return giss.util.Struct(info)
+		return ScaleAccRet(info['val'], info['sdims'])
