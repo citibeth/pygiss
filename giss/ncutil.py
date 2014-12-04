@@ -32,6 +32,7 @@ class copy_nc :
 		self.avoid_dims = set()
 
 	def createDimension(self, dim_name, *args, **kwargs) :
+		print 'createDimension',dim_name
 		self.avoid_dims.add(dim_name)
 		return self.ncout.createDimension(dim_name, *args, **kwargs)
 
@@ -45,6 +46,7 @@ class copy_nc :
 		# Figure out which dimensions to copy
 		copy_dims = set()
 		for var in self.vars :
+			if not self.var_filter(var) : continue
 			if var in self.avoid_vars : continue
 			for dim in self.nc0.variables[var].dimensions :
 				copy_dims.add(dim)
