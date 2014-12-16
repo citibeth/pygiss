@@ -135,7 +135,7 @@ def plot_params(var_name='', nc=None, val=None, plotter=None) :
 
 	# Suggest a title
 	if 'units' in info :
-		info['title'] = '%s (%s)' % (info['var_name'], info['units'])
+		info['title'] = '%s\n(%s)' % (info['var_name'], info['units'])
 	else :
 		info['title'] = info['var_name']
 
