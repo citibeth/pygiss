@@ -18,7 +18,7 @@
 # Copy a netCDF file (so we can add more stuff to it)
 class copy_nc :
 	def __init__(self, nc0, ncout,
-		var_filter=lambda x : True,
+		var_filter=lambda x : x,
 		attrib_filter = lambda x : True) :
 		"""var_filter : function(var_name) -> bool
 		    Only copy variables where this filter returns True.
@@ -58,10 +58,12 @@ class copy_nc :
 
 		# Define the variables
 		for var_name in self.vars :
-			if not self.var_filter(var_name) : continue
+			ovname = self.var_filter(var_name)
+			if ovname is None: continue
 			if var_name in self.avoid_vars : continue
+
 			var = self.nc0.variables[var_name]
-			varout = self.ncout.createVariable(var_name, var.dtype, var.dimensions)
+			varout = self.ncout.createVariable(ovname, var.dtype, var.dimensions)
 			for aname, aval in var.__dict__.items() :
 				if not self.attrib_filter(aname) : continue
 				setattr(varout, aname, aval)
@@ -69,8 +71,11 @@ class copy_nc :
 	def copy_data(self) :
 		# Copy the variables
 		for var_name in self.vars :
-			if not (var_name in self.avoid_vars) :
-				ivar = self.nc0.variables[var_name]
-				ovar = self.ncout.variables[var_name]
-				ovar[:] = ivar[:]
+			ovname = self.var_filter(var_name)
+			if ovname is None: continue
+			if var_name in self.avoid_vars: continue
+
+			ivar = self.nc0.variables[var_name]
+			ovar = self.ncout.variables[ovname]
+			ovar[:] = ivar[:]
 
