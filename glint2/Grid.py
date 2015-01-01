@@ -221,11 +221,13 @@ class Plotter1h :
 		# self.mask2 = nc.variables['m.' + ice_sheet + '.mask2'][:]
 		nc.close()
 
-	def pcolormesh(self, mymap, val1h, **plotargs) :
-#		val1h = val1h.reshape(-1)
-		print val1h.shape
+	def regrid2(self, val1h, mask=True):
 		val1h = val1h.reshape(-1)
-		print val1h.shape
-
 		val2 = glint2.coo_multiply(self.mat_1h_to_2, val1h, fill=np.nan, ignore_nan=False)	# Make np.nan
-		return self.plotter2.pcolormesh(mymap, val2, **plotargs)
+		if mask: mval2 = np.ma.masked_invalid(val2)
+		return mval2
+
+	def pcolormesh(self, mymap, val1h, **plotargs) :
+		mval2 = self.regrid2(val1h)
+		ret = self.plotter2.pcolormesh(mymap, mval2, **plotargs)
+		return ret
