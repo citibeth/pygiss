@@ -93,7 +93,11 @@ class MatrixMaker(_glint2.MatrixMaker) :
 		    the interpolation grid (which might be the ice grid)
 		returns : scipy.sparse.coo_matrix
 		"""
-		tret = super(MatrixMaker, self).hp_to_iceinterp(*args, **kwargs)
+		if 'fill_masked' in kwargs:
+			fill_masked = 1 if kwargs['fill_masked'] else 0
+		else:
+			fill_masked = 0
+		tret = super(MatrixMaker, self).hp_to_iceinterp(*args, fill_masked=fill_masked)
 		return _tuple_to_coo(tret)
 
 	def hp_to_atm(self, *args) :

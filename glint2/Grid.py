@@ -211,10 +211,10 @@ def Plotter2(nc=None, vname=None, fname=None, transpose=False) :
 class Plotter1h :
 	# @param mmaker Instance of glint2.MatrixMaker
 	# @param glint2_config Name of GLINT2 config file
-	def __init__(self, glint2_config, ice_sheet, mmaker=None) :
+	def __init__(self, glint2_config, ice_sheet, mmaker=None, **kwargs):
 		if mmaker is None :
 			mmaker = glint2.MatrixMaker(glint2_config)
-		self.mat_1h_to_2 = mmaker.hp_to_iceinterp(ice_sheet)
+		self.mat_1h_to_2 = mmaker.hp_to_iceinterp(ice_sheet, **kwargs)
 
 		nc = netCDF4.Dataset(glint2_config)
 		self.plotter2 = Plotter2(nc=nc, vname='m.' + ice_sheet + '.grid2')
@@ -222,6 +222,8 @@ class Plotter1h :
 		nc.close()
 
 	def regrid2(self, val1h, mask=True):
+		"""mask: (default True)
+		    If set, use numpy masked_array for proper plotting of colorbar."""
 		val1h = val1h.reshape(-1)
 		val2 = glint2.coo_multiply(self.mat_1h_to_2, val1h, fill=np.nan, ignore_nan=False)	# Make np.nan
 		if mask: mval2 = np.ma.masked_invalid(val2)
