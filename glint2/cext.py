@@ -142,7 +142,12 @@ class MatrixMaker(_glint2.MatrixMaker) :
 		f2s_new = []
 		for key, f2 in f2s.items() :
 			f2s_new.append(  (key, giss.util.reshape_no_copy(f2, -1))  )
-		nparray = super(MatrixMaker, self).iceinterp_to_hp(f2s_new, *args, **kwargs)
+
+		nkwargs = kwargs.copy()
+		if 'initial3' in nkwargs:
+			nkwargs['initial3'] = nkwargs['initial3'].reshape(-1)
+
+		nparray = super(MatrixMaker, self).iceinterp_to_hp(f2s_new, *args, **nkwargs)
 		return nparray
 
 	def realize(self, *args) :
