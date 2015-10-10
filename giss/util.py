@@ -18,6 +18,8 @@ import numpy as np
 import os
 import string
 import glob
+import contextlib
+import sys
 
 class Struct:
 	"""Convert a dict() to a struct."""
@@ -135,8 +137,6 @@ def reshape_no_copy(arr, *shape) :
 	"""Reshape a np.array, but don't make any copies of it.
 	Throws an exception if the new reshaped view cannot be made
 	(for example, if the original array were non-contiguous"""
-	print arr.shape, shape
-
 	ret = arr.view()
 	ret.shape = shape
 	return ret
@@ -165,3 +165,34 @@ def multiglob_iterator(paths) :
 		else :
 			for ret in multiglob_iterator(glob.glob(path)) :
 				yield ret
+
+# http://shallowsky.com/blog/programming/python-tee.html
+class tee :
+    def __init__(self, _fd1, _fd2) :
+        self.fd1 = _fd1
+        self.fd2 = _fd2
+
+    def __del__(self) :
+        if self.fd1 != sys.stdout and self.fd1 != sys.stderr :
+            self.fd1.close()
+        if self.fd2 != sys.stdout and self.fd2 != sys.stderr :
+            self.fd2.close()
+
+    def write(self, text) :
+        self.fd1.write(text)
+        self.fd2.write(text)
+
+    def flush(self) :
+        self.fd1.flush()
+        self.fd2.flush()
+
+# http://stackoverflow.com/questions/13250050/redirecting-the-output-of-a-python-function-from-stdout-to-variable-in-python
+@contextlib.contextmanager
+def redirect_io(out=sys.stdout, err=sys.stderr):
+	saved = (sys.stdout, sys.stderr)
+	sys.stdout = out
+	sys.stderr = err
+	try:
+		yield
+	finally:
+		sys.stdout, sys.stderr = saved
