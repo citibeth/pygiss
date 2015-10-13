@@ -14,7 +14,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-from plotutil import *
-from plot_var import *
-from LonLatPlotter import *
-from ProjXYPlotter import *
+from giss.plot.plotutil import *
+from giss.plot.plot_var import *
+from giss.plot.LonLatPlotter import *
+from giss.plot.ProjXYPlotter import *

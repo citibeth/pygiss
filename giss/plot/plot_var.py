@@ -96,8 +96,8 @@ plotter=None, var_name=None, val=None, title=None, plot_args={}, cb_args=None, p
 	ret = {}
 
 	if extra_kwargs is not None and len(extra_kwargs) > 0 :
-		print 'WARNING: Unrecognized arguments to giss.plot.plot_var() (IGNORED):'
-		print extra_kwargs
+		print('WARNING: Unrecognized arguments to giss.plot.plot_var() (IGNORED):')
+		print(extra_kwargs)
 
 	# No basemap?  Use our default
 	if basemap is None :
@@ -159,7 +159,7 @@ plotter=None, var_name=None, val=None, title=None, plot_args={}, cb_args=None, p
 				matplotlib.pyplot.show()
 
 			if fname is not None :
-				print "WARNING: giss.plot.plot_var() can only save figure to a file if it created the figure.  Please save the figure yourself, using figure.savefig().  Or... call plot_var() without the optional argument ax"
+				print("WARNING: giss.plot.plot_var() can only save figure to a file if it created the figure.  Please save the figure yourself, using figure.savefig().  Or... call plot_var() without the optional argument ax")
 
 	finally :
 		basemap.ax = old_basemap_ax
