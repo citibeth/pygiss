@@ -32,7 +32,6 @@ class copy_nc :
 		self.avoid_dims = set()
 
 	def createDimension(self, dim_name, *args, **kwargs) :
-		print 'createDimension',dim_name
 		self.avoid_dims.add(dim_name)
 		return self.ncout.createDimension(dim_name, *args, **kwargs)
 
@@ -68,7 +67,7 @@ class copy_nc :
 			varout = self.ncout.createVariable(ovname, var.dtype, var.dimensions)
 			for aname, aval in var.__dict__.items() :
 				if not self.attrib_filter(aname) : continue
-				setattr(varout, aname, aval)
+				varout.setncattr(aname, aval)
 
 	def copy_data(self) :
 		# Copy the variables
