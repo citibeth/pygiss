@@ -8,16 +8,39 @@
 # 
 # This program is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.	See the
 # GNU General Public License for more details.
 # 
 # You should have received a copy of the GNU General Public License
-# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+# along with this program.	If not, see <http://www.gnu.org/licenses/>.
 
 import giss.basemap
 import matplotlib
-import config
+from giss.plot import config
 import giss.util
+import numpy as np
+import copy
+
+
+def formatter(plotter, basemap, plotter_context, lon_format='{:1.0f}', lat_format='{:1.0f}', val_format='{:g}'):
+
+	format_string = '[%s{} %s{}] {} {}' % (lon_format, lat_format)
+
+	def _format_coord(x, y):
+		lon_d, lat_d = basemap(x,y,inverse=True)
+		coords, val = plotter.lookup(plotter_context, lon_d, lat_d)
+
+		lon_ew = 'E' if lon_d >=0 else 'W'
+		lat_ns = 'N' if lat_d >=0 else 'S'
+		
+		if val is None:
+			sval = ''
+		else:
+			sval = val_format.format(val)
+
+		return format_string.format(lon_d, lon_ew, lat_d, lat_ns, coords, sval)
+	return _format_coord
+# ---------------------------------------------------------------
 
 def plot_var(ax=None, basemap=None,
 show=None, fname=None, savefig_args={},
@@ -64,7 +87,7 @@ plotter=None, var_name=None, val=None, title=None, plot_args={}, cb_args=None, p
 		val (np.ma.MaskedArray):
 			The value to plot
 		title (string) OPTIONAL:
-			Title for the plot.  If not supplied, no title will be drawn.
+			Title for the plot.	 If not supplied, no title will be drawn.
 		plot_args (dict) OPTIONAL:
 			Suggested keyword arguments for pcolormesh() command.
 			Eg: norm, cmap, vmin, vmax, etc.
@@ -72,9 +95,9 @@ plotter=None, var_name=None, val=None, title=None, plot_args={}, cb_args=None, p
 			Keyword arguments for colorbar command: Eg: ticks, format, etc.
 		plot_boundaries (function(basemap)) OPTIONAL:
 			Call this function to plot map boundaries, graticules,
-			coastlines, paralells, meridians, etc.  It can be a
+			coastlines, paralells, meridians, etc.	It can be a
 			pas-sthrough to the standard basemap boundary plotting, or
-			your own function.  See: giss.basemap.drawcoastline_file()
+			your own function.	See: giss.basemap.drawcoastline_file()
 
 	Returns for further customization (dict):
 		figure:
@@ -124,11 +147,14 @@ plotter=None, var_name=None, val=None, title=None, plot_args={}, cb_args=None, p
 
 		ret['axes'] = ax
 
-		image = plotter.pcolormesh(basemap, val, **plot_args)
+		plotter_context = plotter.context(basemap, val)
+		image = plotter.plot(plotter_context, basemap.pcolormesh, **plot_args)
 		ret['image'] = image
+		ax.format_coord = formatter(plotter, basemap, plotter_context)
 
 		# Plot a colorbar if the user has called for it
 		if cb_args is not None:
+			print('cb_args', cb_args)
 			colorbar = basemap.colorbar(image, **cb_args)
 			ret['colorbar'] = colorbar
 
@@ -159,7 +185,7 @@ plotter=None, var_name=None, val=None, title=None, plot_args={}, cb_args=None, p
 				matplotlib.pyplot.show()
 
 			if fname is not None :
-				print("WARNING: giss.plot.plot_var() can only save figure to a file if it created the figure.  Please save the figure yourself, using figure.savefig().  Or... call plot_var() without the optional argument ax")
+				print("WARNING: giss.plot.plot_var() can only save figure to a file if it created the figure.  Please save the figure yourself, using figure.savefig().	 Or... call plot_var() without the optional argument ax")
 
 	finally :
 		basemap.ax = old_basemap_ax

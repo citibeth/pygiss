@@ -23,7 +23,7 @@ import operator
 import interp
 
 # ----------------------------------------------------------------
-class _HeightClassifier :
+class _HeightClassifier(object):
 	def __init__(self, tops) :
 		self.tops = tops
 		self.nhc = tops.shape[0]
@@ -81,7 +81,7 @@ def _max_by_column(overlap_shifted) :
 
 	return lower1
 # -------------------------------------------------------------------
-class BilinInterp :
+class BilinInterp(object):
 	"""Initializes, stores and applies a CISM (GLINT)-style bilinear
 	interpolation matrix.  The matrix interpolates in X-Y direction,
 	and between elevation classes.

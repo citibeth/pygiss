@@ -16,5 +16,4 @@
 
 from giss.plot.plotutil import *
 from giss.plot.plot_var import *
-from giss.plot.LonLatPlotter import *
-from giss.plot.ProjXYPlotter import *
+from giss.plot.plotters import *

@@ -90,8 +90,10 @@ class Steps(object):
 		return False
 
 	def end_step(self, step_name, force=False):
-		with open(self.step_file(step_name), 'w') as f:
-			pass
+		step_file = self.step_file(step_name)
+		if not os.path.exists(step_file):
+			with open(step_file, 'w') as f:
+				pass
 				
 	def run_step(self, stepno, force=False):
 		if isinstance(stepno, str):	# It's really a name

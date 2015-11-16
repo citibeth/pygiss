@@ -18,7 +18,6 @@ import numpy as np
 import numpy.ma as ma
 import netCDF4
 import giss.util
-import giss.bashfile
 import os
 
 
@@ -79,18 +78,4 @@ def read_ncvar(nc, var_name, dtype='d') :
 # 
 # 	return val
 # 
-# --------------------------------------------------------
-def read_modelerc(fname = None) :
-	"""Reads the settings in the user's .modelErc file.
-
-	Returns:	{string : string}
-		Dictionary of the name/value pairs found in the file.
-
-	See:
-		giss.bashfile.read_env()"""
-		
-	if fname is None :
-		fname = os.path.join(os.environ['HOME'], '.modelErc')
-
-	return giss.bashfile.read_env(fname)
 # --------------------------------------------------------

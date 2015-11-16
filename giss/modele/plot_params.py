@@ -18,7 +18,7 @@ import giss.plot
 import giss.util
 import numpy as np
 import numpy.ma as ma
-import plotters
+from giss.modele import plotters
 
 _zero_centered = {'impm', 'evap_lndice', 'evap', 'imph_lndice', 'impm_lndice', 'netht_lndice', 'trht_lndice'}#, 'sensht_lndice'} #, 'trht_lndice'}
 

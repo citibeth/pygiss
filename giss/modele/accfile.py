@@ -8,11 +8,11 @@
 # 
 # This program is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.	See the
 # GNU General Public License for more details.
 # 
 # You should have received a copy of the GNU General Public License
-# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+# along with this program.	If not, see <http://www.gnu.org/licenses/>.
 
 # Pythonizes functionality of scaleacc
 #
@@ -37,7 +37,7 @@ def parse_acc_fname(fname) :
 	if match is None: return None
 
 	month = _monthnums[match.group(1)]
- 	year = int(match.group(2))
+	year = int(match.group(2))
 	dt = datetime.date(year,month,1)
 	rundeck = match.group(3)
 
@@ -48,7 +48,7 @@ def list_acc_files(file_iterator, rundeckRE=None, date0=None, date1=None) :
 	"""List acc files in a directory, and sort by date.
 
 	Args:
-	        file_iterator (see giss.util.multiglob_iterator):
+			file_iterator (see giss.util.multiglob_iterator):
 			Iterator yielding (dir, filename) pairs
 		rundeckRE (string):
 			Regular expression of rundecks to match
@@ -93,7 +93,7 @@ def list_acc_files(file_iterator, rundeckRE=None, date0=None, date1=None) :
 
 	return lst
 # ==========================================================
-# "From:  1949  DEC  1,  Hr  0      To:  1950  JAN  1, Hr  0  Model-Time:    17520     Dif:  31.00 Days" ;
+# "From:  1949	DEC	 1,	 Hr	 0		To:	 1950  JAN	1, Hr  0  Model-Time:	 17520	   Dif:	 31.00 Days" ;
 _fromtoRE = re.compile(r'From:\s+(\d+)\s+([a-zA-Z]+)\s+(\d+),\s+Hr\s+(\d+)\s+To:\s+(\d+)\s+([a-zA-Z]+)\s+(\d+),\s+Hr\s+(\d+)\s+Model-Time:\s+(\d+)\s+.*')
 
 _monthnums = {

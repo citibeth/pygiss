@@ -55,7 +55,7 @@ _titleRE = re.compile(''.join([ \
 _title2RE = re.compile('(.*?)[ :].*')
 # -------------------------------------------------------------
 
-class Record :
+class Record(object):
 	def __init__(self, var, data, comment) :
 		self.var = var
 		self.data = data
@@ -68,7 +68,7 @@ class Record :
 # Guess shape of 2D array based on its 1D length
 _len_shapes = { 3312 : (46, 72), 12960 : (90, 144) }
 # -----------------------------------------------------------------
-def reader(ifname) :
+def reader(ifname):
 	"""Read records from a GISS-format file one at a time.
 
 	Yields: Each successive record
@@ -131,7 +131,7 @@ def reader(ifname) :
 # ------------------------------------------------------------
 # Reads a list of variables out of a GISS format file
 # Returns a dictionary of their values
-def read_vars(fname, vars) :
+def read_vars(fname, vars):
 	"""Reads a list of variables out of a GISS format file.
 
 	Args:

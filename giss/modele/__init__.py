@@ -14,11 +14,11 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-from util import *
-from accfile import *
+from giss.modele.util import *
+from giss.modele.accfile import *
 
-try:
-	from plotters import *
-	from plot_params import *
-except ImportError :
-	pass	# Don't require matplotlib stuff
+#try:
+from giss.modele.plotters import *
+from giss.modele.plot_params import *
+#except ImportError :
+#	pass	# Don't require matplotlib stuff

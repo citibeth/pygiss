@@ -16,7 +16,7 @@
 
 
 # Copy a netCDF file (so we can add more stuff to it)
-class copy_nc :
+class copy_nc(object):
 	def __init__(self, nc0, ncout,
 		var_filter=lambda x : x,
 		attrib_filter = lambda x : True) :

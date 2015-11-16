@@ -21,6 +21,7 @@ import math
 import giss.util
 import string
 import os
+import io
 
 # General utilities for makng plots and maps
 
@@ -308,7 +309,7 @@ def parse_cpt(cpt_str, reverse=False) :
 	cmap_vals = []
 	cmap_rgbs = []
 	use_hsv = False
-	for line in string.StringIO(cpt_str) :
+	for line in io.StringIO(cpt_str) :
 		match = _color_modelRE.match(line)
 		if match is not None :
 			smodel = match.group(1)

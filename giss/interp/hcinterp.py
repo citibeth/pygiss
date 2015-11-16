@@ -23,7 +23,7 @@ import scipy.sparse
 import operator
 import bisect
 import sys
-import interp
+from giss.interp import interp
 
 class HCInterp(interp.Interp):
 

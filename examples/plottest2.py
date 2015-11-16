@@ -39,7 +39,8 @@ figure = matplotlib.pyplot.figure(figsize=(11,8.5))
 
 ax = figure.add_subplot(121)
 pp = giss.modele.plot_params('pr_lndice', nc=nc)
-print ax
+print(pp)
+print(ax)
 giss.plot.plot_var(ax=ax, basemap=basemap, **pp)
 
 ax = figure.add_subplot(122)

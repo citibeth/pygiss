@@ -29,8 +29,9 @@ def make_projs(sproj) :
 	"""
 
 #	sproj = u'+proj=stere +lon_0=-39 +lat_0=90 +lat_ts=71.0 +ellps=WGS84'
-	if type(sproj) == unicode :
-		sproj = unicodedata.normalize('NFKD', sproj).encode('ascii','ignore')
+#	print('sproj = ', type(sproj), sproj)
+#	if type(sproj) == unicode :
+#		sproj = unicodedata.normalize('NFKD', sproj).encode('ascii','ignore')
 #	print 'sproj = "%s"' % sproj
 
 	xyproj = pyproj.Proj(sproj)
