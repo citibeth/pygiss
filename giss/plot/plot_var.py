@@ -29,11 +29,14 @@ def formatter(plotter, basemap, plotter_context, lon_format='{:1.0f}', lat_forma
 
 	def _format_coord(x, y):
 		lon_d, lat_d = basemap(x,y,inverse=True)
-		coords, val = plotter.lookup(plotter_context, lon_d, lat_d)
-
 		lon_ew = 'E' if lon_d >=0 else 'W'
 		lat_ns = 'N' if lat_d >=0 else 'S'
-		
+		try:
+			coords, val = plotter.lookup(plotter_context, lon_d, lat_d)
+		except:
+			coords = ()
+			val = None
+
 		if val is None:
 			sval = ''
 		else:
