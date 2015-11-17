@@ -37,10 +37,10 @@ def formatter(plotter, basemap, plotter_context, lon_format='{:1.0f}', lat_forma
 			coords = ()
 			val = None
 
-		if val is None:
-			sval = ''
-		else:
+		try:
 			sval = val_format.format(val)
+		except TypeError:
+			sval = ''
 
 		return format_string.format(lon_d, lon_ew, lat_d, lat_ns, coords, sval)
 	return _format_coord

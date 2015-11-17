@@ -22,9 +22,9 @@ import giss.modele
 import matplotlib.pyplot
 import mpl_toolkits.basemap
 
-fname = '/Users/rpfische/exp/120915-hccontrol/DEC1949.aijhctest45.nc'
-nc = netCDF4.Dataset(fname)
-#nc = netCDF4.Dataset('data/ANN1950.aijhctest45_lr05.nc')
+#fname = '/Users/rpfische/exp/120915-hccontrol/DEC1949.aijhctest45.nc'
+#nc = netCDF4.Dataset(fname)
+nc = netCDF4.Dataset('data/ANN1950.aijhctest45_lr05.nc')
 
 # Use a custom basemap
 basemap = giss.basemap.global_map()

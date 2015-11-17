@@ -334,7 +334,7 @@ def parse_cpt(cpt_str, reverse=False) :
 
 	# Assemble into cmapx
 	if reverse : cmap_rgbs.reverse()
-	cmapx = zip(cmap_vals, cmap_rgbs)
+	cmapx = list(zip(cmap_vals, cmap_rgbs))
 
 	# ------------ Get the colormap's range
 	vmin = cmapx[0][0]
