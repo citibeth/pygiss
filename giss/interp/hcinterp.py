@@ -39,23 +39,23 @@ class HCInterp(interp.Interp):
 	"""
 
 	def __init__(self, overlap, _elev1h, _elev2, _mask2) :
-	"""Construct the elevation-only interpolation matrix
+		"""Construct the elevation-only interpolation matrix
 
-	Args:
-		overlap[n1, n2] (scipy.sparse.coo_matrix):
-			The overlap matrix between grid1 (GCM) and grid2 (ice).
-		_elev1h[nhc, n1] (np.array):
-			Set of elevation points in each grid cell we're computing on.
-			Frequently, elevation points are the same for all grid cells.
-			(may be any shape, as long as shape[0]=nhc and shape[1:] = n1)
-		_elev2[n2] (np.array):
-			Elevation of each ice grid cell (or grid point)
-			(may be any shape, as long as it has n2 elements)
-		_mask2[n2] (np.array, dtype=bool):
-			True for gridcells in ice grid that have ice.
-			(may be any shape, as long as it has n2 elements)
-			NOTE: The sense of this mask is OPPOSITE that used in numpy.ma
-	"""
+		Args:
+			overlap[n1, n2] (scipy.sparse.coo_matrix):
+				The overlap matrix between grid1 (GCM) and grid2 (ice).
+			_elev1h[nhc, n1] (np.array):
+				Set of elevation points in each grid cell we're computing on.
+				Frequently, elevation points are the same for all grid cells.
+				(may be any shape, as long as shape[0]=nhc and shape[1:] = n1)
+			_elev2[n2] (np.array):
+				Elevation of each ice grid cell (or grid point)
+				(may be any shape, as long as it has n2 elements)
+			_mask2[n2] (np.array, dtype=bool):
+				True for gridcells in ice grid that have ice.
+				(may be any shape, as long as it has n2 elements)
+				NOTE: The sense of this mask is OPPOSITE that used in numpy.ma
+		"""
 
 		# Reshape arrays to our preferred version
 		nhc = _elev1h.shape[0]

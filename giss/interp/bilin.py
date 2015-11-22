@@ -20,7 +20,6 @@ import giss.ncutil
 import pyproj
 import scipy.sparse
 import operator
-import interp
 
 # ----------------------------------------------------------------
 class _HeightClassifier(object):
@@ -136,8 +135,8 @@ class BilinInterp(object):
 		hclev = [tops[0] * .5]
 		hclev.extend(.5 * (tops[1:] + tops[0:-1]))
 		hclev = np.array(hclev)
-		print 'tops = ' + str(tops)
-		print 'hclev = ' + str(hclev)
+#		print 'tops = ' + str(tops)
+#		print 'hclev = ' + str(hclev)
 		height_classifier_shifted = _HeightClassifier(hclev)
 
 
@@ -150,7 +149,7 @@ class BilinInterp(object):
 		nhc = len(tops)
 	#	print 'nhc = %d %d' % (nhc, len(hclev))
 		nlon = len(lons1)
-		print 'nlon=%d' % nlon
+#		print 'nlon=%d' % nlon
 		for i2 in range(0,n2) :
 
 			if not mask2[i2] : continue
@@ -177,13 +176,13 @@ class BilinInterp(object):
 				ilon1 = ilon0+1
 				lon_frac = 1.0 - (lons2[i2] - lons1[ilon0]) / (lons1[ilon1] - lons1[ilon0])
 				if np.abs(lon_frac) > 1.0 :
-					print '|lon_frac| = %f must be < 1', lon_frac
+					print('|lon_frac| = %f must be < 1' % lon_frac)
 					raise Exception
 
 				ilat1 = ilat0+1
 				lat_frac = 1.0 - (lats2[i2] - lats1[ilat0]) / (lats1[ilat1] - lats1[ilat0])
 				if np.abs(lat_frac) > 1.0 :
-					print '|lat_frac| = %f must be < 1', lat_frac
+					print('|lat_frac| = %f must be < 1' % lat_frac)
 					raise Exception
 
 				# Assume nhc dimension first, as in netCDF files (opposite of Snowdrift i1h convention)
@@ -206,7 +205,7 @@ class BilinInterp(object):
 				cols.extend(xcols)
 				vals.extend(xvals)
 
-		print 'making M nhc=%d, n1=%d, n2=%d nele=%d' % (nhc, n1, n2, len(vals))
+#		print 'making M nhc=%d, n1=%d, n2=%d nele=%d' % (nhc, n1, n2, len(vals))
 		self.M = scipy.sparse.coo_matrix((vals, (rows, cols)), shape=(n1*nhc,n2))
 # -------------------------------------------------------------------
 
