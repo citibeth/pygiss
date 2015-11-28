@@ -296,3 +296,11 @@ class LazyDict(collections.abc.Mapping):
 
 	def __len__(self):
 		return len(self._entries)
+
+class Thunk(object):
+	def __init__(self, *args, **kwargs):
+		self.args = args
+		self.kwargs = kwargs
+
+	def __call__(self):
+		return self.args[0](*self.args[1:], **self.kwargs)
