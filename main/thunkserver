@@ -1,0 +1,9 @@
+#!/usr/bin/env python3
+#
+
+import os
+from giss import thunkserver
+import sys
+
+thunkserver.server()
+

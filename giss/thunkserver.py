@@ -7,6 +7,7 @@ import select
 import pickle
 import giss.util as giutil
 import time
+import traceback
 
 # http://stackoverflow.com/questions/5486717/python-select-doesnt-signal-all-input-from-pipe
 class LineReader(object):
@@ -43,15 +44,14 @@ def server():
 		result = dict()
 		bstdout.flush()
 		thunk = pickle.load(bstdin)
-		bstdout.write(b'AA2\n')
 		try:
 			ret = thunk()
-			bstdout.write('ret = {}\n'.format(ret).encode())
 			result['ret'] = ret
 		except Exception as e:
+			tb = traceback.format_exc()
+			result['traceback'] = tb
 			result['exception'] = e
 
-		bstdout.write(b'Hello World\n')
 		bstdout.write(b'BEGIN RESULT\n')
 		pickle.dump(result, bstdout)
 		bstdout.write(b'\nEND RESULT\n')
@@ -109,6 +109,7 @@ class Client(object):
 								self.state = Client.INRESULT
 								self.result_lines.clear()
 							else:
+								sys.stdout.buffer.write(b'[o] ')
 								sys.stdout.buffer.write(line)
 								sys.stdout.buffer.write(b'\n')
 
@@ -120,7 +121,9 @@ class Client(object):
 								self.result_lines.append(line)
 				else:
 					for line in lines:
+						sys.stderr.buffer.write(b'[e] ')
 						sys.stderr.buffer.write(line)
+						sys.stderr.buffer.write(b'\n')
 
 			sys.stdout.buffer.flush()
 			sys.stderr.buffer.flush()
@@ -132,14 +135,14 @@ class Client(object):
 
 	def exec(self, thunk):
 		result = self._exec(thunk)
-		print('result', result)
 		if 'exception' in result:
-			raise result['exception'] from None
+			if 'traceback' in result:
+				sys.stderr.write(result['traceback'])
+				sys.stderr.write('\n')
+			raise result['exception']
 		else:
 			return result['ret']
 
 # -------------------------------------------------
 def sample_fn(x):
-	print('thunk hello world', x+17)
-	sys.stdout.flush()
-	return x+17
+	return (x+17, 'I like the quick brown fox...........')
