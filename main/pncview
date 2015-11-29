@@ -6,16 +6,17 @@ matplotlib.use('GTK3Agg')
 #matplotlib.use('module://giss.matplotlib.backend_gtk3xxagg')
 # This unfortunately makes mouse tips stop working altogether until a restart of X11.
 
-from giss.plot.pncview import *
+from pncview.pncview import *
 from giss import thunkserver
+
+fname = '/Users/rpfische/exp/151014-integrate/build/e4f40-twoway/run05-firstyear/modele_out.nc'
+varmgrs = ['pncview.varmgr.modele.ModelEVarManager']
 
 if True:
 	ts = thunkserver.Client()
-	ts.exec(giutil.Thunk(ss_init, sys.argv))
+	ts.exec(giutil.Thunk(ss_init, fname, varmgrs))
 	vmgr = ClientVarMgr(ts, 'vmgr')
 else:
-	fname = '/Users/rpfische/exp/151014-integrate/build/e4f40-twoway/run05-firstyear/modele_out.nc'
-	#fname=sys.argv[1]
 	vmgr = ModelEVarManager(fname)
 
 mod = PCViewModel(vmgr)

@@ -23,12 +23,12 @@ import memoize
 from giss import thunkserver
 import collections
 import copy
-
+from pncview.types import *
 
 # http://python-gtk-3-tutorial.readthedocs.org/en/latest/treeview.html#the-view
 
-# ----------------------------------------------------
-		
+	
+
 # ----------------------------------------------------
 class EventThrower(object):
 	"""Simple class used to manage and call events."""
@@ -48,100 +48,56 @@ class EventThrower(object):
 		self.events.remove(fn)
 
 # ----------------------------------------------------
-class VarEntry(giutil.SlotStruct):
-	__slots__ = ('type', 'vname', 'shape')
-
-
-class ModelEVarManager(object):
-
-	def __init__(self, fname):
-		self.fname = fname
-		self.nc = netCDF4.Dataset(self.fname)
-
-#		# Load up Glint2 plotters
-#		if hasattr(self.nc.variables['grid'], 'file'):
-		self.grid_fname = self.nc.variables['grid'].file
-
-		# ---------- Get machine-readable set of times
-		time_nc = self.nc.variables['time']
-		try:
-			units = time_nc.units
-			calendar = time_nc.calendar
-			self.times = netCDF4.num2date(time_nc[:], units, calendar=calendar)
-		except Exception as e:
-			# Don't know what to do, don't try to convert.
-			self.times = time_nc[:]
-
-		# ---------- Get list of entries
-		self.entries = list()
-		self.entries_by_name = dict()
-		for vname, var in self.nc.variables.items():
-			if (len(var.shape) < 2): continue
-			if (len(var.shape) == 4):
-				entry = VarEntry('modele.ijhc', vname, var.shape)
-				self.entries.append(entry)
-				self.entries_by_name[vname] = entry
-
-	def get_info(self):
-		"""Pass back stuff we created in __init__()"""
-		return self.fname, self.entries, self.times
-
-	# -----------------------------------
-	def plot_params_ijhc(self, vname, time_ix):
-		# Retrieve netcdf/etc. variable
-		var = self.nc.variables[vname]
-		val_t = var[time_ix, 1:, :]
-
-		title = '{} ({})'.format(vname, var.units)
-		title = '{}\n{}: {}'.format(title, time_ix, self.times[time_ix])
-		# TODO: Inline this
-		pp = giss.modele.plot_params(title, val=val_t, plotter='DUMMY')
-
-		plot_args = pp['plot_args']
-		plot_args['vmin'] = np.nanmin(pp['val'])
-		plot_args['vmax'] = np.nanmax(pp['val'])
-
-		pp['basemap_spec'] = ('giss.basemap', 'greenland_laea')
-		pp['plotter_spec'] = 'plotter1h'
-		del pp['val']	# This is big, don't send it initially
-		return pp
-
-	def plot_params(self, vname, time_ix):
-		entry = self.entries_by_name[vname]
-		plot_params_fn = ModelEVarManager.plot_params_fns[entry.type]
-		return plot_params_fn(self, vname, time_ix)
-	# -------------------------------------------------------
-	@memoize.mproperty
-	def plotter1h(self):
-		return glint2.Plotter1h(self.grid_fname, ice_sheet='greenland')
-
-	@property
-	def plotter2(self):
-		return self.plotter1h.plotter2
-
-	def plotter(self, spec):
-		"""Must always return the same plotter object for the same spec."""
-		return getattr(self, spec)
-	# -------------------------------------------------------
-	def val_t(self, vname, time_ix):
-		# Retrieve netcdf/etc. variable
-		var = self.nc.variables[vname]
-		val_t = var[time_ix, 1:, :]
-		return val_t
-
-ModelEVarManager.plot_params_fns = { 'modele.ijhc' : ModelEVarManager.plot_params_ijhc}
-
 
 # ====================================================
-# Server-side stuff
+# BEGIN Server-side stuff
 
-def ss_init(con, argv):
-	fname = '/Users/rpfische/exp/151014-integrate/build/e4f40-twoway/run05-firstyear/modele_out.nc'
+
+def ss_init(con, fname, varmgrs = None):
+	"""
+	fname: str
+		Name of file to open
+	varmgrs: [str]
+		List of default VarManagers class names to try (in order) if we
+		cannot determine the type."""
+
+	#
 	# fname = argv[1]
 
-	con['vmgr'] = ModelEVarManager(fname)
+
+	# Get list of varmgrs to try
+	if not varmgrs:
+		varmgrs = []
+	with netCDF4.Dataset(fname) as nc:
+		try:
+			varmgrs.append(nc.pncview_varmgr)
+		except:
+			pass
+
+	# Try the varmgrs
+	vmgr = None
+	print('varmgrs', varmgrs)
+	for svarmgr in varmgrs:
+		try:
+			dot = svarmgr.rindex('.')
+			smod = svarmgr[:dot]
+			sklass = svarmgr[dot+1:]
+			klass = getattr(importlib.import_module(smod), sklass)
+			vmgr = klass(fname)
+		except Exception as e:
+			print(e)
+			print('------------------------------')
+			sys.stderr.write("VarMgr {} doesn't work\n".format(svarmgr))
+
+	# See that we got one
+	if vmgr is None:
+		raise ValueError('Could not find any varmgr for {}\n'.format(fname))
+
+
+	con['vmgr'] = vmgr
 	con['fname'] = fname
 
+# END Server-Side Stuff
 # ====================================================
 
 # ----------------------------------------------------

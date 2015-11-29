@@ -27,6 +27,8 @@ def server():
 			ret = thunk(context)
 			result['ret'] = ret
 		except Exception as e:
+			sys.stdout.flush()
+			sys.stderr.flush()
 			tb = traceback.format_exc()
 			result['traceback'] = tb
 			result['exception'] = e
@@ -156,6 +158,8 @@ class Client(object):
 			if 'traceback' in result:
 				sys.stderr.write(result['traceback'])
 				sys.stderr.write('\n')
+			sys.stdout.flush()
+			sys.stderr.flush()
 			raise result['exception']
 		else:
 			return result['ret']
