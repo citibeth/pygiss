@@ -298,9 +298,29 @@ class LazyDict(collections.abc.Mapping):
 		return len(self._entries)
 
 class Thunk(object):
+	"""Creates a picklable object with fully bound arguments that
+	may be called later.  Additional args and kwargs may be added
+	at the time of calling.  Call-time arges are PREPENDED to
+	the arg list."""
 	def __init__(self, *args, **kwargs):
 		self.args = args
 		self.kwargs = kwargs
 
-	def __call__(self):
-		return self.args[0](*self.args[1:], **self.kwargs)
+	def __call__(self, *myargs, **mykwargs):
+		args = myargs + self.args[1:]
+		kwargs = dict(self.kwargs)
+		for k,v in mykwargs: kwargs[k] = v
+		return self.args[0](*args, **kwargs)
+
+def pickler_add_trace(pickler, trace_fn):
+	"""Dynamically adds a tracing function to a pickler, to be called
+	on every object pickled."""
+
+	if hasattr(pickler, 'persistent_id'):
+		old_persistent_id = pickler.persistent_id
+	else:
+		old_persistent_id = lambda obj: None
+	def new_persistent_id(self, obj):
+		trace_fn(obj)
+		return old_persistent_id(obj)
+	pickler.persistent_id = types.MethodType(new_persistent_id, pickler)

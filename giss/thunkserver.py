@@ -8,6 +8,38 @@ import pickle
 import giss.util as giutil
 import time
 import traceback
+import gzip
+import io
+
+def server():
+	"""Run the server.  This is to be called via
+	ssh and the thunkserver script."""
+	bstdin = sys.stdin.buffer   # Ready binary stdin stream
+	bstdout = sys.stdout.buffer
+
+	bstdout.write(b'Starting Thunk Server\n')
+	context = dict()
+	while True:
+		result = dict()
+		bstdout.flush()
+		thunk = pickle.load(bstdin)
+		try:
+			ret = thunk(context)
+			result['ret'] = ret
+		except Exception as e:
+			tb = traceback.format_exc()
+			result['traceback'] = tb
+			result['exception'] = e
+
+		bstdout.write(b'BEGIN RESULT\n')
+		gz = gzip.GzipFile(fileobj=bstdout)
+#		gz = bstdout
+		pickle.dump(result, gz)
+		gz.close()
+		bstdout.write(b'\nEND RESULT\n')
+		bstdout.flush()
+
+# =======================================================
 
 # http://stackoverflow.com/questions/5486717/python-select-doesnt-signal-all-input-from-pipe
 class LineReader(object):
@@ -34,29 +66,6 @@ class LineReader(object):
 
 
 
-def server():
-
-	bstdin = sys.stdin.buffer   # Ready binary stdin stream
-	bstdout = sys.stdout.buffer
-
-	bstdout.write(b'Starting Thunk Server\n')
-	while True:
-		result = dict()
-		bstdout.flush()
-		thunk = pickle.load(bstdin)
-		try:
-			ret = thunk()
-			result['ret'] = ret
-		except Exception as e:
-			tb = traceback.format_exc()
-			result['traceback'] = tb
-			result['exception'] = e
-
-		bstdout.write(b'BEGIN RESULT\n')
-		pickle.dump(result, bstdout)
-		bstdout.write(b'\nEND RESULT\n')
-		bstdout.flush()
-
 class Client(object):
 	OPEN = 0
 	INRESULT = 1
@@ -67,7 +76,8 @@ class Client(object):
 		# place on the remote system.
 		cwd = os.path.join('~', os.path.relpath(os.getcwd(), os.environ['HOME']))
 
-		cmd = ['ssh', '-XY', 'gibbs', 'source', '~/.profile', ';', 'cd', cwd, ';', 'thunkserver']
+#		cmd = ['ssh', '-XY', 'gibbs', 'source', '~/.profile', ';', 'cd', cwd, ';', 'thunkserver']
+		cmd = ['thunkserver']
 
 		self.proc = subprocess.Popen(cmd, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 		self.state = Client.OPEN
@@ -84,7 +94,6 @@ class Client(object):
 		p = self.proc
 
 		# Send the thunk
-		print('Sending thunk:', thunk)
 		pickle.dump(thunk, p.stdin)
 		p.stdin.flush()
 
@@ -116,7 +125,15 @@ class Client(object):
 						elif self.state == Client.INRESULT:
 							if line == b'END RESULT':
 								self.state = Client.OPEN
-								result = pickle.loads(b'\n'.join(self.result_lines))
+								result_len = sum([len(x) for x in self.result_lines]) + len(self.result_lines) - 1
+								sys.stderr.write('Result has size {}\n'.format(result_len))
+
+
+								result_s = b'\n'.join(self.result_lines)
+								result_io = io.BytesIO(result_s)
+								gz = gzip.GzipFile(fileobj=result_io)
+#								gz = result_io
+								result = pickle.load(gz)
 							else:
 								self.result_lines.append(line)
 				else:
@@ -144,5 +161,26 @@ class Client(object):
 			return result['ret']
 
 # -------------------------------------------------
-def sample_fn(x):
-	return (x+17, 'I like the quick brown fox...........')
+class ObjThunk(object):
+	"""For thunking a bound function on a thunkserver --- where
+	the object being called is stored on the thunkserver in a
+	context dict."""
+	def __init__(self, vname, fn_name, *args, **kwargs):
+		self.vname = vname
+		self.fn_name = fn_name
+		self.args = args
+		self.kwargs = kwargs
+
+	def __call__(self, con, *myargs, **mykwargs):
+		obj = con[self.vname]
+
+		# Combine bound with new arguments
+		args = myargs + self.args
+		kwargs = dict(self.kwargs)
+		for k,v in mykwargs: kwargs[k] = v
+
+		fn = getattr(obj, self.fn_name)
+		sys.stdout.flush()
+		return fn(*args, **kwargs)
+
+# ===============================================

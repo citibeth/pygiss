@@ -21,7 +21,7 @@ from giss.plot import config
 import giss.util
 import numpy as np
 import copy
-
+import importlib
 
 def formatter(plotter, basemap, plotter_context, lon_format='{:1.0f}', lat_format='{:1.0f}', val_format='{:g}'):
 
@@ -41,12 +41,12 @@ def formatter(plotter, basemap, plotter_context, lon_format='{:1.0f}', lat_forma
 			sval = val_format.format(val)
 		except TypeError:
 			sval = ''
-
-		return format_string.format(lon_d, lon_ew, lat_d, lat_ns, coords, sval)
+		ret = format_string.format(lon_d, lon_ew, lat_d, lat_ns, coords, sval)
+		return ret
 	return _format_coord
 # ---------------------------------------------------------------
 
-def plot_var(ax=None, basemap=None,
+def plot_var(ax=None, basemap=None, basemap_fn=None,
 show=None, fname=None, savefig_args={},
 plotter=None, var_name=None, val=None, title=None, plot_args={}, cb_args=None, plot_boundaries=None,
 **extra_kwargs) :
@@ -125,6 +125,12 @@ plotter=None, var_name=None, val=None, title=None, plot_args={}, cb_args=None, p
 	if extra_kwargs is not None and len(extra_kwargs) > 0 :
 		print('WARNING: Unrecognized arguments to giss.plot.plot_var() (IGNORED):')
 		print(extra_kwargs)
+
+#	# Try to construct basemap from basemap_fn
+#	if basemap_fn is not None:
+#		basemap_mod = importlib.import_module(basemap_fn[0])
+#		basemap_fn = getattr(basemap_mod, basemap_fn[1])
+#		basemap = basemap_fn(ax)
 
 	# No basemap?  Use our default
 	if basemap is None :
