@@ -44,9 +44,10 @@ class PCViewModel(object):
 	def load_plot_params(self):
 		# Ignore if Variable / time have not yet been selected
 		if self.vname is None: return
-		if self.time_ix is None: return
-		self.plot_params = self.vmgr.plot_params(self.vname, self.time_ix)
-		self.events.run_event('plot_params_changed', self, self.plot_params)
+		pp = self.vmgr.plot_params(self.vname, self.time_ix)
+		if pp is not None:
+			self.plot_params = pp
+			self.events.run_event('plot_params_changed', self, self.plot_params)
 
 	def set_time_ix(self, time_ix):
 		self.time_ix = time_ix
@@ -104,13 +105,23 @@ class ArgsPanel(object):
 	def go_plot(self, *args):
 		gmodel = self.gmodel
 
-		# Start the figure
-		figure = matplotlib.pyplot.figure(figsize=(4.25,5.5))
-		ax = figure.add_subplot(111)
-
 		# Obtain the plot_params, and complete it now.
 		pp = copy.copy(gmodel.plot_params)
 
+		# Do nothing if we're not ready to plot
+		if pp is None:
+			return
+
+		# Start the figure
+		if 'figsize' in pp:
+			figsize = pp['figsize']
+		else:
+			figsize=(11,8.5)
+		print('figsize=', figsize)
+		figure = matplotlib.pyplot.figure(figsize=figsize)
+		ax = figure.add_subplot(111)
+
+		# --------- Complete the plot_params
 		# Put the value back in
 		pp['val'] = gmodel.vmgr.val_t(gmodel.vname, gmodel.time_ix)
 

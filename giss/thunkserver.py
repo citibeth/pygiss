@@ -1,5 +1,4 @@
 # See....
-
 import os
 import sys
 import subprocess
@@ -10,6 +9,7 @@ import time
 import traceback
 import gzip
 import io
+import importlib
 
 def server():
 	"""Run the server.  This is to be called via
@@ -216,5 +216,15 @@ class ObjThunk(object):
 		fn = getattr(obj, self.fn_name)
 		sys.stdout.flush()
 		return fn(*args, **kwargs)
+# -------------------------------------------------
+class ImportThunk(object):
+	"""Special kind of thunk to import libraries.  This is used
+	to get maptlotlib on the right foot with GTK."""
+	def __init__(self, imports):
+		self.imports = imports
+	def __call__(self, con):
+		for smod in self.imports:
+			importlib.import_module(smod)
+
 
 # ===============================================

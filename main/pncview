@@ -12,12 +12,15 @@ from giss import thunkserver
 import giss.util as giutil
 gi.require_version('Gtk', '3.0')
 from gi.repository import Gtk
+import sys
 
-fname = '/Users/rpfische/exp/151014-integrate/build/e4f40-twoway/run05-firstyear/modele_out.nc'
+#fname = '/Users/rpfische/exp/151014-integrate/build/e4f40-twoway/run05-firstyear/modele_out.nc'
+fname = sys.argv[2]
 varmgrs = ['pncview.varmgr.modele.ModelEVarManager']
 
 if True:
-	ts = thunkserver.Client('localhost')
+	ts = thunkserver.Client(sys.argv[1])
+	ts.exec(thunkserver.ImportThunk(['matplotlib.pyplot']))
 	ts.exec(giutil.Thunk(ss_init, fname, varmgrs))
 	vmgr = ClientVarMgr(ts, 'vmgr')
 else:

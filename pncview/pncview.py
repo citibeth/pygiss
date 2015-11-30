@@ -1,11 +1,7 @@
-import matplotlib
 import gi
 import netCDF4
 import sys
 import giss.modele
-import matplotlib.pyplot
-matplotlib.pyplot.ion()		# Turn interactive mode on
-import mpl_toolkits.basemap
 import importlib
 from giss import thunkserver
 import os
@@ -81,6 +77,7 @@ def ss_init(con, fname, varmgrs=None):
 		cannot determine the type."""
 
 	config = read_configs(os.path.split(fname)[0])
+	print('Processed config:', config)
 
 	# ------- Get list of varmgrs to try
 	varmgrs = list()
@@ -107,7 +104,7 @@ def ss_init(con, fname, varmgrs=None):
 			smod = svarmgr[:dot]
 			sklass = svarmgr[dot+1:]
 			klass = getattr(importlib.import_module(smod), sklass)
-			vmgr = klass(fname)
+			vmgr = klass(fname, config)
 			break
 		except Exception as e:
 			sys.stderr.write("VarMgr '{}' doesn't work:\n    {}\n".format(svarmgr, e))
@@ -167,7 +164,9 @@ class ClientVarMgr(object):
 	def plotter(self, spec):
 		if spec not in self._plotters:
 			self._plotters[spec] = self.thunkserver.exec(thunkserver.ObjThunk(self.context_vname, 'plotter',  spec))
-		return self._plotters[spec]
+		ret = self._plotters[spec]
+		print('plotter({}) --> {}'.format(spec, ret))
+		return ret
 
 	def val_t(self, *args):
 		"""Returns the value to be plotted.
