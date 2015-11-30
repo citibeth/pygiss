@@ -21,6 +21,7 @@ import glob
 import contextlib
 import sys
 import collections.abc
+import types
 
 class Struct(object):
 	"""Convert a dict() to a struct."""
@@ -324,3 +325,26 @@ def pickler_add_trace(pickler, trace_fn):
 		trace_fn(obj)
 		return old_persistent_id(obj)
 	pickler.persistent_id = types.MethodType(new_persistent_id, pickler)
+
+def read_config(fname, config=None, remove_junk=True):
+	"""Reads a python script as a configuration file."""
+
+	if config is None:
+		config = dict()
+
+	with open(fname, 'rb') as fin:
+		scode = fin.read()
+
+	exec(compile(scode, fname, 'exec'), config)
+
+	# -------------- Remove stuff caller doesn't want to see
+	if remove_junk:
+		try:
+			del config['__builtins__']
+		except:
+			pass
+		for k,v in config.items():
+			if isinstance(v, types.ModuleType):
+				del config[k]
+
+	return config

@@ -67,19 +67,49 @@ class LineReader(object):
 
 
 
-
 class Client(object):
 	OPEN = 0
 	INRESULT = 1
 	TERMINATED = 2
 
-	def __init__(self):
+	def __init__(self, host, cwd_request=None):
+
+		# ---------- Set up initial configuration
+
+		# Get the CWD on the local machine, in case we want it.
 		# Convert to tilde notation, in case home directory is at a differet
 		# place on the remote system.
-		cwd = os.path.join('~', os.path.relpath(os.getcwd(), os.environ['HOME']))
+		cwd_client = os.path.join('~', os.path.relpath(os.getcwd(), os.environ['HOME']))
+		cwd_server = cwd_client if cwd_request is None else cw_request
+		if cwd_request is None:
+			cwd_request = '.'
 
-#		cmd = ['ssh', '-XY', 'gibbs', 'source', '~/.profile', ';', 'cd', cwd, ';', 'thunkserver']
-		cmd = ['thunkserver']
+		hosts = dict()
+		hosts['localhost'] = dict(cmd = ['thunkserver'])
+		hosts[''] = dict(\
+			cmd = ['ssh', '-XY', host, 'source', '~/.profile', ';', 'cd', cwd_request, ';', 'thunkserver'])
+
+		config = dict()
+		config['host'] = host
+		config['cwd_request'] = cwd_request
+		config['cwd_client'] = cwd_client
+		config['cwd_server'] = cwd_server
+		config['hosts'] = hosts
+
+
+		# ----- Modify config via ~/.thunkserverrc
+		HOME = os.environ['HOME']
+		fname = os.path.join(HOME, '.thunkserverrc')
+		try:
+			giutil.read_config(fname, config)
+		except Exception as e:
+			sys.stderr.write('WARNING: Could not read {}\n    {}\n'.format(fname, e))
+
+		# ----- Get thunkserver command and open pipe to thunkserver
+		hosts = config['hosts']
+		hdict = hosts[host] if host in hosts else hosts['']
+		cmd = hdict['cmd']
+		print('Thunkserver cmd = {}'.format(cmd))
 
 		self.proc = subprocess.Popen(cmd, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 		self.state = Client.OPEN

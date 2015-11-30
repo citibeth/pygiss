@@ -7,20 +7,24 @@ matplotlib.use('GTK3Agg')
 # This unfortunately makes mouse tips stop working altogether until a restart of X11.
 
 from pncview.pncview import *
+from pncview import gui
 from giss import thunkserver
+import giss.util as giutil
+gi.require_version('Gtk', '3.0')
+from gi.repository import Gtk
 
 fname = '/Users/rpfische/exp/151014-integrate/build/e4f40-twoway/run05-firstyear/modele_out.nc'
 varmgrs = ['pncview.varmgr.modele.ModelEVarManager']
 
 if True:
-	ts = thunkserver.Client()
+	ts = thunkserver.Client('localhost')
 	ts.exec(giutil.Thunk(ss_init, fname, varmgrs))
 	vmgr = ClientVarMgr(ts, 'vmgr')
 else:
 	vmgr = ModelEVarManager(fname)
 
-mod = PCViewModel(vmgr)
-win = PCViewWindow(mod)
+mod = gui.PCViewModel(vmgr)
+win = gui.PCViewWindow(mod)
 win.connect("delete-event", Gtk.main_quit)
 win.set_size_request(400,600)
 win.show_all()
