@@ -4,7 +4,7 @@ import sys
 import subprocess
 import select
 import pickle
-import giss.util as giutil
+from giss import giutil
 import time
 import traceback
 import gzip

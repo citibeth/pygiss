@@ -31,6 +31,16 @@ class ModelEVarManager(object):
 		self.config = config
 		self.nc = netCDF4.Dataset(self.fname)
 
+		if (hasattr(self.nc, 'xlabel') and 'GISS Model' in self.nc.xlabel \
+			and 'lon' in self.nc.dimensions and 'lat' in self.nc.dimensions):
+			# File is output of scaleacc
+			pass
+		elif 'grid' in self.nc.variables and hasattr(self.nc.variables['grid'], 'file'):
+			# File is Glint2 output
+			pass
+		else:
+			raise ValueError('File {} is not a ModelE file'.format(fname))
+
 		# The gridfile spec is optional.  It won't be there on plain
 		# aij ModelE files.
 		if 'grid' in self.nc.variables:
@@ -146,8 +156,8 @@ class ModelEVarManager(object):
 			val_t = var[time_ix, 1:, :]
 
 		# Turn the NetCDF fill value into NaN
-		if hasattr(var, '_FillValue'):
-			fill_value = var._FillValue
+		if hasattr(var, 'missing_value'):
+			fill_value = var.missing_value
 			val_t[val_t == fill_value] = np.nan
 		else:
 			val_t[val_t == 1e30] = np.nan

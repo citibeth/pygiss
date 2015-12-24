@@ -16,7 +16,7 @@ matplotlib.pyplot.ion()		# Turn interactive mode on
 import mpl_toolkits.basemap
 import glint2
 import gzip
-from giss import util as giutil
+from giss import giutil
 import importlib
 import types
 import memoize

@@ -18,7 +18,7 @@ import matplotlib
 import numpy as np
 import re
 import math
-import giss.util
+from giss import giutil
 import string
 import os
 import io
@@ -260,7 +260,7 @@ def cpt(cpt_name, cpt_path = _CPT_PATH, **kwargs) :
 		http://soliton.vm.bytemark.co.uk/pub/cpt-city/pkg/
 	"""
 
-	fname = giss.util.search_file(cpt_name, cpt_path)
+	fname = giutil.search_file(cpt_name, cpt_path)
 	if fname is None :
 		raise Exception('Cannot find color palette %s in search path %s' %
 			(cpt_name, os.pathsep.join(cpt_path)))
@@ -366,7 +366,7 @@ def parse_cpt(cpt_str, reverse=False) :
 	cdict = {'red' : rgbs[0], 'green' : rgbs[1], 'blue' : rgbs[2]}
 	cmap =  matplotlib.colors.LinearSegmentedColormap('my_colormap', cdict, 1024)
 
-	return giss.util.Struct({'cmap' : cmap, 'vmin' : vmin, 'vmax' : vmax})
+	return giutil.Struct({'cmap' : cmap, 'vmin' : vmin, 'vmax' : vmax})
 # -------------------------------------------------------
 def points_to_plotlines(polygons, points) :
 

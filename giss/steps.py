@@ -12,7 +12,7 @@ import pwd
 import re
 import traceback
 import select
-import giss.util
+from giss import giutil
 import time
 import shutil
 
@@ -112,9 +112,9 @@ class Steps(object):
 
 
 			with open(self.step_log(step_name), 'w') as step_log:
-				tee_stdout = giss.util.tee(sys.stdout, step_log)
-				tee_stderr = giss.util.tee(sys.stderr, step_log)
-				with giss.util.redirect_io(tee_stdout, tee_stderr):
+				tee_stdout = giutil.tee(sys.stdout, step_log)
+				tee_stderr = giutil.tee(sys.stderr, step_log)
+				with giutil.redirect_io(tee_stdout, tee_stderr):
 					try:
 						step_fn(self)
 					except Exception as e:

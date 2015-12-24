@@ -155,8 +155,6 @@ def plot(mymap, *args, **kwargs) :
 
 		i += 1
 
-#	print nargs
-
 	mymap.plot(*tuple(nargs), **kwargs)
 
 # Backward compatibility

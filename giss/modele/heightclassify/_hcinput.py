@@ -17,7 +17,7 @@
 import odict
 import numpy as np
 import netCDF4
-import giss.ncutil
+from giss import giutil
 
 """Basic I/O routines to support the height-classification of GIC and
 TOPO files for ModelE.
@@ -73,7 +73,7 @@ def _read_ncvar_struct(nc, var_name, output_dtype=float) :
 		val = np.zeros(ncvar.shape, dtype=output_dtype)
 		val[:] = ncvar[:]
 	out = {'name' : var_name, 'val' : val, 'sdims' : ncvar.dimensions, 'dtype' : ncvar.dtype}
-	return giss.util.Struct(out)
+	return giutil.Struct(out)
 
 # -------------------------------------------------------------
 # Reads all tuples from a GISS-format file (the TOPO file)
@@ -84,7 +84,7 @@ def _read_all_giss_struct(fname) :
 		val = np.zeros(rec.data.shape)	# Promote to double
 		name = rec.var.lower()
 		val[:] = rec.data[:]
-		topo[name] = giss.util.Struct({
+		topo[name] = giutil.Struct({
 			'name' : name,
 			'val' : val,
 			'sdims' : (u'jm', u'im'),

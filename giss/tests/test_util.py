@@ -1,9 +1,5 @@
 import unittest
-import giss.util as giutil
-
-
-
-
+from giss import giutil
 
 class TestLazyDict(unittest.TestCase):
 

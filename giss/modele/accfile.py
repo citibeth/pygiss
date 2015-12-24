@@ -17,7 +17,7 @@
 # Pythonizes functionality of scaleacc
 #
 
-import giss.util
+from giss import giutil
 import re
 import datetime
 import netCDF4
@@ -48,7 +48,7 @@ def list_acc_files(file_iterator, rundeckRE=None, date0=None, date1=None) :
 	"""List acc files in a directory, and sort by date.
 
 	Args:
-			file_iterator (see giss.util.multiglob_iterator):
+			file_iterator (see giutil.multiglob_iterator):
 			Iterator yielding (dir, filename) pairs
 		rundeckRE (string):
 			Regular expression of rundecks to match
@@ -273,5 +273,5 @@ class ScaleAcc(object) :
 		#info['rundeck'] = self.rundeck
 		#info['smonth'] = self.smonth
 		#info['dcat'] = self.dcat
-		#return giss.util.Struct(info)
+		#return giutil.Struct(info)
 		return ScaleAccRet(info['val'], info['sdims'])

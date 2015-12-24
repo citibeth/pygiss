@@ -18,7 +18,6 @@ import giss.basemap
 import matplotlib
 import matplotlib.pyplot
 from giss.plot import config
-import giss.util
 import numpy as np
 import copy
 import importlib

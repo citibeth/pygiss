@@ -16,12 +16,12 @@ import sys
 
 #fname = '/Users/rpfische/exp/151014-integrate/build/e4f40-twoway/run05-firstyear/modele_out.nc'
 fname = sys.argv[2]
-varmgrs = ['pncview.varmgr.modele.ModelEVarManager']
+#varmgrs = ['pncview.varmgr.modele.ModelEVarManager']
 
 if True:
 	ts = thunkserver.Client(sys.argv[1])
 	ts.exec(thunkserver.ImportThunk(['matplotlib.pyplot']))
-	ts.exec(giutil.Thunk(ss_init, fname, varmgrs))
+	ts.exec(giutil.Thunk(ss_init, fname))
 	vmgr = ClientVarMgr(ts, 'vmgr')
 else:
 	vmgr = ModelEVarManager(fname)

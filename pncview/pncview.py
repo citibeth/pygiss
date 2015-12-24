@@ -6,7 +6,7 @@ import importlib
 from giss import thunkserver
 import os
 import types
-import giss.util as giutil
+import pncview.varmgr.multi
 
 # http://python-gtk-3-tutorial.readthedocs.org/en/latest/treeview.html#the-view
 
@@ -20,7 +20,9 @@ import giss.util as giutil
 def default_config():
 	"""Produces the built-in hardcoded default configuration"""
 	config = dict()
-	config['varmgrs'] = ['pncview.varmgr.modele.ModelEVarManager']
+	config['varmgrs'] = [ \
+		'pncview.varmgr.modele.ModelEVarManager',
+		'pncview.varmgr.pism.PISMVarManager']
 
 	return config
 
@@ -68,7 +70,7 @@ def read_configs(start_dir):
 
 	return config
 
-def ss_init(con, fname, varmgrs=None):
+def ss_init(con, fname):
 	"""
 	fname: str
 		Name of file to open
@@ -113,6 +115,8 @@ def ss_init(con, fname, varmgrs=None):
 	if vmgr is None:
 		raise ValueError('Could not find any varmgr for {}\n'.format(fname))
 
+
+	vmgr = pncview.varmgr.multi.MultiVarManager([vmgr], config)
 
 	con['vmgr'] = vmgr
 	con['fname'] = fname
