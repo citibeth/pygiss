@@ -29,39 +29,30 @@ def _get_landmask(pism_nc) :
 	landcover:ocean = 1 ;
 	landcover:standard_name = "land_cover" ;"""
 
-	mask2 = np.array(pism_nc.variables['mask'][:], dtype=np.int32)[0,:,:]
-	mask2 = np.where(mask2==2,np.int32(0),np.int32(1))
-	return mask2
+	maskI = np.array(pism_nc.variables['mask'][:], dtype=np.int32)[0,:,:]
+	maskI = np.where(maskI==2,np.int32(0),np.int32(1))
+	return maskI
 # -------------------------------------------------------------
-def read_elevation2_mask2(pism_fname) :
-	"""Reads elevation2 and mask2 from a Pism data file
-	Returns: (elevation2, mask2) tuple
-		elevation2[n2] (np.array):
+def read_elevI_maskI(pism_fname) :
+	"""Reads elevI and maskI from a Pism data file
+	Returns: (elevI, maskI) tuple
+		elevI[n2] (np.array):
 			Elevation of each ice grid cell (m)
-		mask2[n2] (np.array, dtype=bool):
+		maskI[n2] (np.array, dtype=bool):
 			False for ice grid cells, True for unused cells
 	"""
 
-	# =============== Read stuff from ice grid (mask2, elevation2)
+	# =============== Read stuff from ice grid (maskI, elevI)
 #	print 'Opening ice data file %s' % pism_fname
 	pism_nc = netCDF4.Dataset(pism_fname)
 
-	# --- mask2
-	mask2 = _get_landmask(pism_nc)
+	# --- maskI
+	maskI = _get_landmask(pism_nc)
 
-	# --- elevation2
+	# --- elevI
 	topg = np.array(pism_nc.variables['topg'][:], dtype='d')[0,:,:]
 	thk = np.array(pism_nc.variables['thk'][:], dtype='d')[0,:,:]
-	elevation2 = topg + thk
-
-	# Physically tranpose so we're in the right order for Glint2
-	mask2 = np.transpose(mask2)
-	mask2t = np.zeros(mask2.shape, dtype=mask2.dtype)
-	mask2t[:] = mask2[:]
-
-	elevation2 = np.transpose(elevation2)
-	elevation2t = np.zeros(elevation2.shape, dtype=elevation2.dtype)
-	elevation2t[:] = elevation2[:]
+	elevI = topg + thk
 
 	pism_nc.close()
-	return (elevation2t, mask2t)
+	return (elevI, maskI)
