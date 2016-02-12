@@ -20,7 +20,7 @@ class copy_nc(object):
 	def __init__(self, nc0, ncout,
 		var_filter=lambda x : x,
 		attrib_filter = lambda x : True) :
-		"""var_filter : function(var_name) -> bool
+		"""var_filter : function(var_name) -> new_var_name
 		    Only copy variables where this filter returns True.
 		attrib_filter : function(attrib_name) -> bool
 		    Only copy attributes where this filter returns True."""

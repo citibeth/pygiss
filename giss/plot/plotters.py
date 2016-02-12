@@ -21,6 +21,7 @@ import numpy as np
 import pyproj
 import operator
 import numpy.ma as ma
+from giss import giutil
 
 class Plotter(object):
 
@@ -126,7 +127,7 @@ class LonLatPlotter(Plotter):
 		self.nlats = len(self.latb)-1
 
 	def context(self, basemap, vals):
-		context = giss.util.LazyDict()
+		context = giutil.LazyDict()
 
 		context['basemap'] = basemap
 		context.lazy['mesh_xy'] = lambda: basemap(*np.meshgrid(
@@ -255,7 +256,7 @@ class ProjXYPlotter(Plotter):
 			raise Exception("Plotter's n2 (%d) != data's n2 (%d)" % (self.n2, n2))
 
 
-		context = giss.util.LazyDict()
+		context = giutil.LazyDict()
 
 		context['basemap'] = basemap
 		context.lazy['mesh_xy'] = \

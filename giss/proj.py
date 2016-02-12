@@ -38,5 +38,3 @@ def make_projs(sproj) :
 	llproj = xyproj.to_latlong()
 
 	return (llproj, xyproj)
-
-	return projs
