@@ -69,7 +69,7 @@ class ChainedGiter(Giter):
 	# ----------------------------------------------
 	def init(self, start_time):
 		if not self._parent.init(start_time):
-			print self._parent
+			print(self._parent)
 			return None
 		if not self._parent.next():
 			return None
