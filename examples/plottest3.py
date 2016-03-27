@@ -37,7 +37,7 @@ runoff_lndice[np.isnan(runoff_lndice)] = 0.
 
 runoff = (runoff_soil * soilfr) + (runoff_lndice * landicefr)
 
-runoff *= (365. * .001)		# Convert to m/yr
+runoff *= (365. * .001)     # Convert to m/yr
 # --------------------------------------
 
 pp = giss.modele.plot_params(val=runoff)
@@ -48,7 +48,7 @@ plot_args['vmin'] = 1.e-10
 #plot_args['vmax'] = 1.e2
 plot_args['cmap'] = giss.plot.cpt('precip2_17lev.cpt').cmap
 #plot_args['cmap'] = giss.plot.cpt('nd/pink/Neutral_01.cpt').cmap
-plot_args['norm'] = matplotlib.colors.LogNorm()		# Do a log plot
+plot_args['norm'] = matplotlib.colors.LogNorm()     # Do a log plot
 #plot_args['norm'] = giss.plot.AsymmetricNormalize()  # Center on zero
 
 cb_args = pp['cb_args']

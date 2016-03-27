@@ -66,39 +66,39 @@ _lats_2x2_5 = np.array([
 
 
 by_name = {
-	'4x5' : (_lons_4x5, _lats_4x5),
-	'2x2.5' : (_lons_2x2_5, _lats_2x2_5)
+    '4x5' : (_lons_4x5, _lats_4x5),
+    '2x2.5' : (_lons_2x2_5, _lats_2x2_5)
 }
 
 _lon_lat_lookup = {
-	(len(_lats_4x5), len(_lons_4x5)) : (_lons_4x5, _lats_4x5),
-	(len(_lats_2x2_5), len(_lons_2x2_5)) : (_lons_2x2_5, _lats_2x2_5),
+    (len(_lats_4x5), len(_lons_4x5)) : (_lons_4x5, _lats_4x5),
+    (len(_lats_2x2_5), len(_lons_2x2_5)) : (_lons_2x2_5, _lats_2x2_5),
 
-	(len(_lats_4x5) * len(_lons_4x5),) : (_lons_4x5, _lats_4x5),
-	(len(_lats_2x2_5) * len(_lons_2x2_5),) : (_lons_2x2_5, _lats_2x2_5)
+    (len(_lats_4x5) * len(_lons_4x5),) : (_lons_4x5, _lats_4x5),
+    (len(_lats_2x2_5) * len(_lons_2x2_5),) : (_lons_2x2_5, _lats_2x2_5)
 }
 
 
 def get_byname(name) :
-	lons, lats = by_name[name]
-	return giss.plot.LonLatPlotter(lons, lats)
+    lons, lats = by_name[name]
+    return giss.plot.LonLatPlotter(lons, lats)
 
 
 def guess_plotter(shape) :
-	"""Guesses on a plotter to use, based on the dimension of a data
-	array from ModelE output.
-	Args:
-		shape : Either
-			(a) A Tuple of integers, representing the shape of an array
-			(b) The np.array itself
+    """Guesses on a plotter to use, based on the dimension of a data
+    array from ModelE output.
+    Args:
+        shape : Either
+            (a) A Tuple of integers, representing the shape of an array
+            (b) The np.array itself
 
-	Returns (Plotter):
-		A plotter appropriate to the data, and resolution of the model."""
+    Returns (Plotter):
+        A plotter appropriate to the data, and resolution of the model."""
 
-	# Work just as well on shape tuple or np.array
-	if not isinstance(shape, tuple) :
-		shape = shape.shape
+    # Work just as well on shape tuple or np.array
+    if not isinstance(shape, tuple) :
+        shape = shape.shape
 
-	# Infer the grid from the size of the input array
-	lons, lats = _lon_lat_lookup[shape]
-	return giss.plot.LonLatPlotter(lons, lats)
+    # Infer the grid from the size of the input array
+    lons, lats = _lon_lat_lookup[shape]
+    return giss.plot.LonLatPlotter(lons, lats)
