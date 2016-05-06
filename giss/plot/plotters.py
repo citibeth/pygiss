@@ -21,6 +21,7 @@ import numpy as np
 import pyproj
 import operator
 import numpy.ma as ma
+import giss.util
 
 class Plotter(object):
 
