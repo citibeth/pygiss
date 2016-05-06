@@ -3,8 +3,8 @@ import numpy as np
 
 # Simple conservative regridding for constant-valued regions.
 
-def integrate_weights(dz, z0, z1)
-	"""dz: Depth of each layer"
+def integrate_weights(dz, z0, z1):
+	"""dz: Depth of each layer"""
 
 	top = np.cumsum(dz)		# Top of each layer
 	ix = []

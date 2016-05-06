@@ -88,7 +88,7 @@ def reader(ifname):
 			if len(slen) == 0 :
 				break
 			if len(slen) < 4 :
-				print 'Found %d extra bytes at end of file' % (len(slen))
+				print('Found %d extra bytes at end of file' % (len(slen)))
 				break
 
 			len0 = struct.unpack(">I",slen)[0]
@@ -99,7 +99,7 @@ def reader(ifname):
 			len1 = struct.unpack(">I",fin.read(4))[0]
 
 			if len0 != len1 :
-				print 'Error reading record, %d (len0) != %d (len1)' % (len0,len1)
+				print('Error reading record, %d (len0) != %d (len1)' % (len0,len1))
 				break
 
 			# ======================================
