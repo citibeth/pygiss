@@ -24,149 +24,149 @@ import collections.abc
 import types
 
 class Struct(object):
-	"""Convert a dict() to a struct."""
-	def __init__(self, entries): 
-		self.__dict__.update(entries)
+    """Convert a dict() to a struct."""
+    def __init__(self, entries): 
+        self.__dict__.update(entries)
 
 class curry(object):
-	"""Curry a function, i.e. produce a new function in which the
-	first n parameters have been set.
+    """Curry a function, i.e. produce a new function in which the
+    first n parameters have been set.
 
-	Args:
-		fun:
-			The function to curry
-		*args:
-			The first few arguments to the function
-		**kwargs:
-			Any keyword arguments to pass to the function
+    Args:
+        fun:
+            The function to curry
+        *args:
+            The first few arguments to the function
+        **kwargs:
+            Any keyword arguments to pass to the function
 
-	Returns:
-		Object that acts like the new curried function.
+    Returns:
+        Object that acts like the new curried function.
 
-	Example:
-		double = curry(operator.mul, 2)
-		print double(17)
-		triple = curry(operator.mul, 3)
+    Example:
+        double = curry(operator.mul, 2)
+        print double(17)
+        triple = curry(operator.mul, 3)
 
-	See:
-		http://code.activestate.com/recipes/52549-curry-associating-parameters-with-a-function"""
+    See:
+        http://code.activestate.com/recipes/52549-curry-associating-parameters-with-a-function"""
 
-	def __init__(self, fun, *args, **kwargs):
-		self.fun = fun
-		self.pending = args[:]
-		self.kwargs = kwargs.copy()
-	def __call__(self, *args, **kwargs):
-		if kwargs and self.kwargs:
-			kw = self.kwargs.copy()
-			kw.update(kwargs)
-		else:
-			kw = kwargs or self.kwargs
-		return self.fun(*(self.pending + args), **kw)
+    def __init__(self, fun, *args, **kwargs):
+        self.fun = fun
+        self.pending = args[:]
+        self.kwargs = kwargs.copy()
+    def __call__(self, *args, **kwargs):
+        if kwargs and self.kwargs:
+            kw = self.kwargs.copy()
+            kw.update(kwargs)
+        else:
+            kw = kwargs or self.kwargs
+        return self.fun(*(self.pending + args), **kw)
 
 # -----------------------------------------------------------
 # see: http://stackoverflow.com/questions/8100166/inheriting-methods-docstrings-in-python
 def inherit_docs(cls):
-	"""Class decorator that inerhits docstrings from the superclass."""
-	for name in dir(cls):
-		func = getattr(cls, name)
-		if func.__doc__: 
-			continue
-		for parent in cls.mro()[1:]:
-			if not hasattr(parent, name):
-				continue
-			doc = getattr(parent, name).__doc__
-			if not doc: 
-				continue
-			try:
-				# __doc__'s of properties are read-only.
-				# The work-around below wraps the property into a new property.
-				if isinstance(func, property):
-					# We don't want to introduce new properties, therefore check
-					# if cls owns it or search where it's coming from.
-					# With that approach (using dir(cls) instead of var(cls))
-					# we also handle the mix-in class case.
-					wrapped = property(func.fget, func.fset, func.fdel, doc)
-					clss = filter(lambda c: name in vars(c).keys() and not getattr(c, name).__doc__, cls.mro())
-					setattr(clss[0], name, wrapped)
-				else:
-					try:
-						func = func.__func__ # for instancemethod's
-					except:
-						pass
-					func.__doc__ = doc
-			except: # some __doc__'s are not writable
-				pass
-			break
-	return cls
+    """Class decorator that inerhits docstrings from the superclass."""
+    for name in dir(cls):
+        func = getattr(cls, name)
+        if func.__doc__: 
+            continue
+        for parent in cls.mro()[1:]:
+            if not hasattr(parent, name):
+                continue
+            doc = getattr(parent, name).__doc__
+            if not doc: 
+                continue
+            try:
+                # __doc__'s of properties are read-only.
+                # The work-around below wraps the property into a new property.
+                if isinstance(func, property):
+                    # We don't want to introduce new properties, therefore check
+                    # if cls owns it or search where it's coming from.
+                    # With that approach (using dir(cls) instead of var(cls))
+                    # we also handle the mix-in class case.
+                    wrapped = property(func.fget, func.fset, func.fdel, doc)
+                    clss = filter(lambda c: name in vars(c).keys() and not getattr(c, name).__doc__, cls.mro())
+                    setattr(clss[0], name, wrapped)
+                else:
+                    try:
+                        func = func.__func__ # for instancemethod's
+                    except:
+                        pass
+                    func.__doc__ = doc
+            except: # some __doc__'s are not writable
+                pass
+            break
+    return cls
 
 # -----------------------------------------------------------
 def numpy_stype(var) :
-	"""Provides a summary of a numpy variable.
+    """Provides a summary of a numpy variable.
 
-	Returns:
-		Textual summary.  Eg: int[4,3]
-	"""
-	return '%s%s' % (str(var.dtype), str(var.shape))
+    Returns:
+        Textual summary.  Eg: int[4,3]
+    """
+    return '%s%s' % (str(var.dtype), str(var.shape))
 # -----------------------------------------------------------
 def search_file(filename, search_path):
-	"""Given a search path, find file.
-	Args:
-		Alt 1: search_path[] (string):
-			Directories where to search for file
-		Alt 2: search_path (string)
-			Directories where to search for file, using path separator.
-			Eg: '/usr/home:/usr/bin'
+    """Given a search path, find file.
+    Args:
+        Alt 1: search_path[] (string):
+            Directories where to search for file
+        Alt 2: search_path (string)
+            Directories where to search for file, using path separator.
+            Eg: '/usr/home:/usr/bin'
 
-	See:
-		http://code.activestate.com/recipes/52224-find-a-file-given-a-search-path/
-	"""
-	if isinstance(search_path, str) :
-		search_path = string.split(search_path, os.pathsep)
-	for path in search_path :
-		if os.path.exists(os.path.join(path, filename)):
-			return os.path.abspath(os.path.join(path, filename))
+    See:
+        http://code.activestate.com/recipes/52224-find-a-file-given-a-search-path/
+    """
+    if isinstance(search_path, str) :
+        search_path = string.split(search_path, os.pathsep)
+    for path in search_path :
+        if os.path.exists(os.path.join(path, filename)):
+            return os.path.abspath(os.path.join(path, filename))
 
-	# Not found :(
-	return None
+    # Not found :(
+    return None
 # -----------------------------------------------------------
 def sum_by_cols(matrix) :
-	return np.array(matrix.sum(axis=0)).reshape(-1)
+    return np.array(matrix.sum(axis=0)).reshape(-1)
 
 def sum_by_rows(matrix) :
-	return np.array(matrix.sum(axis=1)).reshape(-1)
+    return np.array(matrix.sum(axis=1)).reshape(-1)
 
 def reshape_no_copy(arr, *shape) :
-	"""Reshape a np.array, but don't make any copies of it.
-	Throws an exception if the new reshaped view cannot be made
-	(for example, if the original array were non-contiguous"""
-	ret = arr.view()
-	ret.shape = shape
-	return ret
+    """Reshape a np.array, but don't make any copies of it.
+    Throws an exception if the new reshaped view cannot be made
+    (for example, if the original array were non-contiguous"""
+    ret = arr.view()
+    ret.shape = shape
+    return ret
 
 # -----------------------------------------------------------
 def multiglob_iterator(paths) :
-	"""Iterator liss a bunch of files from a bunch of arguments.  Tries to work like ls
-	Yields:
-		(directory, filename) pairs
-	See:
-		lsacc.py
-	"""
-	if len(paths) == 0 :
-		for fname in os.listdir('.') :
-			yield ('', fname)
-		return
+    """Iterator liss a bunch of files from a bunch of arguments.  Tries to work like ls
+    Yields:
+        (directory, filename) pairs
+    See:
+        lsacc.py
+    """
+    if len(paths) == 0 :
+        for fname in os.listdir('.') :
+            yield ('', fname)
+        return
 
-	for path in paths :
-		if os.path.isdir(path) :
-			for fname in os.listdir(path) :
-				yield (path, fname)
+    for path in paths :
+        if os.path.isdir(path) :
+            for fname in os.listdir(path) :
+                yield (path, fname)
 
-		elif os.path.isfile(path) :
-			yield os.path.split(path)
+        elif os.path.isfile(path) :
+            yield os.path.split(path)
 
-		else :
-			for ret in multiglob_iterator(glob.glob(path)) :
-				yield ret
+        else :
+            for ret in multiglob_iterator(glob.glob(path)) :
+                yield ret
 
 # http://shallowsky.com/blog/programming/python-tee.html
 class tee(object):
@@ -191,160 +191,160 @@ class tee(object):
 # http://stackoverflow.com/questions/13250050/redirecting-the-output-of-a-python-function-from-stdout-to-variable-in-python
 @contextlib.contextmanager
 def redirect_io(out=sys.stdout, err=sys.stderr):
-	saved = (sys.stdout, sys.stderr)
-	sys.stdout = out
-	sys.stderr = err
-	try:
-		yield
-	finally:
-		sys.stdout, sys.stderr = saved
+    saved = (sys.stdout, sys.stderr)
+    sys.stdout = out
+    sys.stderr = err
+    try:
+        yield
+    finally:
+        sys.stdout, sys.stderr = saved
 
 
 
 
 
 class CallCounter(object):
-	"""Wraps a function, counting how many times it's been called."""
-	__slots__ = ('fn', 'count')
+    """Wraps a function, counting how many times it's been called."""
+    __slots__ = ('fn', 'count')
 
-	def __init__(self, fn):
-		self.fn = fn
-		self.count = 0
+    def __init__(self, fn):
+        self.fn = fn
+        self.count = 0
 
-	def __call__(self, *args, **kwargs):
-		ret = self.fn(*args, **kwargs)
-		self.count += 1
-		return ret
+    def __call__(self, *args, **kwargs):
+        ret = self.fn(*args, **kwargs)
+        self.count += 1
+        return ret
 
 
 class SlotStruct(object):
-	def __init__(self, *args):
-		for attr,val in zip(self.__slots__, args):
-			setattr(self, attr, val)
+    def __init__(self, *args):
+        for attr,val in zip(self.__slots__, args):
+            setattr(self, attr, val)
 
-	def __getitem__(self, index):
-		# TODO: We shouldn't have to go through getattr() here.
-		return getattr(self, self.__slots__[index])
+    def __getitem__(self, index):
+        # TODO: We shouldn't have to go through getattr() here.
+        return getattr(self, self.__slots__[index])
 
-	def __len__(self):
-		return len(self.__slots__)
+    def __len__(self):
+        return len(self.__slots__)
 
-	def __repr__(self):
-		ret = [str(type(self)), '(']
-		for slot in self.__slots__:
-			ret.append(repr(getattr(self, slot)))
-			ret.append(', ')
-		ret[-1] = ')'
-		return ''.join(ret)
+    def __repr__(self):
+        ret = [str(type(self)), '(']
+        for slot in self.__slots__:
+            ret.append(repr(getattr(self, slot)))
+            ret.append(', ')
+        ret[-1] = ')'
+        return ''.join(ret)
 
 class LazyDict(collections.abc.Mapping):
-	"""A dictionary that stores values that will be later lazily evaluated."""
+    """A dictionary that stores values that will be later lazily evaluated."""
 
-	class Entry(SlotStruct):
-		__slots__ = (
-			'lam',		# Expression to generate value
-			'val',		# The value computed by lam()
-			'isset')	# True if val has been set
-
-
-	class LazyView(collections.abc.MutableMapping):
-		"""Sets/returns lambdas instead of values"""
-		def __init__(self, dict):
-			self._entries = dict
-
-		def __getitem__(self, key):
-			entry = self._entries[key]
-			if entry.lam is None:
-				return lambda: entry.val
-			else:
-				return entry.lam
-
-		def __setitem__(self, key, lam):
-			if not callable(lam):
-				raise ValueError("Items inserted into LazyDict.LazyView must be callable.")
-			self._entries[key] = LazyDict.Entry(lam, None, False)
-
-		def __delitem__(self, key):
-			del self._entries[key]
-
-		def __iter__(self):
-			return iter(self._entries)
-
-		def __len__(self):
-			return len(self._entries)
+    class Entry(SlotStruct):
+        __slots__ = (
+            'lam',      # Expression to generate value
+            'val',      # The value computed by lam()
+            'isset')    # True if val has been set
 
 
-	# -----------------------------------------
-	def __init__(self):
-		self._entries = dict()
-		self.lazy = LazyDict.LazyView(self._entries)
+    class LazyView(collections.abc.MutableMapping):
+        """Sets/returns lambdas instead of values"""
+        def __init__(self, dict):
+            self._entries = dict
 
-	def __getitem__(self, key):
-		entry = self._entries[key]	# Could raise a KeyError
-		if not entry.isset:
-			entry.val = entry.lam()
-			entry.isset = True
-		return entry.val
+        def __getitem__(self, key):
+            entry = self._entries[key]
+            if entry.lam is None:
+                return lambda: entry.val
+            else:
+                return entry.lam
 
-	def __setitem__(self, key, val):
-		self._entries[key] = LazyDict.Entry(None, val, True)
+        def __setitem__(self, key, lam):
+            if not callable(lam):
+                raise ValueError("Items inserted into LazyDict.LazyView must be callable.")
+            self._entries[key] = LazyDict.Entry(lam, None, False)
 
-	def __delitem__(self, key):
-		del self._entries[key]
+        def __delitem__(self, key):
+            del self._entries[key]
 
-	def __iter__(self):
-		return iter(self._entries)
+        def __iter__(self):
+            return iter(self._entries)
 
-	def __len__(self):
-		return len(self._entries)
+        def __len__(self):
+            return len(self._entries)
+
+
+    # -----------------------------------------
+    def __init__(self):
+        self._entries = dict()
+        self.lazy = LazyDict.LazyView(self._entries)
+
+    def __getitem__(self, key):
+        entry = self._entries[key]  # Could raise a KeyError
+        if not entry.isset:
+            entry.val = entry.lam()
+            entry.isset = True
+        return entry.val
+
+    def __setitem__(self, key, val):
+        self._entries[key] = LazyDict.Entry(None, val, True)
+
+    def __delitem__(self, key):
+        del self._entries[key]
+
+    def __iter__(self):
+        return iter(self._entries)
+
+    def __len__(self):
+        return len(self._entries)
 
 class Thunk(object):
-	"""Creates a picklable object with fully bound arguments that
-	may be called later.  Additional args and kwargs may be added
-	at the time of calling.  Call-time arges are PREPENDED to
-	the arg list."""
-	def __init__(self, *args, **kwargs):
-		self.args = args
-		self.kwargs = kwargs
+    """Creates a picklable object with fully bound arguments that
+    may be called later.  Additional args and kwargs may be added
+    at the time of calling.  Call-time arges are PREPENDED to
+    the arg list."""
+    def __init__(self, *args, **kwargs):
+        self.args = args
+        self.kwargs = kwargs
 
-	def __call__(self, *myargs, **mykwargs):
-		args = myargs + self.args[1:]
-		kwargs = dict(self.kwargs)
-		for k,v in mykwargs: kwargs[k] = v
-		return self.args[0](*args, **kwargs)
+    def __call__(self, *myargs, **mykwargs):
+        args = myargs + self.args[1:]
+        kwargs = dict(self.kwargs)
+        for k,v in mykwargs: kwargs[k] = v
+        return self.args[0](*args, **kwargs)
 
 def pickler_add_trace(pickler, trace_fn):
-	"""Dynamically adds a tracing function to a pickler, to be called
-	on every object pickled."""
+    """Dynamically adds a tracing function to a pickler, to be called
+    on every object pickled."""
 
-	if hasattr(pickler, 'persistent_id'):
-		old_persistent_id = pickler.persistent_id
-	else:
-		old_persistent_id = lambda obj: None
-	def new_persistent_id(self, obj):
-		trace_fn(obj)
-		return old_persistent_id(obj)
-	pickler.persistent_id = types.MethodType(new_persistent_id, pickler)
+    if hasattr(pickler, 'persistent_id'):
+        old_persistent_id = pickler.persistent_id
+    else:
+        old_persistent_id = lambda obj: None
+    def new_persistent_id(self, obj):
+        trace_fn(obj)
+        return old_persistent_id(obj)
+    pickler.persistent_id = types.MethodType(new_persistent_id, pickler)
 
 def read_config(fname, config=None, remove_junk=True):
-	"""Reads a python script as a configuration file."""
+    """Reads a python script as a configuration file."""
 
-	if config is None:
-		config = dict()
+    if config is None:
+        config = dict()
 
-	with open(fname, 'rb') as fin:
-		scode = fin.read()
+    with open(fname, 'rb') as fin:
+        scode = fin.read()
 
-	exec(compile(scode, fname, 'exec'), config)
+    exec(compile(scode, fname, 'exec'), config)
 
-	# -------------- Remove stuff caller doesn't want to see
-	if remove_junk:
-		try:
-			del config['__builtins__']
-		except:
-			pass
-		for k,v in config.items():
-			if isinstance(v, types.ModuleType):
-				del config[k]
+    # -------------- Remove stuff caller doesn't want to see
+    if remove_junk:
+        try:
+            del config['__builtins__']
+        except:
+            pass
+        for k,v in config.items():
+            if isinstance(v, types.ModuleType):
+                del config[k]
 
-	return config
+    return config

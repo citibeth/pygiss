@@ -19,49 +19,49 @@ import netCDF4
 
 # -------------------------------------------------------------
 def _get_landmask(pism_nc) :
-	"""Converts the Pism land cover numbers into true/false for an ice mask.
+    """Converts the Pism land cover numbers into true/false for an ice mask.
 
-	landcover:ice_sheet = 4 ;
-	landcover:land = 2 ;
-	landcover:local_ice_caps_not_connected_to_the_ice_sheet = 3 ;
-	landcover:long_name = "Land Cover" ;
-	landcover:no_data = 0 ;
-	landcover:ocean = 1 ;
-	landcover:standard_name = "land_cover" ;"""
+    landcover:ice_sheet = 4 ;
+    landcover:land = 2 ;
+    landcover:local_ice_caps_not_connected_to_the_ice_sheet = 3 ;
+    landcover:long_name = "Land Cover" ;
+    landcover:no_data = 0 ;
+    landcover:ocean = 1 ;
+    landcover:standard_name = "land_cover" ;"""
 
-	mask2 = np.array(pism_nc.variables['mask'][:], dtype=np.int32)[0,:,:]
-	mask2 = np.where(mask2==2,np.int32(0),np.int32(1))
-	return mask2
+    mask2 = np.array(pism_nc.variables['mask'][:], dtype=np.int32)[0,:,:]
+    mask2 = np.where(mask2==2,np.int32(0),np.int32(1))
+    return mask2
 # -------------------------------------------------------------
 def read_elevation2_mask2(pism_fname) :
-	"""Reads elevation2 and mask2 from a Pism data file
-	Returns: (elevation2, mask2) tuple
-		elevation2[n2] (np.array):
-			Elevation of each ice grid cell (m)
-		mask2[n2] (np.array, dtype=bool):
-			False for ice grid cells, True for unused cells
-	"""
+    """Reads elevation2 and mask2 from a Pism data file
+    Returns: (elevation2, mask2) tuple
+        elevation2[n2] (np.array):
+            Elevation of each ice grid cell (m)
+        mask2[n2] (np.array, dtype=bool):
+            False for ice grid cells, True for unused cells
+    """
 
-	# =============== Read stuff from ice grid (mask2, elevation2)
-#	print 'Opening ice data file %s' % pism_fname
-	pism_nc = netCDF4.Dataset(pism_fname)
+    # =============== Read stuff from ice grid (mask2, elevation2)
+#   print 'Opening ice data file %s' % pism_fname
+    pism_nc = netCDF4.Dataset(pism_fname)
 
-	# --- mask2
-	mask2 = _get_landmask(pism_nc)
+    # --- mask2
+    mask2 = _get_landmask(pism_nc)
 
-	# --- elevation2
-	topg = np.array(pism_nc.variables['topg'][:], dtype='d')[0,:,:]
-	thk = np.array(pism_nc.variables['thk'][:], dtype='d')[0,:,:]
-	elevation2 = topg + thk
+    # --- elevation2
+    topg = np.array(pism_nc.variables['topg'][:], dtype='d')[0,:,:]
+    thk = np.array(pism_nc.variables['thk'][:], dtype='d')[0,:,:]
+    elevation2 = topg + thk
 
-	# Physically tranpose so we're in the right order for Glint2
-	mask2 = np.transpose(mask2)
-	mask2t = np.zeros(mask2.shape, dtype=mask2.dtype)
-	mask2t[:] = mask2[:]
+    # Physically tranpose so we're in the right order for Glint2
+    mask2 = np.transpose(mask2)
+    mask2t = np.zeros(mask2.shape, dtype=mask2.dtype)
+    mask2t[:] = mask2[:]
 
-	elevation2 = np.transpose(elevation2)
-	elevation2t = np.zeros(elevation2.shape, dtype=elevation2.dtype)
-	elevation2t[:] = elevation2[:]
+    elevation2 = np.transpose(elevation2)
+    elevation2t = np.zeros(elevation2.shape, dtype=elevation2.dtype)
+    elevation2t[:] = elevation2[:]
 
-	pism_nc.close()
-	return (elevation2t, mask2t)
+    pism_nc.close()
+    return (elevation2t, mask2t)

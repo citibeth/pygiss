@@ -38,21 +38,21 @@ import hc_snowdrift
 def hc_vars_ncar(
 # Parameters to be curried
 height_max1h,
-ice_sheet_descrs,	# [].{overlap_fname, elevation2, mask2}
+ice_sheet_descrs,   # [].{overlap_fname, elevation2, mask2}
 # "Generic" parameters to remain
 ivars) :
 
 
-	ovars = hc_snowdrift.hc_vars_with_snowdrift(height_max1h, ice_sheet_descrs, ivars)
+    ovars = hc_snowdrift.hc_vars_with_snowdrift(height_max1h, ice_sheet_descrs, ivars)
 
-	elev1h = ovars['elev1h']
-	elev1h[0,:] = height_max1h[0,:] * .5
-	for ihc in range(1,elev1h.shape[0]) :
-		elev1h[ihc:,:] = (height_max1h[ihc,:] + height_max1h[ihc-1,:]) * .5
+    elev1h = ovars['elev1h']
+    elev1h[0,:] = height_max1h[0,:] * .5
+    for ihc in range(1,elev1h.shape[0]) :
+        elev1h[ihc:,:] = (height_max1h[ihc,:] + height_max1h[ihc-1,:]) * .5
 
-	fhc1h = ovars['fhc1h']
+    fhc1h = ovars['fhc1h']
         fhc1h[fhc1h == 0] = 1e-30
 
-	return ovars
+    return ovars
 
 
