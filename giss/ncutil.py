@@ -17,6 +17,8 @@
 import numpy as np
 import netCDF4
 import sys
+import os
+import shutil
 
 # Copy a netCDF file (so we can add more stuff to it)
 class copy_nc(object):
@@ -166,3 +168,70 @@ def diff(nc0, nc1, ncout=None,
                 nc.close()
             except Exception as e:
                 sys.stderr.write('Exception in ncutil.py diff(): {}\n'.format(e))
+
+def install_nc(ifname, odir, installed=None):
+
+    """Installs a netCDF file into odir.  Follows a convention for
+    dependencies in the netCDF file:
+
+        Attributes on the variable 'file' list files related to this
+        file (absoulte paths).  Parallel attributes on the variable
+        'install_paths' list the relative directory each file should
+        be installed in.
+
+    For example:
+
+        int files ;
+                files:source = "/home2/rpfische/modele_input/origin/GIC.144X90.DEC01.1.ext_1.nc" ;
+                files:elev_mask = "/home2/rpfische/f15/modelE/init_cond/ice_sheet_ec/elev_mask.nc" ;
+                files:icebin_in = "/home2/rpfische/f15/modelE/init_cond/ice_sheet_ec/icebin_in.nc" ;
+        int install_paths ;
+                install_paths:elev_mask = "landice" ;
+                install_paths:icebin_in = "landice" ;
+
+    Files without an install_path won't get installed."""
+
+    if installed is None:
+        installed = dict()    # ifname --> ofname
+
+    # Make sure destination exists
+    try:
+        os.makedirs(odir)
+    except:
+        pass
+
+    # Copy the netCDF file to the destination
+    _,ifleaf = os.path.split(ifname)
+    ofname = os.path.join(odir, ifleaf)
+    print('{} ->\n    {}'.format(ifname, ofname))
+    shutil.copyfile(ifname, ofname)
+
+    # Install dependencies of this file
+    nc = None
+    try:
+
+        try:
+            nc = netCDF4.Dataset(ofname, 'a')
+        except RuntimeError:
+            return
+
+        try:
+            files = nc.variables['files']
+            install_paths = nc.variables['install_paths']
+        except KeyError:
+            # Files doesn't follow the conventions
+            return
+
+        # Iterate through attributes
+        for label, relpath in install_paths.__dict__.items():
+            child_ifname = getattr(files, label)
+            _,child_leaf = os.path.split(child_ifname)
+            child_odir = os.path.abspath(os.path.join(odir, relpath))
+            child_ofname = os.path.join(child_odir, child_leaf)
+
+            install_nc(child_ifname, child_odir)
+            setattr(files, label, child_ofname)
+
+    finally:
+        if nc is not None:
+            nc.close()
