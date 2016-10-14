@@ -20,6 +20,20 @@ begin = hashlib.md5
            hashup(hash, self.val)
 """
 # --------------------------------------------------------
+class CheckFile(object):
+    """Used to mark a path whose modification date and size should be
+    included in the hash."""
+
+    def __init__(self, fname):
+        self.fname = fname
+
+    hash_version=0
+    def hashup(hash):
+        hashup(hash, self.fname)
+        hashup(hash, os.path.getmtime(path))
+        hashup(hash, os.path.getsize(path))
+
+# --------------------------------------------------------
 def hashup_int(hash, x):
     try:
         # https://docs.python.org/2/library/struct.html#format-characters
@@ -72,10 +86,10 @@ def hashup_type(hash, klass):
     hash.update(klass.__qualname__.encode())
 
 
+# -----------------------------------------
 def hashup_error(hash, x):
     raise ValueError('Cannot checksum {} {}'.format(type(x), x))
 
-# -----------------------------------------
 hashup_methods = {
     int : hashup_int,
     float : hashup_float,
@@ -93,10 +107,13 @@ hashup_methods = {
     types.BuiltinFunctionType : hashup_fn,
     types.BuiltinMethodType : hashup_fn,
     types.ModuleType : hashup_module,
+    pathutils.Path : hashup_path,
 }
 
-def hashup(hash, x):
-    klass = type(x)
+def hashup(hash, x, klass=None):
+    # When hashing parameters we sometimes know what the class will be
+    if klass is None:
+        klass = type(x)
     if klass in hashup_methods:
         hashup_methods[klass](hash, x)
     else:
@@ -110,4 +127,4 @@ def checksum(x):
     """Top-level function"""
     hash = begin()
     hashup(hash, x)
-    return hash.hexdigest()
+    return hash.digest()
