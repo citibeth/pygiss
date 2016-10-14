@@ -17,7 +17,7 @@
 
 # http://stackoverflow.com/questions/13250050/redirecting-the-output-of-a-python-function-from-stdout-to-variable-in-python
 @contextmanager
-def redirect_io(out=sys.stdout, err=sys.stderr):
+def redirect(out=sys.stdout, err=sys.stderr):
     saved = (sys.stdout, sys.stderr)
     sys.stdout = out
     sys.stderr = err
@@ -25,3 +25,16 @@ def redirect_io(out=sys.stdout, err=sys.stderr):
         yield
     finally:
         sys.stdout, sys.stderr = saved
+
+@contextlib.contextmanager
+def pushd(path):
+    """A context manager which changes the working directory to the given
+    path, and then changes it back to its previous value on exit.
+
+    """
+    prev_cwd = os.getcwd()
+    os.chdir(path)
+    yield
+    os.chdir(prev_cwd)
+
+

@@ -1,6 +1,8 @@
+from giss.checksum import hashup
+
 # See: functoolspartial for binding...
 
-class Function(object):
+class _Function(object):
     def __init__(self, fn):
         self.fn = fn
 
@@ -19,7 +21,22 @@ class arg(object):
         self.index = index
 
 
-class bind(Function):
+class Thunk(_Function):
+    """Simple version of bind"""
+    def __init__(self, func, *args, **kwargs):
+        self.func = func
+        self.args = args
+        self.kwargs = kwargs
+    def __call__(self):
+        return self.func(*self.args, **self.kwargs)
+
+    hash_version = 0
+    def hashup(self, hash):
+        hashup(hash, self.func)
+        hashup(hash, self.args)
+        hashup(hash, self.kwargs)
+
+class bind(_Function):
     """Reorder positional arguments.
     Eg: g = f('yp', _1, 17, _0, dp=23)
     Then g('a', 'b', another=55) --> f('yp', 'b', 17, 'a', dp=23, another=55)

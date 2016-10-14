@@ -1,88 +1,201 @@
 import functools
+import collections
+from giss import functional
 from giss import checksum
+from giss.bind import *
+import os
+import pickle
 
 """Generalized functional-style access to data."""
 
 # https://wiki.python.org/moin/PythonDecoratorLibrary#Memoize
 
 
-class MemoSet(object):
-    def __init__(self):
-        self.local_caches = dict()
-        self.persistent_caches = dict()
+class scaleacc(object):
+    hash_version = 0
+    def __init__(ifname, sections, odir=None):
+        idir,ileaf = os.path.split(ifname)
+        self.sections = sections
+        self.odir = idir if odir is None else odir
+
+        # Indicate input files this function reads
+        self.inputs = [os.path.realpath(ifname)]
+
+        # Indicate output files this function writes
+        # For each output file, indicate the 
+        self.outputs = [(
+            os.path.realpath(os.path.join(self.odir, ileaf.replace('acc', x))),  # filename
+            (File(self.ifname), x))    # hashup tuple for this filename
+            for x in sections]
+
+        # Indicates what to return from a function call.
+        # Can be made a @property if needed.
+        self.value = [x[0] for x in self.outputs]
+
+    def __call__(self):
+        cmd = ['scaleacc', self.inputs[0]] + sections
+        subprocess.check_output(cmd)
+        return self.value
 
 
+class File(object):
+    def __init__(self, realpath):
+        """
+        realpath:
+            The canonical path to the file."""
+        self.realpath = realpath
+        self.mtime = os.path.getmtime(self.realpath)
+        self.size = os.path.getsize(self.realpath)
 
-#class memoized(object):
-#    def __init__(self, *args, **kwargs):
-#        self.args = args
-#        self.kwargs = kwargs    # dict_fn, id_fn
-#
-#    def __call__(self, func):
-#        return _memoized(func, *self.args, **self.kwargs)
+    hash_version = 0
+    def hashup(self, hash):
+        """Hashes a file IN ITS CURRENT STATE"""
+        checksum.hashup_str(hash, str(self.realpath))
+        checksum.hashup(hash, self.mtime)
+        checksum.hashup(hash, self.size)
+
+    def __repr__(self):
+        return 'File({}, {}, {})'.format(self.realpath, self.mtime, self.size)
+
+# Tuple describing the origin of a file and its present state
+OriginInfo = collections.namedtuple('OriginInfo',
+    ('ofile', 'origin_file', 'file_mtime', 'file_size', 'origin_hash'))
+
+OriginInfo('a','b',3,4,5)
+
+@functional.arg_decorator
+class files(object):
+    """Decorator to memoize on the files in a special "File function."
+
+    A filefn is run on filefn(*args, **kwargs) to produce a thunk with
+    the additional properties:
+      * hash_version  = For the whole class...
+      * thunk.inputs  = File inputs for this function call
+      * thunk.outputs = File outputs for this function call
+                        [(ofile, origin_tuple)]
+      * thunk()       = Execute the function
+    """
+    def __init__(self, filefn):
+        self.filefn = filefn
+
+    def _origin_info(self, inputs_hash, ofile, origin_tuple):
+        """returns: origin_file, origin_hash"""
+
+        # Name of origin file
+        odir,oleaf = os.path.split(ofile)
+        ofile_origin = os.path.join(odir, '.' + oleaf + '.origin')
+
+        # ---------------------------------------------------
+        # Hash that goes in the origin file
+        hash = checksum.begin()
+
+        # ---- The function used to compute this output
+        hash.update(self.filefn.__module__.encode())
+        hash.update(self.filefn.__qualname__.encode())
+        checksum.hashup_int(hash, self.filefn.hash_version)
+
+        # ---- Input files used to compute this output
+        hash.update(inputs_hash)
+
+        # ---- Details of the output itself
+        hashup(hash, origin_tuple)
+        # ---------------------------------------------------
+
+        mtime = None
+        try:
+            mtime = os.path.getmtime(ofile)
+        except IOError:
+            pass
+
+        size = None
+        try:
+            size = os.path.getsize(ofile)
+        except IOError:
+            pass
+
+        return OriginInfo(ofile, ofile_origin, mtime,
+            size, hash.digest())
 
 
-def arg_decorator(decorator_fn):
-    """Meta-decorator that makes it easier to write decorators taking args.
-    See:
-       * old way: http://scottlobdell.me/2015/04/decorators-arguments-python
-       * new way: memoized below (no lambdas required)"""
+    def __call__(self, *args, **kwargs):
+        all_good = True
 
-    class real_decorator(object):
-        def __init__(self, *args, **kwargs):
-            self.args = args
-            self.kwargs = kwargs    # dict_fn, id_fn
-
-        def __call__(self, func):
-            return decorator_fn(func, *self.args, **self.kwargs)
-
-    return real_decorator
-
-#class memoized(object):
-#    def __init__(self, *args, **kwargs):
-#        self.args = args
-#        self.kwargs = kwargs    # dict_fn, id_fn
-#
-#    def __call__(self, func):
-#        return _memoized(func, *self.args, **self.kwargs)
+        # See what files this function would read/write.
+        thunk = self.filefn(*args, **kwargs)
 
 
+        # ---------- See if any of OUR output files have mysteriously changed
+        # (this "shouldn't" happen...)
+        #
+        # Identify what the OriginInfo for each file should look like
+        inputs_hash = checksum.checksum([File(x) for x in sorted(thunk.inputs)])
+        origins = [self._origin_info(inputs_hash, ofile, origin_tuple)
+            for ofile,origin_tuple in thunk.outputs]
 
-@arg_decorator
-class memoized(object):
+        # Validate the origin info against output of what's on disk
+        if all_good:
+            for origin in origins:
+                if not os.path.exists(origin.ofile):
+                    all_good = False
+                    break
+
+                try:
+                    with open(origin.origin_file, 'rb') as fin:
+                        file_mtime, file_size, origin_hash = pickle.load(fin)
+
+                    if file_mtime != origin.file_mtime or \
+                        file_size != origin.file_size or \
+                        origin_hash != origin.origin_hash:
+
+                        all_good = False
+                        break
+
+                except Exception as e:
+                    # If any problems... re-do it!
+                    all_good = False
+                    break
+
+        if all_good:
+            # Reconstruct return value from past run
+            return thunk.value
+        else:
+            value = thunk()    # Return value comes as Thunk property set at __init__()
+
+            # Now write origin file for each output file we created
+            for origin in origins:
+                with open(origin.origin_file, 'wb') as out:
+                    file_size = os.path.getsize(origin.ofile)
+                    mtime = os.path.getmtime(origin.ofile)
+                    pickle.dump((mtime, file_size, origin.origin_hash), out)
+
+            return value
+
+@functional.arg_decorator
+class local(object):
     """Decorator. Caches a function's return value each time it is called.
     If called later with the same arguments, the cached value is returned
     (not reevaluated).
 
     NOTE: This needs to be a class to keep it checksummable"""
 
-    def __init__(self, func, dict_fn=dict, id_fn=checksum.checksum):
+    def __init__(self, func, cache=dict(), id_fn=checksum.checksum):
         self.func = func
-        self.dict_fn = dict_fn
+        self.cache = cache
         self.id_fn = id_fn
 
     def __call__(self, *args, **kwargs):
-        # First argument of a memoized function is always the memoization state
-        # It's a dict(function --> cache-for-that-function)
-        ms = args[0]
-
         # Look up the dict used for memoizing this function
         func_id = self.id_fn(self.func)
-        try:
-            cache = ms[func_id]
-        except KeyError:
-            cache = self.dict_fn()
-            ms[func_id] = cache
 
         # Get checksum of  complete function call
-        thunk = bind(self.func, *args[1:], **kwargs)
+        thunk = Thunk(self.func, *args, **kwargs)
         thunk_id = self.id_fn(thunk)
 
-        if thunk_id not in cache:
-            value = thunk()#self.func(*args, **kwargs)
-            cache[thunk_id] = value
+        if thunk_id not in self.cache:
+            value = thunk()
+            self.cache[thunk_id] = value
 
-        return cache[thunk_id]
+        return self.cache[thunk_id]
 
 
     # Allow to decorate methods as well as functions

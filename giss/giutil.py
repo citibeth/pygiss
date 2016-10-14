@@ -188,28 +188,6 @@ class tee(object):
         self.fd1.flush()
         self.fd2.flush()
 
-# http://stackoverflow.com/questions/13250050/redirecting-the-output-of-a-python-function-from-stdout-to-variable-in-python
-@contextlib.contextmanager
-def redirect_io(out=sys.stdout, err=sys.stderr):
-    saved = (sys.stdout, sys.stderr)
-    sys.stdout = out
-    sys.stderr = err
-    try:
-        yield
-    finally:
-        sys.stdout, sys.stderr = saved
-
-@contextlib.contextmanager
-def pushd(path):
-    """A context manager which changes the working directory to the given
-    path, and then changes it back to its previous value on exit.
-
-    """
-    prev_cwd = os.getcwd()
-    os.chdir(path)
-    yield
-    os.chdir(prev_cwd)
-
 
 
 
