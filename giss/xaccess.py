@@ -8,8 +8,11 @@ import netCDF4
 
 class IndexClass(object):
     """Extract slice objects"""
-    def __getitem__(self, tuple):
-        return tuple
+    def __getitem__(self, t):
+        if isinstance(t, tuple):
+            return t
+        return (t,)
+
 # Singleton allows us to say, eg: ix[2,3,4:5]
 _ix = IndexClass()
 
@@ -23,6 +26,7 @@ class ArrayOps(object):
     def __add__(self, other):
         def real_fn(*args, **kwargs):
             return self(*args, **kwargs) + other(*args, **kwargs)
+        return real_fn
 
 @functional.addops(ArrayOps)
 def ncdata(fname, var_name, *index, nan=np.nan, missing_value=None, missing_threshold=None):

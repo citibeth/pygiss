@@ -1,5 +1,7 @@
 from giss import functional
 from giss.checksum import hashup
+from giss import giutil
+import types
 
 # See: functoolspartial for binding...
 
@@ -26,7 +28,7 @@ class Thunk(functional.Function):
         hashup(hash, self.args)
         hashup(hash, self.kwargs)
 
-class bind(functional.Function):
+class _Bind(functional.Function):
     """Reorder positional arguments.
     Eg: g = f('yp', _1, 17, _0, dp=23)
     Then g('a', 'b', another=55) --> f('yp', 'b', 17, 'a', dp=23, another=55)
@@ -35,13 +37,7 @@ class bind(functional.Function):
     def __init__(self, fn, *pargs, **pkwargs):
         # Maximum index referred to by the user.
         # Inputs to f above this index will be passed through
-
-        # Lift the core function to avoid unnecessary wrapping
-        if isinstance(fn, functional.BasicFunction):
-            self.fn = fn.fn
-        else:
-            self.fn = fn
-
+        self.fn = fn
         self.pargs = pargs
         self.pkwargs = pkwargs
         self.max_gindex = max(
@@ -59,4 +55,23 @@ class bind(functional.Function):
 
         fkwargs = dict(self.pkwargs)
         fkwargs.update(gkwargs)    # Overwrite keys
-        return self.fn(*fargs, *fkwargs)
+        return self.fn(*fargs, **fkwargs)
+
+def bind(fn, *pargs, **pkwargs):
+        # Lift ops to the bound function
+        if isinstance(fn, functional.Function):
+#            parents = list(reversed(giutil.uniq([_Bind] + list(type(fn).__bases__))))
+            parents = giutil.uniq([_Bind] + list(type(fn).__bases__))
+            name = '<{}>'.format(','.join(x.__name__ for x in parents))
+            klass = types.new_class(name, tuple(parents), {})
+        else:
+            klass = _Bind
+
+        # Avoid unnecessary wrapping
+        if isinstance(fn, functional.BasicFunction):
+            fn1 = fn.fn
+        else:
+            fn1 = fn
+
+        return klass(fn1, *pargs, **pkwargs)
+
