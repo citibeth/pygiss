@@ -28,11 +28,39 @@ class ArrayOps(object):
             return self(*args, **kwargs) + other(*args, **kwargs)
         return real_fn
 
+def intersect_dicts(a,b):
+    return {key : a[key] \
+        for key a.keys()&b.keys() \
+        if a[key] == b[key]}
+
+# Functions that return meta-data
+class AttrsOps(object):
+    def __add__(self, other):
+        def real_fn(*args, **kwargs):
+            sret = self(*args, **kwargs)
+            oret = other(*args, **kwargs)
+            return intersect_dicts(sret, oret)
+
+# Functions that return tuples of things
+class MultiOps(object):
+    def __add__(self, other):
+        def real_fn(*args, **kwargs):
+            sret = self(*args, **kwargs)
+            oret = other(*args, **kwargs)
+            return tuple(s + o for s,o in zip(sret, oret))
+# --------------------------------------------
 @functional.addops(ArrayOps)
 def ncdata(fname, var_name, *index, nan=np.nan, missing_value=None, missing_threshold=None):
-    """Simple accessor function for data in NetCDF files"""
+    """Simple accessor function for data in NetCDF files.
+    Returns: (attrs, thunk)
+        attrs:
+            Attributes of the NetCDF variable
+        thunk:
+            thunk() returns the data."""
+
     nc = ncopen(fname)
     var = nc.variables[var_name]
+
     data = var[index]
     if missing_value is not None:
         # User override of NetCDF standard
@@ -45,13 +73,25 @@ def ncdata(fname, var_name, *index, nan=np.nan, missing_value=None, missing_thre
         data[np.abs(val) > missing_threshold] = nan
 
     return data
-
-def ncattr(fname, var_name, attr_name):
+# --------------------------------------------
+@functional.addops(AttrOps)
+def ncattrs(fname, var_name):
+    """Fetches attributes of a variable."""
     nc = ncopen(fname)
-    if var_name is None:
-        return getattr(nc, attr_name)
-    else:
-        return getattr(nc.variables[var_name], attr_name)
+    return dict(nc.variables[var_name]__dict__)
+
+@functional.addops(MultiOps)
+def ncfetch(fname, var_name, *index, nan=np.nan, missing_value=None, missing_threshold=None):
+    attrs = ncattrs(fname, var_name)
+    attrs['file'] = fname
+    attrs['var'] = var_name
+    attrs['index'] = index
+    attrs['nan'] = np.nan
+    attrs['missing_value'] = missing_value
+    attrs['missing_threshold'] = missing_threshold
+    return (attrs,
+        functional.bind(ncdata, fname, var_name, *index, nan=np.nan, missing_value=None, missing_threshold=None))
+
 # ------------------------------------------
 # Higher-order functions
 def sum(*funcs):

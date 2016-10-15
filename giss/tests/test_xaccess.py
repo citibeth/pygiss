@@ -24,6 +24,8 @@ class TestXAccess(unittest.TestCase):
             nc.createDimension('ni', ni)
             nc.createDimension('nj', nj)
             var = nc.createVariable('sample1', 'd', ('ni', 'nj'))
+            var.sameattr = 'sameattr'
+            var.differentattr = 17
             val = np.zeros((ni,nj))
             for i in range(0,ni):
                 for j in range(0,nj):
@@ -31,6 +33,8 @@ class TestXAccess(unittest.TestCase):
             var[:] = val
 
             var = nc.createVariable('sample2', 'd', ('ni', 'nj'))
+            var.sameattr = 'sameattr'
+            var.differentattr = 23
             val = np.zeros((ni,nj))
             for i in range(0,ni):
                 for j in range(0,nj):
