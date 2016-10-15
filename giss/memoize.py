@@ -197,7 +197,6 @@ class local(object):
 
         return self.cache[thunk_id]
 
-
     # Allow to decorate methods as well as functions
     # See: http://www.ianbicking.org/blog/2008/10/decorators-and-descriptors.html
     def __get__(self, obj, type=None):

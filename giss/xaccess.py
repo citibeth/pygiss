@@ -18,7 +18,8 @@ _ix = IndexClass()
 
 @memoize.local()
 def ncopen(name):
-    return netCDF4.Dataset(name, 'r')
+    nc = netCDF4.Dataset(name, 'r')
+    return nc
 
 # -------------------------------------------------------------
 # Data access functions return Numpy Array
@@ -29,17 +30,19 @@ class ArrayOps(object):
         return real_fn
 
 def intersect_dicts(a,b):
+    """Returns only entries with the same value in both dicts."""
     return {key : a[key] \
-        for key a.keys()&b.keys() \
+        for key in a.keys()&b.keys() \
         if a[key] == b[key]}
 
 # Functions that return meta-data
-class AttrsOps(object):
+class AttrOps(object):
     def __add__(self, other):
         def real_fn(*args, **kwargs):
             sret = self(*args, **kwargs)
             oret = other(*args, **kwargs)
             return intersect_dicts(sret, oret)
+        return real_fn
 
 # Functions that return tuples of things
 class MultiOps(object):
@@ -47,16 +50,14 @@ class MultiOps(object):
         def real_fn(*args, **kwargs):
             sret = self(*args, **kwargs)
             oret = other(*args, **kwargs)
+            print('sret', sret)
             return tuple(s + o for s,o in zip(sret, oret))
+        return real_fn
 # --------------------------------------------
-@functional.addops(ArrayOps)
-def ncdata(fname, var_name, *index, nan=np.nan, missing_value=None, missing_threshold=None):
+def _ncdata(fname, var_name, *index, nan=np.nan, missing_value=None, missing_threshold=None):
     """Simple accessor function for data in NetCDF files.
-    Returns: (attrs, thunk)
-        attrs:
-            Attributes of the NetCDF variable
-        thunk:
-            thunk() returns the data."""
+    Ops on this aren't very interesting because it is a
+    fully-bound thunk."""
 
     nc = ncopen(fname)
     var = nc.variables[var_name]
@@ -73,12 +74,18 @@ def ncdata(fname, var_name, *index, nan=np.nan, missing_value=None, missing_thre
         data[np.abs(val) > missing_threshold] = nan
 
     return data
+
+# Scenario A: Immediate fetching of data
+ncdata = functional.addops(ArrayOps)(_ncdata)
 # --------------------------------------------
 @functional.addops(AttrOps)
 def ncattrs(fname, var_name):
     """Fetches attributes of a variable."""
     nc = ncopen(fname)
-    return dict(nc.variables[var_name]__dict__)
+    return dict(nc.variables[var_name].__dict__)
+
+
+_ncdata_thunk = functional.thunkify(_ncdata)
 
 @functional.addops(MultiOps)
 def ncfetch(fname, var_name, *index, nan=np.nan, missing_value=None, missing_threshold=None):
@@ -89,8 +96,11 @@ def ncfetch(fname, var_name, *index, nan=np.nan, missing_value=None, missing_thr
     attrs['nan'] = np.nan
     attrs['missing_value'] = missing_value
     attrs['missing_threshold'] = missing_threshold
-    return (attrs,
-        functional.bind(ncdata, fname, var_name, *index, nan=np.nan, missing_value=None, missing_threshold=None))
+    return attrs, \
+        _ncdata_thunk(
+            fname, var_name, *index,
+            nan=nan, missing_value=missing_value,
+            missing_threshold=missing_threshold)
 
 # ------------------------------------------
 # Higher-order functions

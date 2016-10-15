@@ -22,27 +22,45 @@ def arg_decorator(decorator_fn):
 
     return real_decorator
 
-# http://stackoverflow.com/questions/9539052/how-to-dynamically-change-base-class-of-instances-at-runtime?noredirect=1
-class Object(object):
+class Function(object):
     pass
 
-class Function(Object):
-    """Wraps a function in a class so we can add higher-order methods to it."""
+# ---------------------------------------------------------
+class Thunk(Function):
+    """Base class for classes that acts like a function that returns a function."""
+    def __init__(self, fn, *args, **kwargs):
+        self.fn = fn
+        self.args = args
+        self.kwargs = kwargs
+    def __call__(self):
+        return self.fn(*self.args, **self.kwargs)
+    hash_version=0
+    def hashup(self,hash):
+        hashup(hash, (self.fn, self.args, self.kwargs))
+
+class thunkify(object):
+    """Decorator that changes a function into a function that returns a
+    thunk; that when called will run the original function.
+    """
     def __init__(self, fn):
         self.fn = fn
-        self.attrs = dict()    # Meta-data
+
+    def __call__(self, *args, **kwargs):
+        return Thunk(self.fn, *args, **kwargs)
+# ---------------------------------------------------------
+class BasicFunction(Function):
+    """Wraps a function into a class so we can add higher-order methods to it."""
+    def __init__(self, fn):
+        self.fn = fn
 
     def __call__(self, *args, **argv):
         return self.fn(*args, **argv)
 
 
-class BasicFunction(Function):
-    """Wraps a raw Python function."""
-    pass
-
-
 def addops(*opclasses):
-    """Decorator: Adds sets of higher-level operations to a function.
+    """Decorator: Wraps a Python function in a Function, and adds a set of higer-order
+    operations to it.
+
     opclasses:
         List of mixin classes containing the higher-level ops."""
     def real_decorator(fn):
@@ -66,26 +84,10 @@ def addops(*opclasses):
 # =================================================
 # --------------------------------------------------------
 class _arg(object):
-
     """Tagging class"""
     def __init__(self, index):
         self.index = index
 
-
-#class Thunk(functional.Function):
-#    """Simple version of bind"""
-#    def __init__(self, func, *args, **kwargs):
-#        self.func = func
-#        self.args = args
-#        self.kwargs = kwargs
-#    def __call__(self):
-#        return self.func(*self.args, **self.kwargs)
-#
-#    hash_version = 0
-#    def hashup(self, hash):
-#        hashup(hash, self.func)
-#        hashup(hash, self.args)
-#        hashup(hash, self.kwargs)
 
 class _Bind(functional.Function):
     """Reorder positional arguments.
@@ -97,7 +99,7 @@ class _Bind(functional.Function):
        2. Get kwargs working
     """
 
-    def __init__(self, fn, attrs, *pargs, **pkwargs):
+    def __init__(self, fn, *pargs, **pkwargs):
         # Maximum index referred to by the user.
         # Inputs to f above this index will be passed through
         self.fn = fn.fn if isinstance(fn, functional.BasicFunction) else fn    # Avoid unnecessary wrapping
@@ -107,32 +109,6 @@ class _Bind(functional.Function):
             (x.index if isinstance(x, _arg) else -1 for x in pargs),
             default=-1)
 
-        # Figure out this function's signature
-        # ...and put bound parameters into the metadata
-        if isinstance(fn, functional.Function):
-            sig = fn.signature
-        else:
-            sig = inspect.signature(self.fn)
-        bound = sig.bind_partial(*pargs, **pkwargs).arguments
-        old_pl = list(sig.parameters.values())
-        new_pl = [None]*(self.max_gindex+1)
-        for param in old_pl:
-            if param.name in bound:
-                val = bound[param.name]
-                if isinstance(val, _arg):
-                    # Not really bound here; put it in output param list
-                    new_pl[val.index] = param
-                else:
-                    # Parameter was bound here; add it to the metadata
-                    attrs[(fn.qualname,param.name)] = bound[param.name]
-            else:
-                # Parameter not bound; hopefully it's a kwarg or a tailing
-                # positional arg.  Either way, append to parameter list
-                new_pl.append(param)
-        new_sig = sig.replace(parameters=new_pl)
-        self.signature = new_sig
-        self.attrs = attrs
-
     def __call__(self, *gargs, **gkwargs):
         fargs = \
             [gargs[x.index] if isinstance(x, _arg) else x for x in self.pargs] + \
@@ -140,22 +116,18 @@ class _Bind(functional.Function):
 
         fkwargs = dict(self.pkwargs)
         fkwargs.update(gkwargs)    # Overwrite keys
-        print('fargs', fargs)
+        print('*** fargs', self.fn, fargs)
         return self.fn(*fargs, **fkwargs)
 
-def bind(fn, *args, attrs=None, **kwargs):
-    if attrs is None:
-        attrs = dict()
-
+def bind(fn, *pargs, **pkwargs):
     # Lift ops to the bound function
     if isinstance(fn, functional.Function):
         parents = giutil.uniq([_Bind] + list(type(fn).__bases__))
         name = '<{}>'.format(','.join(x.__name__ for x in parents))
         klass = types.new_class(name, tuple(parents), {})
-        attrs.extend(fn.attrs)   # Start with metadata from bound function...
     else:
         klass = _Bind
         # No metadata to copy on a raw function
 
-    return klass(fn, attrs, *pargs, **pkwargs)
+    return klass(fn, *pargs, **pkwargs)
 
