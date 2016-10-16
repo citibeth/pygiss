@@ -2,8 +2,11 @@ import hashlib
 import struct
 import types
 
+
+__all__ = ('begin_checksum', 'hashup', 'checksum')
+
 # Our chosen hash function
-begin = hashlib.md5
+begin_checksum = hashlib.md5
 
 """To make a class checksummable:
 
@@ -19,20 +22,6 @@ begin = hashlib.md5
        def hashup(self, hash):
            hashup(hash, self.val)
 """
-# --------------------------------------------------------
-class CheckFile(object):
-    """Used to mark a path whose modification date and size should be
-    included in the hash."""
-
-    def __init__(self, fname):
-        self.fname = fname
-
-    hash_version=0
-    def hashup(hash):
-        hashup(hash, self.fname)
-        hashup(hash, os.path.getmtime(path))
-        hashup(hash, os.path.getsize(path))
-
 # --------------------------------------------------------
 def hashup_int(hash, x):
     try:
@@ -122,6 +111,6 @@ def hashup(hash, x, klass=None):
 
 def checksum(x):
     """Top-level function"""
-    hash = begin()
+    hash = begin_checksum()
     hashup(hash, x)
     return hash.digest()

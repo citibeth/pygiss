@@ -1,10 +1,13 @@
 import functools
-from giss import bind,checksum,memoize,functional
+from giss.functional import *
+from giss import checksum,memoize
 import collections
 import numpy as np
 import netCDF4
 
 """Generalized functional-style access to data."""
+
+__all__ = ('ncopen', 'ncfetch', '_ix')
 
 # -------------------------------------------------------------
 
@@ -28,7 +31,7 @@ def ncopen(name):
     return nc
 
 # ---------------------------------------------------------------
-@functional.thunkify
+@thunkify()
 def ncdata(fname, var_name, *index, nan=np.nan, missing_value=None, missing_threshold=None):
     """Simple accessor function for data in NetCDF files.
     Ops on this aren't very interesting because it is a
@@ -50,9 +53,9 @@ def ncdata(fname, var_name, *index, nan=np.nan, missing_value=None, missing_thre
 
     return data
 # --------------------------------------------
-NCFetchTuple = functional.NamedTuple('NCFetchTuple', ('attrs', 'data'))
+NCFetchTuple = namedtuplex('NCFetchTuple', ('attrs', 'data'))
 
-@functional.function
+@function()
 def ncfetch(file_name, var_name, *index, nan=np.nan, missing_value=None, missing_threshold=None):
     """Produces extended attributes on a variable fetch operation"""
     nc = ncopen(file_name)
@@ -88,7 +91,7 @@ def ncfetch(file_name, var_name, *index, nan=np.nan, missing_value=None, missing
     attrs[('fetch', 'missing_threshold')] = missing_threshold
 
     return NCFetchTuple(
-        functional.WrapCombine(attrs, functional.intersect_dicts),
+        wrap_combine(attrs, intersect_dicts),
         ncdata(file_name, var_name, *index, nan=nan,
             missing_value=missing_value,
             missing_threshold=missing_threshold))

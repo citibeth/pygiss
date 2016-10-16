@@ -2,17 +2,10 @@ import unittest
 import tempfile
 import os
 import shutil
-
-from giss import xaccess
-from giss.xaccess import _ix,ncdata,ncfetch,ncdata
-import types
-from giss import functional
-from giss.functional import _arg
-import sys
 import numpy as np
 import netCDF4
-import sys
-from giss import giutil
+from giss.xaccess.netcdf import *
+from giss.functional import *
 
 class TestXAccess(unittest.TestCase):
     def setUp(self):
@@ -51,8 +44,8 @@ class TestXAccess(unittest.TestCase):
     def test_ncfetch(self):
         ix = _ix[:]
 
-        sample1 = functional.bind(ncfetch, self.ncname, 'sample1')
-        sample2 = functional.bind(ncfetch, self.ncname, 'sample2')
+        sample1 = bind(ncfetch, self.ncname, 'sample1')
+        sample2 = bind(ncfetch, self.ncname, 'sample2')
         samplesum = sample1 + sample2
 
         # Make sure the meta-data combined properly

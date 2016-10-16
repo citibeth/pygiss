@@ -2,7 +2,8 @@ from keyword import iskeyword as _iskeyword
 import sys as _sys
 
 ################################################################################
-### namedtuple
+### Extend the standard Python namedtuple to allow for a tuple-like base class
+### other than the standard Python tuple.
 ### From: https://hg.python.org/cpython/file/3.5/Lib/collections/__init__.py
 ################################################################################
 

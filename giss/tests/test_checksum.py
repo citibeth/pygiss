@@ -15,7 +15,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 import unittest
-from giss import checksum
+from giss.checksum import *
 
 def fib(ms, n):
     if n < 2:
@@ -32,15 +32,14 @@ class TestChecksum(unittest.TestCase):
         pass
 
     def test_checksum(self):
-        cs = checksum.checksum
-        self.assertEqual(cs(17), cs(17))
-        self.assertNotEqual(cs(17), cs(18))
+        self.assertEqual(checksum(17), checksum(17))
+        self.assertNotEqual(checksum(17), checksum(18))
 
-        self.assertEqual(cs([17, 18]), cs([17, 18]))
-        self.assertNotEqual(cs([17, 18]), cs([18, 17]))
+        self.assertEqual(checksum([17, 18]), checksum([17, 18]))
+        self.assertNotEqual(checksum([17, 18]), checksum([18, 17]))
 
-        cs(fib)
-        cs(self.fn2)
+        checksum(fib)
+        checksum(self.fn2)
 
 if __name__ == '__main__':
     unittest.main()

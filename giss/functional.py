@@ -1,28 +1,16 @@
 import types
-from giss import giutil
 from giss.checksum import hashup
-from giss import giutil, gicollections
+from giss import gicollections
 import types
 import inspect
 import operator
 
-
-# --------------------------------------------------------
-def arg_decorator(decorator_fn):
-    """Meta-decorator that makes it easier to write decorators taking args.
-    See:
-       * old way: http://scottlobdell.me/2015/04/decorators-arguments-python
-       * new way: See memoize.files (no lambdas required)"""
-
-    class real_decorator(object):
-        def __init__(self, *args, **kwargs):
-            self.args = args
-            self.kwargs = kwargs    # dict_fn, id_fn
-
-        def __call__(self, func):
-            return decorator_fn(func, *self.args, **self.kwargs)
-
-    return real_decorator
+# Minimal interface for end users and 'from giss.functional import *'
+# more involved uses regular imports and more fully qualified namesx
+__all__ = (
+    '_arg', 'bind', 'function', 'thunkify',
+    'wrap_value', 'wrap_combine', 'intersect_dicts', 'none_if_different',
+    'tuplex', 'namedtuplex')
 
 # ---------------------------------------------------------
 # Universal for all Functions...
@@ -94,16 +82,19 @@ def bind(fn, *bound_args, **bound_kwargs):
         # (Don't bother with this optimization for now...)
         # Re-work bound args...
         pass
-    elif isinstance(fn, _Tuple):
-        # Bind inside the Tuple, to retain tuple nature of our function
+    elif isinstance(fn, _tuplex):
+        # Bind inside the tuplex, to retain tuple nature of our function
         return fn.construct(bind(x, *bound_args, **bound_kwargs) for x in fn)
     else:
         return BoundFunction(fn, *bound_args, **bound_kwargs)
 
 
-def function(python_fn):
-    """Decorator Wraps a Python function into a Function."""
-    return bind(python_fn)
+def function():
+    def real_decorator(python_fn):
+        """Decorator Wraps a Python function into a Function."""
+        return bind(python_fn)
+
+    return real_decorator
 # ---------------------------------------------------------
 # Good for summing >1 functions
 
@@ -125,24 +116,28 @@ class product(Function):
             product *= fn(*args, **kwargs)
         return product
 # ---------------------------------------------------------
-class thunkify(Function):
-    """Decorator that replaces a function with a thunk constructor.
-    When called, the resulting thunk will run the original function.
+def thunkify():
+    class real_decorator(Function):
+        """Decorator that replaces a function with a thunk constructor.
+        When called, the resulting thunk will run the original function.
 
-    Suppose f :: X -> Y         # Haskell notation
-    Then thunkify f x :: Y
-    or    thunkfiy :: Function -> X -> Y
-    """
-    def __init__(self, fn):
-        self.fn = fn
+        Suppose f :: X -> Y         # Haskell notation
+        Then thunkify f x :: Y
+        or    thunkfiy :: Function -> X -> Y
+        """
+        def __init__(self, fn):
+            self.fn = fn
 
-    def __call__(self, *args, **kwargs):
-        return bind(self.fn, *args, **kwargs)
+        def __call__(self, *args, **kwargs):
+            return bind(self.fn, *args, **kwargs)
 
-    def __repr__(self):
-        return 'thunkify({})'.format(self.fn)
+        def __repr__(self):
+            return 'thunkify({})'.format(self.fn)
+
+    return real_decorator
+
 # -------------------------------------------------------
-class Wrap(Function):
+class wrap_value(Function):
     """A thunk that wraps a value; calling the thunk will return the value.
     This serves as a base class to define arithmetic operations on (wrapped) values
     when combining functions."""
@@ -151,17 +146,17 @@ class Wrap(Function):
     def __call__(self):
         return self.value
     def __repr__(self):
-        return 'Wrap({})'.format(self.value)
+        return 'wrap_value({})'.format(self.value)
 
 # -------------------------------------------------------------
-class WrapCombine(Wrap):
+class wrap_combine(wrap_value):
     """A thunk that wraps a value; calling the thunk will return the value.
     All operations are mapped to a supplied "combine" function."""
     def __init__(self, value, combine_fn):
         self.value = value
         self.combine_fn = combine_fn
     def __add__(self, other):
-        return WrapCombine(self.combine_fn(self.value, other.value), self.combine_fn)
+        return wrap_combine(self.combine_fn(self.value, other.value), self.combine_fn)
 
 # -------------------------------------------------------------
 def intersect_dicts(a,b):
@@ -174,7 +169,7 @@ def none_if_different(a,b):
     """Combine function: Keep only if things are the same."""
     return a if a==b else None
 # -------------------------------------------------------------
-class _Tuple(Function):
+class _tuplex(Function):
     """Avoid problems of multiple inheritence and __init__() methods.
     See for another possible soultion:
     http://stackoverflow.com/questions/1565374/subclassing-python-tuple-with-multiple-init-arguments"""
@@ -184,7 +179,7 @@ class _Tuple(Function):
         return self.construct(x(*args, **kwargs) for x in self)
 
 
-class Tuple(_Tuple,tuple):
+class tuplex(_tuplex,tuple):
     def construct(self, args):
         """Construct a new instance of type(self).
         args:
@@ -193,8 +188,8 @@ class Tuple(_Tuple,tuple):
     def __repr__(self):
         return '(x ' + ','.join(repr(x) for x in self) + ')'
 
-class NamedTupleBase(_Tuple,tuple):
-    """For use only with NamedTuple.  Accomodates different constructors
+class _NamedXtuplexBase(_tuplex,tuple):
+    """For use only with namedtuplex.  Accomodates different constructors
     for tuple vs namedtuple."""
     def construct(self, args):
         """Construct a new instance of type(self).
@@ -202,28 +197,6 @@ class NamedTupleBase(_Tuple,tuple):
             A (Python)tuple of the things to construct with."""
         return type(self)(*args)
 
-def NamedTuple(*args, **kwargs):
-    return gicollections.namedtuple(*args, tuple_class=NamedTupleBase, **kwargs)
+def namedtuplex(*args, **kwargs):
+    return gicollections.namedtuple(*args, tuple_class=_NamedXtuplexBase, **kwargs)
 # -----------------------------------------------------------------
-
-#class TupleFunction(_tuple, Function):
-#    """If f,g are functions, creates a function H(*) <- (f(*), g(*))"""
-#    def __init__(self, *funcs):
-#        self.funcs = funcs
-#    def __call__(self, *args, **kwargs):
-#        return tuplex(fn(*args, *kwargs) for fn in self.funcs)
-#    def __getitem__(self, ix):
-#        return TupleWrap(self.value[ix])
-#    def __repr__(self):
-#        return '(*' + ','.join(repr(x) for x in self.funcs) + '*)'
-# -------------------------------------------------------
-
-#class TupleWrap(Function):
-#    def __init__(self, value):
-#        self.value = value
-#    def __call__(self):
-#        return tuplex(x() for x in self.value)
-#    def __getitem__(self, ix):
-#        return self.value[ix]
-#    def __repr__(self):
-#        return '(*' + ','.join(repr(x) for x in self.value) + '*)'

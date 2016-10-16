@@ -14,10 +14,14 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+import contextlib
+import sys
+import os
 
 # http://stackoverflow.com/questions/13250050/redirecting-the-output-of-a-python-function-from-stdout-to-variable-in-python
-@contextmanager
+@contextlib.contextmanager
 def redirect(out=sys.stdout, err=sys.stderr):
+    """A context manager that redirects stdout and stderr"""
     saved = (sys.stdout, sys.stderr)
     sys.stdout = out
     sys.stderr = err

@@ -1,11 +1,7 @@
 import unittest
 import tempfile
-import os
-import shutil
-import numpy as np
-from giss.functional import _arg,bind
-from giss import functional
-import inspect
+#import inspect
+from giss.functional import *
 
 def fn(a,b,c):
     return a+b+c
@@ -19,13 +15,13 @@ class TestBind(unittest.TestCase):
         f = bind(fn, _arg(1), 4, _arg(0))
         self.assertEqual(12, f(5,3))
 
-@functional.function
+@function()
 def times(x,n):
-    return functional.Wrap(x*n)
+    return wrap_value(x*n)
 
-@functional.function
+@function()
 def plus(x,n):
-    return functional.Wrap(x+n)
+    return wrap_value(x+n)
 
 
 class TestTuple(unittest.TestCase):
@@ -35,18 +31,18 @@ class TestTuple(unittest.TestCase):
         times3 = bind(times, _arg(0), 3)
         plus3 = bind(plus, _arg(0), 3)
 
-        both = functional.Tuple((times, plus))
+        both = tuplex((times, plus))
         both2 = bind(both, _arg(0), 2)
         both3 = bind(both, _arg(0), 3)
 
         self.assertEqual(both2(17)(),
-            functional.Tuple((times2,plus2))(17)())
+            tuplex((times2,plus2))(17)())
 
         times5 = times2 + times3
         plus5 = plus2 + plus3
 
         both5 = both2 + both3
-        both5b = functional.Tuple((times5, plus5))
+        both5b = tuplex((times5, plus5))
 
         self.assertEqual(both5(17)[0](), both5(17)()[0])
         self.assertEqual(both5(17)[1](), both5(17)()[1])
@@ -54,7 +50,7 @@ class TestTuple(unittest.TestCase):
         self.assertEqual(both5b(17)[1](), both5b(17)()[1])
 
         self.assertEqual(both5(17)(),
-            functional.Tuple((times5,plus5))(17)())
+            tuplex((times5,plus5))(17)())
 
         self.assertEqual(both5b(17)(), both5(17)())
 
@@ -62,7 +58,7 @@ class TestTuple(unittest.TestCase):
         self.assertEqual((85,39), x)
 
     def test_namedtuple(self):
-        MyTuple = functional.NamedTuple('MyTuple', ('times', 'plus'))
+        MyTuple = namedtuplex('MyTuple', ('times', 'plus'))
 
         times2 = bind(times, _arg(0), 2)
         plus2 = bind(plus, _arg(0), 2)

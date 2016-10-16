@@ -1,41 +1,13 @@
 import functools
 import collections
-from giss import functional
-from giss import checksum
-from giss.bind import *
+from giss.functional import *
+from giss import checksum,giutil
 import os
 import pickle
 
 """Generalized functional-style access to data."""
 
 # https://wiki.python.org/moin/PythonDecoratorLibrary#Memoize
-
-
-class scaleacc(object):
-    hash_version = 0
-    def __init__(ifname, sections, odir=None):
-        idir,ileaf = os.path.split(ifname)
-        self.sections = sections
-        self.odir = idir if odir is None else odir
-
-        # Indicate input files this function reads
-        self.inputs = [os.path.realpath(ifname)]
-
-        # Indicate output files this function writes
-        # For each output file, indicate the 
-        self.outputs = [(
-            os.path.realpath(os.path.join(self.odir, ileaf.replace('acc', x))),  # filename
-            (File(self.ifname), x))    # hashup tuple for this filename
-            for x in sections]
-
-        # Indicates what to return from a function call.
-        # Can be made a @property if needed.
-        self.value = [x[0] for x in self.outputs]
-
-    def __call__(self):
-        cmd = ['scaleacc', self.inputs[0]] + sections
-        subprocess.check_output(cmd)
-        return self.value
 
 
 class File(object):
@@ -61,9 +33,7 @@ class File(object):
 OriginInfo = collections.namedtuple('OriginInfo',
     ('ofile', 'origin_file', 'file_mtime', 'file_size', 'origin_hash'))
 
-OriginInfo('a','b',3,4,5)
-
-@functional.arg_decorator
+@giutil.arg_decorator
 class files(object):
     """Decorator to memoize on the files in a special "File function."
 
@@ -87,7 +57,7 @@ class files(object):
 
         # ---------------------------------------------------
         # Hash that goes in the origin file
-        hash = checksum.begin()
+        hash = checksum.begin_checksum()
 
         # ---- The function used to compute this output
         hash.update(self.filefn.__module__.encode())
@@ -98,7 +68,7 @@ class files(object):
         hash.update(inputs_hash)
 
         # ---- Details of the output itself
-        hashup(hash, origin_tuple)
+        checksum.hashup(hash, origin_tuple)
         # ---------------------------------------------------
 
         mtime = None
@@ -170,7 +140,7 @@ class files(object):
 
             return value
 
-@functional.arg_decorator
+@giutil.arg_decorator
 class local(object):
     """Decorator. Caches a function's return value each time it is called.
     If called later with the same arguments, the cached value is returned
