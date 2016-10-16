@@ -50,21 +50,48 @@ def ncdata(fname, var_name, *index, nan=np.nan, missing_value=None, missing_thre
 
     return data
 # --------------------------------------------
+NCFetchTuple = functional.NamedTuple('NCFetchTuple', ('attrs', 'data'))
+
 @functional.function
-def ncattrs(fname, var_name, *index, nan=np.nan, missing_value=None, missing_threshold=None):
+def ncfetch(file_name, var_name, *index, nan=np.nan, missing_value=None, missing_threshold=None):
     """Produces extended attributes on a variable fetch operation"""
-    nc = ncopen(fname)
+    nc = ncopen(file_name)
 
-    attrs = {('var', key) : val
-        for key,val in nc.variables[var_name].__dict__.items()}
+    attrs = {}
+    var = nc.variables[var_name]
 
-    attrs[('fetch', 'file')] = fname
-    attrs[('fetch', 'var')] = var_name
+    # User can retrieve nc.ncattrs(), etc.
+    for key in nc.ncattrs():
+        attrs[('file', key)] = getattr(nc, key)
+
+    # User can retrieve var.dimensions, var.shape, var.name, var.xxx, var.ncattrs(), etc.
+
+    attrs[('var', 'dimensions')] = var.dimensions
+    attrs[('var', 'dtype')] = var.dtype
+    attrs[('var', 'datatype')] = var.datatype
+    attrs[('var', 'ndim')] = var.ndim
+    attrs[('var', 'shape')] = var.shape
+    attrs[('var', 'scale')] = var.scale
+    # Don't know why this doesn't work.  See:
+    # http://unidata.github.io/netcdf4-python/#netCDF4.Variable
+    # attrs[('var', 'least_significant_digit')] = var.least_significant_digit
+    attrs[('var', 'name')] = var.name
+    attrs[('var', 'size')] = var.size
+    for key in var.ncattrs():
+        attrs[('var', key)] = getattr(var, key)
+
+    attrs[('fetch', 'file_name')] = file_name
+    attrs[('fetch', 'var_name')] = var_name
     attrs[('fetch', 'index')] = index
     attrs[('fetch', 'nan')] = np.nan
     attrs[('fetch', 'missing_value')] = missing_value
     attrs[('fetch', 'missing_threshold')] = missing_threshold
 
-    return functional.WrapCombine(attrs, functional.intersect_dicts)
+    return NCFetchTuple(
+        functional.WrapCombine(attrs, functional.intersect_dicts),
+        ncdata(file_name, var_name, *index, nan=nan,
+            missing_value=missing_value,
+            missing_threshold=missing_threshold))
+
 # --------------------------------------------
 
