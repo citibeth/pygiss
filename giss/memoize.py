@@ -188,7 +188,7 @@ class local(object):
         func_id = self.id_fn(self.func)
 
         # Get checksum of  complete function call
-        thunk = Thunk(self.func, *args, **kwargs)
+        thunk = bind(self.func, *args, **kwargs)
         thunk_id = self.id_fn(thunk)
 
         if thunk_id not in self.cache:

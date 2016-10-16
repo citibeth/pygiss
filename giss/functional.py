@@ -1,11 +1,13 @@
 import types
 from giss import giutil
-from giss import functional
 from giss.checksum import hashup
-from giss import giutil
+from giss import giutil, gicollections
 import types
 import inspect
+import operator
 
+
+# --------------------------------------------------------
 def arg_decorator(decorator_fn):
     """Meta-decorator that makes it easier to write decorators taking args.
     See:
@@ -22,74 +24,36 @@ def arg_decorator(decorator_fn):
 
     return real_decorator
 
+# ---------------------------------------------------------
+# Universal for all Functions...
+#    (f + g)(x) = f(x) + g(x)
 class Function(object):
-    pass
-
-# ---------------------------------------------------------
-class Thunk(Function):
-    """Base class for classes that acts like a function that returns a function."""
-    def __init__(self, fn, *args, **kwargs):
-        self.fn = fn
-        self.args = args
-        self.kwargs = kwargs
-    def __call__(self):
-        return self.fn(*self.args, **self.kwargs)
-    hash_version=0
-    def hashup(self,hash):
-        hashup(hash, (self.fn, self.args, self.kwargs))
-
-class thunkify(object):
-    """Decorator that changes a function into a function that returns a
-    thunk; that when called will run the original function.
-    """
-    def __init__(self, fn):
-        self.fn = fn
-
+    def __add__(self, other):
+        return lift(operator.add, self, other)
+    def __multiply__(self, other):
+        return lift(operator.multiply, self, other)
+class lift(Function):
+    """Turns a function on values into a function on functions."""
+    def __init__(self, lifted_fn, *funcs):
+        self.lifted_fn = lifted_fn
+        self.funcs = funcs
     def __call__(self, *args, **kwargs):
-        return Thunk(self.fn, *args, **kwargs)
+        args = tuple(fn(*args, **kwargs) for fn in self.funcs)
+        return self.lifted_fn(*args)
+    def __repr__(self):
+        return '{}({})'.format(self.lifted_fn, ','.join(repr(x) for x in self.funcs))
+
 # ---------------------------------------------------------
-class BasicFunction(Function):
-    """Wraps a function into a class so we can add higher-order methods to it."""
-    def __init__(self, fn):
-        self.fn = fn
+# Partial binding of functions
 
-    def __call__(self, *args, **argv):
-        return self.fn(*args, **argv)
-
-
-def addops(*opclasses):
-    """Decorator: Wraps a Python function in a Function, and adds a set of higer-order
-    operations to it.
-
-    opclasses:
-        List of mixin classes containing the higher-level ops."""
-    def real_decorator(fn):
-        # Wrap the function as a class if needed
-        if isinstance(fn, Function):
-            # ---- Give us a new class
-            # http://stackoverflow.com/questions/8544983/dynamically-mixin-a-base-class-to-an-instance-in-python
-            parents = giutil.uniq(list(fn.__bases__) + list(opclasses))
-            name = '<{}>'.format(','.join(x.__name__ for x in parents))
-            fn.__class__ = types.new_class(name, tuple(parents), {})
-            return fn
-        else:
-            # ------ Create a new base class and instantiate it.
-            # BasicFunction takes precedence over mixins
-            parents = giutil.uniq([BasicFunction] + list(opclasses))
-            name = '<{}>'.format(','.join(x.__name__ for x in parents))
-            return types.new_class(name, tuple(parents), {})(fn)
-
-    return real_decorator
-
-# =================================================
-# --------------------------------------------------------
 class _arg(object):
     """Tagging class"""
     def __init__(self, index):
         self.index = index
+    def __repr__(self):
+        return '_arg({})'.format(self.index)
 
-
-class _Bind(functional.Function):
+class BoundFunction(Function):
     """Reorder positional arguments.
     Eg: g = f('yp', _1, 17, _0, dp=23)
     Then g('a', 'b', another=55) --> f('yp', 'b', 17, 'a', dp=23, another=55)
@@ -99,35 +63,167 @@ class _Bind(functional.Function):
        2. Get kwargs working
     """
 
-    def __init__(self, fn, *pargs, **pkwargs):
+    def __init__(self, fn, *bound_args, **bound_kwargs):
         # Maximum index referred to by the user.
         # Inputs to f above this index will be passed through
-        self.fn = fn.fn if isinstance(fn, functional.BasicFunction) else fn    # Avoid unnecessary wrapping
-        self.pargs = pargs
-        self.pkwargs = pkwargs
-        self.max_gindex = max(
-            (x.index if isinstance(x, _arg) else -1 for x in pargs),
+        self.fn = fn
+        self.bound_args = bound_args
+        self.bound_kwargs = bound_kwargs
+        self.first_unbound = 1+max(
+            (x.index if isinstance(x, _arg) else -1 for x in bound_args),
             default=-1)
 
     def __call__(self, *gargs, **gkwargs):
         fargs = \
-            [gargs[x.index] if isinstance(x, _arg) else x for x in self.pargs] + \
-            list(gargs[self.max_gindex+1:])
+            [gargs[x.index] if isinstance(x, _arg) else x
+                for x in self.bound_args] + \
+            list(gargs[self.first_unbound:])
 
-        fkwargs = dict(self.pkwargs)
+        fkwargs = dict(self.bound_kwargs)
         fkwargs.update(gkwargs)    # Overwrite keys
-        print('*** fargs', self.fn, fargs)
         return self.fn(*fargs, **fkwargs)
 
-def bind(fn, *pargs, **pkwargs):
-    # Lift ops to the bound function
-    if isinstance(fn, functional.Function):
-        parents = giutil.uniq([_Bind] + list(type(fn).__bases__))
-        name = '<{}>'.format(','.join(x.__name__ for x in parents))
-        klass = types.new_class(name, tuple(parents), {})
+    hash_version=0
+    def hashup(self,hash):
+        hashup(hash, (self.fn, self.bound_args, self.bound_kwargs))
+    def __repr__(self):
+        return 'bind({}, {}, {})'.format(self.fn, self.bound_args, self.bound_kwargs)
+
+def bind(fn, *bound_args, **bound_kwargs):
+    if False and isinstance(fn, BoundFunction):
+        # (Don't bother with this optimization for now...)
+        # Re-work bound args...
+        pass
+    elif isinstance(fn, _Tuple):
+        # Bind inside the Tuple, to retain tuple nature of our function
+        return fn.construct(bind(x, *bound_args, **bound_kwargs) for x in fn)
     else:
-        klass = _Bind
-        # No metadata to copy on a raw function
+        return BoundFunction(fn, *bound_args, **bound_kwargs)
 
-    return klass(fn, *pargs, **pkwargs)
 
+def function(python_fn):
+    """Decorator Wraps a Python function into a Function."""
+    return bind(python_fn)
+# ---------------------------------------------------------
+# Good for summing >1 functions
+
+class sum(Function):
+    def __init__(self, *funcs):
+        self.funcs = funcs
+    def __call__(self, *args, **kwargs):
+        sum = funcs[0](*args, **kwargs)
+        for fn in funcs[1:]:
+            sum += fn(*args, **kwargs)
+        return sum
+
+class product(Function):
+    def __init__(self, *funcs):
+        self.funcs = funcs
+    def __call__(self, *args, **kwargs):
+        product = funcs[0](*args, **kwargs)
+        for fn in funcs[1:]:
+            product *= fn(*args, **kwargs)
+        return product
+# ---------------------------------------------------------
+class thunkify(Function):
+    """Decorator that replaces a function with a thunk constructor.
+    When called, the resulting thunk will run the original function.
+
+    Suppose f :: X -> Y         # Haskell notation
+    Then thunkify f x :: Y
+    or    thunkfiy :: Function -> X -> Y
+    """
+    def __init__(self, fn):
+        self.fn = fn
+
+    def __call__(self, *args, **kwargs):
+        return bind(self.fn, *args, **kwargs)
+
+    def __repr__(self):
+        return 'thunkify({})'.format(self.fn)
+# -------------------------------------------------------
+class Wrap(Function):
+    """A thunk that wraps a value; calling the thunk will return the value.
+    This serves as a base class to define arithmetic operations on (wrapped) values
+    when combining functions."""
+    def __init__(self, value):
+        self.value = value
+    def __call__(self):
+        return self.value
+    def __repr__(self):
+        return 'Wrap({})'.format(self.value)
+
+# -------------------------------------------------------------
+class WrapCombine(Wrap):
+    """A thunk that wraps a value; calling the thunk will return the value.
+    All operations are mapped to a supplied "combine" function."""
+    def __init__(self, value, combine_fn):
+        self.value = value
+        self.combine_fn = combine_fn
+    def __add__(self, other):
+        return WrapCombine(self.combine_fn(self.value, other.value), self.combine_fn)
+
+# -------------------------------------------------------------
+def intersect_dicts(a,b):
+    """Combine function: Returns only entries with the same value in both dicts."""
+    return {key : a[key] \
+        for key in a.keys()&b.keys() \
+        if a[key] == b[key]}
+
+def none_if_different(a,b):
+    """Combine function: Keep only if things are the same."""
+    return a if a==b else None
+# -------------------------------------------------------------
+class _Tuple(Function):
+    """Avoid problems of multiple inheritence and __init__() methods.
+    See for another possible soultion:
+    http://stackoverflow.com/questions/1565374/subclassing-python-tuple-with-multiple-init-arguments"""
+    def __add__(self, other):
+        return self.construct(s+o for s,o in zip(self,other))
+    def __call__(self, *args, **kwargs):
+        return self.construct(x(*args, **kwargs) for x in self)
+
+
+class Tuple(_Tuple,tuple):
+    def construct(self, args):
+        """Construct a new instance of type(self).
+        args:
+            A (Python)tuple of the things to construct with."""
+        return type(self)(args)
+    def __repr__(self):
+        return '(x ' + ','.join(repr(x) for x in self) + ')'
+
+class NamedTupleBase(_Tuple,tuple):
+    """For use only with NamedTuple.  Accomodates different constructors
+    for tuple vs namedtuple."""
+    def construct(self, args):
+        """Construct a new instance of type(self).
+        args:
+            A (Python)tuple of the things to construct with."""
+        return type(self)(*args)
+
+def NamedTuple(*args, **kwargs):
+    return gicollections.namedtuple(*args, tuple_class=NamedTupleBase, **kwargs)
+# -----------------------------------------------------------------
+
+#class TupleFunction(_tuple, Function):
+#    """If f,g are functions, creates a function H(*) <- (f(*), g(*))"""
+#    def __init__(self, *funcs):
+#        self.funcs = funcs
+#    def __call__(self, *args, **kwargs):
+#        return tuplex(fn(*args, *kwargs) for fn in self.funcs)
+#    def __getitem__(self, ix):
+#        return TupleWrap(self.value[ix])
+#    def __repr__(self):
+#        return '(*' + ','.join(repr(x) for x in self.funcs) + '*)'
+# -------------------------------------------------------
+
+#class TupleWrap(Function):
+#    def __init__(self, value):
+#        self.value = value
+#    def __call__(self):
+#        return tuplex(x() for x in self.value)
+#    def __getitem__(self, ix):
+#        return self.value[ix]
+#    def __repr__(self):
+#        return '(*' + ','.join(repr(x) for x in self.value) + '*)'

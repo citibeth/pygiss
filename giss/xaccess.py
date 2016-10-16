@@ -6,6 +6,11 @@ import netCDF4
 
 """Generalized functional-style access to data."""
 
+# -------------------------------------------------------------
+
+# -------------------------------------------------------------
+# Allows us to do indexing without an array to index ON.
+#   We can say:   index = _ix[4:5,:]
 class IndexClass(object):
     """Extract slice objects"""
     def __getitem__(self, t):
@@ -15,46 +20,16 @@ class IndexClass(object):
 
 # Singleton allows us to say, eg: ix[2,3,4:5]
 _ix = IndexClass()
+# -------------------------------------------------------------
 
 @memoize.local()
 def ncopen(name):
     nc = netCDF4.Dataset(name, 'r')
     return nc
 
-# -------------------------------------------------------------
-# Data access functions return Numpy Array
-class ArrayOps(object):
-    def __add__(self, other):
-        def real_fn(*args, **kwargs):
-            return self(*args, **kwargs) + other(*args, **kwargs)
-        return real_fn
-
-def intersect_dicts(a,b):
-    """Returns only entries with the same value in both dicts."""
-    return {key : a[key] \
-        for key in a.keys()&b.keys() \
-        if a[key] == b[key]}
-
-# Functions that return meta-data
-class AttrOps(object):
-    def __add__(self, other):
-        def real_fn(*args, **kwargs):
-            sret = self(*args, **kwargs)
-            oret = other(*args, **kwargs)
-            return intersect_dicts(sret, oret)
-        return real_fn
-
-# Functions that return tuples of things
-class MultiOps(object):
-    def __add__(self, other):
-        def real_fn(*args, **kwargs):
-            sret = self(*args, **kwargs)
-            oret = other(*args, **kwargs)
-            print('sret', sret)
-            return tuple(s + o for s,o in zip(sret, oret))
-        return real_fn
-# --------------------------------------------
-def _ncdata(fname, var_name, *index, nan=np.nan, missing_value=None, missing_threshold=None):
+# ---------------------------------------------------------------
+@functional.thunkify
+def ncdata(fname, var_name, *index, nan=np.nan, missing_value=None, missing_threshold=None):
     """Simple accessor function for data in NetCDF files.
     Ops on this aren't very interesting because it is a
     fully-bound thunk."""
@@ -74,42 +49,22 @@ def _ncdata(fname, var_name, *index, nan=np.nan, missing_value=None, missing_thr
         data[np.abs(val) > missing_threshold] = nan
 
     return data
-
-# Scenario A: Immediate fetching of data
-ncdata = functional.addops(ArrayOps)(_ncdata)
 # --------------------------------------------
-@functional.addops(AttrOps)
-def ncattrs(fname, var_name):
-    """Fetches attributes of a variable."""
+@functional.function
+def ncattrs(fname, var_name, *index, nan=np.nan, missing_value=None, missing_threshold=None):
+    """Produces extended attributes on a variable fetch operation"""
     nc = ncopen(fname)
-    return dict(nc.variables[var_name].__dict__)
 
+    attrs = {('var', key) : val
+        for key,val in nc.variables[var_name].__dict__.items()}
 
-_ncdata_thunk = functional.thunkify(_ncdata)
+    attrs[('fetch', 'file')] = fname
+    attrs[('fetch', 'var')] = var_name
+    attrs[('fetch', 'index')] = index
+    attrs[('fetch', 'nan')] = np.nan
+    attrs[('fetch', 'missing_value')] = missing_value
+    attrs[('fetch', 'missing_threshold')] = missing_threshold
 
-@functional.addops(MultiOps)
-def ncfetch(fname, var_name, *index, nan=np.nan, missing_value=None, missing_threshold=None):
-    attrs = ncattrs(fname, var_name)
-    attrs['file'] = fname
-    attrs['var'] = var_name
-    attrs['index'] = index
-    attrs['nan'] = np.nan
-    attrs['missing_value'] = missing_value
-    attrs['missing_threshold'] = missing_threshold
-    return attrs, \
-        _ncdata_thunk(
-            fname, var_name, *index,
-            nan=nan, missing_value=missing_value,
-            missing_threshold=missing_threshold)
-
-# ------------------------------------------
-# Higher-order functions
-def sum(*funcs):
-    def realfn(*args, **kwargs):
-        val = funcs[0](*args, **kwargs)
-        for fn in funcs[1:]:
-            val1 = fn(*args, **kwargs)
-            val += val1
-        return val
-    return realfn
+    return functional.WrapCombine(attrs, functional.intersect_dicts)
+# --------------------------------------------
 
