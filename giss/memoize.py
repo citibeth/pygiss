@@ -96,6 +96,8 @@ class files(object):
 
         # ---------- See if any of OUR output files have mysteriously changed
         # (this "shouldn't" happen...)
+        # TODO: What do to if inputs are gone?  Depending on an option, 
+        #       either: (a) throw exception, (b) just return output file.
         #
         # Identify what the OriginInfo for each file should look like
         inputs_hash = checksum.checksum([File(x) for x in sorted(thunk.inputs)])

@@ -22,6 +22,7 @@ import contextlib
 import sys
 import collections.abc
 import types
+import string
 
 class Struct(object):
     """Convert a dict() to a struct."""
@@ -370,3 +371,23 @@ def arg_decorator(decorator_fn):
             return decorator_fn(func, *self.args, **self.kwargs)
 
     return real_decorator
+# --------------------------------------------------
+# http://stackoverflow.com/questions/11283961/partial-string-formatting
+class _FormatDict(dict):
+    def __missing__(self, key):
+        return "{" + key + "}"
+
+def partial_format(str, **kwargs):
+    formatter = string.Formatter()
+    mapping = _FormatDict(kwargs)
+    return formatter.vformat(str, (), mapping)
+# -------------------------------------
+def get_first(mydict, keys):
+    """Looks up a series of keys in a dict"""
+    for key in keys:
+        try:
+            return mydict[key]
+        except:
+            pass
+    raise KeyError(keys)
+

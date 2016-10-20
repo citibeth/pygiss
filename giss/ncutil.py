@@ -19,6 +19,12 @@ import netCDF4
 import sys
 import os
 import shutil
+import functools,operator
+from giss.functional import *
+from giss import functional
+from giss import checksum,memoize
+import collections
+import cf_units
 
 # Copy a netCDF file (so we can add more stuff to it)
 class copy_nc(object):
@@ -235,3 +241,141 @@ def install_nc(ifname, odir, installed=None):
     finally:
         if nc is not None:
             nc.close()
+# -----------------------------------------------
+# Stuff for xaccess
+
+# -------------------------------------------------------------
+@memoize.local()
+def ncopen(name):
+    nc = netCDF4.Dataset(name, 'r')
+    return nc
+
+# ---------------------------------------------------------------
+def ncdata(fname, var_name, *index, nan=np.nan, missing_value=None, missing_threshold=None):
+    """Simple accessor function for data in NetCDF files.
+    Ops on this aren't very interesting because it is a
+    fully-bound thunk."""
+
+    nc = ncopen(fname)
+    var = nc.variables[var_name]
+
+    data = var[index]
+    if missing_value is not None:
+        # User override of NetCDF standard
+        data[data == missing_value] = nan
+    elif hasattr(var, 'missing_value'):
+        # NetCDF standard
+        data[data == var.missing_value] = nan
+    elif missing_threshold is not None:
+        # Last attempt to fix a broken file
+        data[np.abs(data) > missing_threshold] = nan
+
+    return data
+
+# --------------------------------------------
+def _fetch_shape(var, index):
+    """Given a variable and indexing, determines the shape of the
+    resulting fetch (without actually doing it)."""
+    shape = []
+    oshape = []
+#    for var_shape,ix in zip(var.shape,index):
+    for i in range(0,len(var.shape)):
+        if i >= len(index):    # Implied ':' for this dim
+            shape.append(var.shape[i])
+        else:
+            ix = index[i]
+            if isinstance(ix, slice):
+                start = 0 if ix.start is None else ix.start
+                stop = var_shape[i] if ix.stop is None else ix.stop
+                step = 1 if ix.step is None else ix.step
+                shape.append((stop - start) // step)
+    print('******************', var.shape, index, shape)
+    return tuple(shape)            
+
+FetchTuple = namedtuplex('FetchTuple', ('attrs', 'data'))
+
+@function()
+def ncattrs(file_name, var_name):
+    """Produces extended attributes on a variable fetch operation"""
+    nc = ncopen(file_name)
+
+    attrs = {}
+    var = nc.variables[var_name]
+
+    # User can retrieve nc.ncattrs(), etc.
+    for key in nc.ncattrs():
+        attrs[('file', key)] = getattr(nc, key)
+
+    # User can retrieve var.dimensions, var.shape, var.name, var.xxx, var.ncattrs(), etc.
+
+    attrs[('var', 'dimensions')] = var.dimensions
+    attrs[('var', 'dtype')] = var.dtype
+    attrs[('var', 'datatype')] = var.datatype
+    attrs[('var', 'ndim')] = var.ndim
+    attrs[('var', 'shape')] = var.shape
+    attrs[('var', 'scale')] = var.scale
+    # Don't know why this doesn't work.  See:
+    # http://unidata.github.io/netcdf4-python/#netCDF4.Variable
+    # attrs[('var', 'least_significant_digit')] = var.least_significant_digit
+    attrs[('var', 'name')] = var.name
+    attrs[('var', 'size')] = var.size
+    for key in var.ncattrs():
+        attrs[('var', key)] = getattr(var, key)
+
+
+    return wrap_combine(attrs, intersect_dicts)
+
+def add_fetch_attrs(attrs, file_name, var_name, *index, nan=np.nan, missing_value=None, missing_threshold=None):
+
+    nc = ncopen(file_name)
+    var = nc.variables[var_name]
+
+    attrs[('fetch', 'file_name')] = file_name
+    attrs[('fetch', 'var_name')] = var_name
+    attrs[('fetch', 'missing_value')] = missing_value
+    attrs[('fetch', 'missing_threshold')] = missing_threshold
+    attrs[('fetch', 'nan')] = np.nan
+    attrs[('fetch', 'index')] = index
+    fetch_shape = _fetch_shape(var, index)
+    attrs[('fetch', 'shape')] = fetch_shape
+    attrs[('fetch', 'size')] = functools.reduce(operator.mul, fetch_shape, 1)
+    attrs[('fetch', 'dtype')] = attrs[('var', 'dtype')]
+
+
+@function()
+def ncfetch(file_name, var_name, *index, nan=np.nan, missing_value=None, missing_threshold=None):
+
+    attrsW = ncattrs(file_name, var_name)
+    add_fetch_attrs(attrsW(), *args, **kwargs)
+
+    return FetchTuple(attrsW,
+        bind(ncdata, *args, **kwargs))
+
+#ncfetch = FetchTuple(ncattrs, ncdata)
+# -------------------------------------------------
+_zero_one = np.array([0.,1.])
+
+def convert_unitsV(fetch, ounits):
+    """fetch:
+        Result of the fetch() function
+
+    V = works on values (not functions)
+    """
+    attrs = fetch.attrs()
+    cf_iunits = cf_units.Unit(attrs[('var', 'units')])
+    cf_ounits = cf_units.Unit(ounits)
+    zo2 = cf_iunits.convert(_zero_one, cf_ounits)
+
+    # y = mx + b slope & intercept
+    b = zo2[0]    # b = y-intercept
+    m = zo2[1] - zo2[0]    # m = slope
+
+    attrs[('var', 'units')] = ounits
+#    return attrdictx(
+#        attrs = fetch.attrs,
+#        data = fetch.data*m + b)
+    return FetchTuple(fetch.attrs, fetch.data*m + b)
+
+convert_unitsF = functional.lift()(convert_unitsV)
+
+

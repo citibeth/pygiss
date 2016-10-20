@@ -1,35 +1,74 @@
 import types
 from giss.checksum import hashup
-from giss import gicollections
+from giss import gicollections,giutil
 import types
 import inspect
 import operator
+import numpy as np
 
 # Minimal interface for end users and 'from giss.functional import *'
 # more involved uses regular imports and more fully qualified namesx
 __all__ = (
-    '_arg', 'bind', 'function', 'thunkify',
+    '_arg', 'bind', 'function', 'thunkify', 'Function',
     'wrap_value', 'wrap_combine', 'intersect_dicts', 'none_if_different',
-    'tuplex', 'namedtuplex')
+    'tuplex', 'namedtuplex', 'attrdictx')
 
 # ---------------------------------------------------------
 # Universal for all Functions...
 #    (f + g)(x) = f(x) + g(x)
 class Function(object):
     def __add__(self, other):
-        return lift(operator.add, self, other)
-    def __multiply__(self, other):
-        return lift(operator.multiply, self, other)
-class lift(Function):
+        return lift_once(operator.add, self, other)
+    def __mul__(self, other):
+        return lift_once(operator.mul, self, other)
+    def __getattr__(self, attr):
+        return lift_once(getattr, self, attr)
+        
+class lift_once(Function):
     """Turns a function on values into a function on functions."""
-    def __init__(self, lifted_fn, *funcs):
+    def __init__(self, lifted_fn, *fargs, **fkwargs):
         self.lifted_fn = lifted_fn
-        self.funcs = funcs
+        self.fargs = fargs    # Arguments are (possibly) functions
+        self.fkwargs = fkwargs
     def __call__(self, *args, **kwargs):
-        args = tuple(fn(*args, **kwargs) for fn in self.funcs)
-        return self.lifted_fn(*args)
+        xargs = tuple(
+            fn(*args, **kwargs) if isinstance(fn, Function) else fn
+            for fn in self.fargs)
+        xkwargs = {
+            k : v(*args, **kwargs) if isinstance(v,Function) else v
+            for k,v in self.fkwargs}
+
+        return self.lifted_fn(*xargs, **xkwargs)
+
     def __repr__(self):
-        return '{}({})'.format(self.lifted_fn, ','.join(repr(x) for x in self.funcs))
+        return '{}({})'.format(self.lifted_fn, ','.join(repr(x) for x in self.fargs), self.fkwargs)
+
+@giutil.arg_decorator
+class lift(Function):
+    """Decorator: Turns a function on values into a function on functions."""
+    def __init__(self, lifted_fn):
+        # TODO: Take more specific args explaining which params are to be dereferenced.
+        self.lifted_fn = lifted_fn
+    def __call__(self, *args, **kwargs):
+        return lift_once(self.lifted_fn, *args, **kwargs)
+
+
+
+
+
+#class lift(Function):
+#    """Decorator, turns a function on values into a function on functions."""
+#    def __init__(self, lifted_fn):
+#        self.lifted_fn = lifted_fn
+#    def __call__(self, *args, **kwargs):
+#        args = tuple(
+#            fn(*args, **kwargs) if isinstance(fn, Function) else fn
+#            for fn in self.funcs)
+#        return self.lifted_fn(*args)
+#    def __repr__(self):
+#        return '{}({})'.format(self.lifted_fn, ','.join(repr(x) for x in self.funcs))
+
+
 
 # ---------------------------------------------------------
 # Partial binding of functions
@@ -156,14 +195,45 @@ class wrap_combine(wrap_value):
         self.value = value
         self.combine_fn = combine_fn
     def __add__(self, other):
-        return wrap_combine(self.combine_fn(self.value, other.value), self.combine_fn)
+        other_value = other() if callable(other) else other
+        return wrap_combine(self.combine_fn(self.value, other_value), self.combine_fn)
+    __mul__ = __add__
+
+# -------------------------------------------------------------
+def eq_ndarray(a,b):
+    return (a==b).all()
+
+_eq_methods = {np.ndarray : eq_ndarray}
+
+def eq_any(a,b):
+    try:
+        return _eq_methods[type(a)](a,b)
+    except:
+        return a==b
 
 # -------------------------------------------------------------
 def intersect_dicts(a,b):
     """Combine function: Returns only entries with the same value in both dicts."""
-    return {key : a[key] \
-        for key in a.keys()&b.keys() \
-        if a[key] == b[key]}
+    if not isinstance(a, dict):
+        return b
+    if not isinstance(b, dict):
+        return a
+
+    ret = type(a)()
+    for key in a.keys() & b.keys():
+        print('key',key, type(a[key]))
+        if eq_any(a[key], b[key]):
+            ret[key] = a[key]
+    return ret
+
+#        print('xxxxxxx', key, type(a[key]), type(b[key]))
+#        print('       ', a[key] == b[key])
+
+#    keyvals = {key : a[key] \
+#        for key in a.keys() & b.keys() \
+#        if a[key] == b[key]}
+#
+#    return type(a)(keyvals)
 
 def none_if_different(a,b):
     """Combine function: Keep only if things are the same."""
@@ -173,10 +243,20 @@ class _tuplex(Function):
     """Avoid problems of multiple inheritence and __init__() methods.
     See for another possible soultion:
     http://stackoverflow.com/questions/1565374/subclassing-python-tuple-with-multiple-init-arguments"""
-    def __add__(self, other):
-        return self.construct(s+o for s,o in zip(self,other))
+
     def __call__(self, *args, **kwargs):
         return self.construct(x(*args, **kwargs) for x in self)
+
+    def _map2_(self, fn, other):
+        if isinstance(other, _tuplex):
+            return self.construct(fn(s,o) for s,o in zip(self,other))
+        else:
+            return self.construct(fn(s,other) for s in self)
+
+    def __add__(self, other):
+        return self._map2_(operator.add, other)
+    def __mul__(self, other):
+        return self._map2_(operator.mul, other)
 
 
 class tuplex(_tuplex,tuple):
@@ -199,4 +279,30 @@ class _NamedXtuplexBase(_tuplex,tuple):
 
 def namedtuplex(*args, **kwargs):
     return gicollections.namedtuple(*args, tuple_class=_NamedXtuplexBase, **kwargs)
+# -----------------------------------------------------------------
+class attrdictx(Function,dict):
+    def __getattr__(self, name):
+        return self[name]
+
+    def _join(self, other):
+        """Generator that lists the keys in common"""
+        if isinstance(other, dict):
+            for key in self:
+                if key in other:
+                    yield key,self[key],other[key]
+        else:
+            for key in self:
+                yield key,self[key],other
+
+
+    def __add__(self, other):
+        return attrdictx({k : s + o for k,s,o in self._join(other)})
+
+    def __mul__(self, other):
+        return attrdictx({k : s * o for k,s,o in self._join(other)})
+
+    def __call__(self, *args, **kwargs):
+        return attrdictx({k : v(*args,**kwargs) \
+            for k,v in self.items()})
+
 # -----------------------------------------------------------------

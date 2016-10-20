@@ -25,7 +25,7 @@ from giss import giutil
 
 class Plotter(object):
 
-    def context(self, vals=None):
+    def context(self):
         """Generate data specific to a particular set of values we're
         trying to plot, which will be used by further plot()
         functions.  This way, we avoid re-regridding the same data
@@ -35,7 +35,8 @@ class Plotter(object):
 
 
     def plot(self, context, basemap_plot_fn, **plotargs):
-        """basemap_plot_fn:
+        """Plot the data on the map.
+        basemap_plot_fn:
             A bound method on a basemap instance.
             For example: mymap.pcolormesh, mymap.contour, mymap.contourf"""
         raise NotImplementedError('Subclass should implement this.')
