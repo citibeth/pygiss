@@ -343,13 +343,13 @@ def add_fetch_attrs(attrs, file_name, var_name, *index, nan=np.nan, missing_valu
 
 
 @function()
-def ncfetch(file_name, var_name, *index, nan=np.nan, missing_value=None, missing_threshold=None):
+def ncfetch(file_name, var_name, *index, nan=np.nan, missing_value=None, missing_threshold=None, **kwargs):
 
     attrsW = ncattrs(file_name, var_name)
-    add_fetch_attrs(attrsW(), *args, **kwargs)
+    add_fetch_attrs(attrsW(), file_name, var_name, **kwargs)
 
     return FetchTuple(attrsW,
-        bind(ncdata, *args, **kwargs))
+        bind(ncdata, file_name, var_name, *index, **kwargs))
 
 #ncfetch = FetchTuple(ncattrs, ncdata)
 # -------------------------------------------------
