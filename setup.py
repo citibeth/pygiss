@@ -24,5 +24,5 @@ setup(name='PyGISS',
       author='Elizabeth Fischer',
       author_email='elizabeth.fischer@columbia.edu',
       url='https://github.com/citibeth/pygiss/issues',
-      packages=['giss', 'giss.plot', 'giss.matplotlib', 'giss.interp', 'giss.giss-cpt', 'giss.modele'],
+      packages=['giss', 'giss.plot', 'giss.matplotlib', 'giss.interp', 'giss.giss-cpt'],
      )
