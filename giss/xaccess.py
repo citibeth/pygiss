@@ -1,4 +1,5 @@
 import numpy as np
+import importlib
 
 __all__ = ('_ix',)
 
@@ -57,7 +58,12 @@ def get_plotter(attrs, **kwargs):
     """Create a plotter previously set up in ncfetch() or similar.
     attrs:
         (Unwrapped) attributes dict from ncfetch() or similar call."""
-    plotter_fn = attrs[('plotter', 'function')]
+
+    fnname = attrs[('plotter', 'function')]
+    mod = importlib.import_module(fnname[0])
+    plotter_fn = getattr(mod, fnname[1])
+
+
     gkwargs = dict(attrs[('plotter', 'kwargs')], **kwargs)
     return plotter_fn(attrs, **gkwargs)
 # -----------------------------------------------------------
