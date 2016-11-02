@@ -17,3 +17,16 @@
 from giss.plot.plotutil import *
 from giss.plot.plot_var import *
 from giss.plot.plotters import *
+
+
+def plot_one(pp, fname='fig.png'):
+    """Creates a single plot from a plot_params object"""
+
+    # ---------- Plot it!
+    figure = matplotlib.pyplot.figure(figsize=(8.5,11))
+    ax = figure.add_subplot(111)
+    basemap = giss.basemap.greenland_laea(ax=ax)
+    giss.plot.plot_var(ax=ax, basemap=basemap, **pp)
+#    matplotlib.pyplot.show()
+    print('Writing {}'.format(fname))
+    figure.savefig(fname, dpi=100, transparent=False)
