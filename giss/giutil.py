@@ -16,6 +16,7 @@
 
 import numpy as np
 import os
+import re
 import string
 import glob
 import contextlib
@@ -146,7 +147,7 @@ def reshape_no_copy(arr, *shape) :
 
 # -----------------------------------------------------------
 def multiglob_iterator(paths) :
-    """Iterator liss a bunch of files from a bunch of arguments.  Tries to work like ls
+    """Iterator list a bunch of files from a bunch of arguments.  Tries to work like ls
     Yields:
         (directory, filename) pairs
     See:
@@ -238,7 +239,8 @@ class LazyDict(collections.abc.Mapping):
 
 
     class LazyView(collections.abc.MutableMapping):
-        """Sets/returns lambdas instead of values"""
+        """Sets/returns lambdas instead of values.
+        NOTE: This dict cannot store None as a value (see getitem())"""
         def __init__(self, dict):
             self._entries = dict
 
@@ -272,12 +274,19 @@ class LazyDict(collections.abc.Mapping):
     def __getitem__(self, key):
         entry = self._entries[key]  # Could raise a KeyError
         if not entry.isset:
-            entry.val = entry.lam()
+            ret = entry.lam()
+            if ret is not None:
+                entry.val = ret    # Allow thunks that just change the dict
             entry.isset = True
         return entry.val
 
     def __setitem__(self, key, val):
-        self._entries[key] = LazyDict.Entry(None, val, True)
+        try:
+            entry = self._entries[key]
+            entry.isset = True
+            entry.val = val
+        except KeyError:
+            self._entries[key] = LazyDict.Entry(None, val, True)
 
     def __delitem__(self, key):
         del self._entries[key]
@@ -377,10 +386,12 @@ class _FormatDict(dict):
     def __missing__(self, key):
         return "{" + key + "}"
 
+# http://stackoverflow.com/questions/11283961/partial-string-formatting
 def partial_format(str, **kwargs):
     formatter = string.Formatter()
     mapping = _FormatDict(kwargs)
     return formatter.vformat(str, (), mapping)
+
 # -------------------------------------
 def get_first(mydict, keys):
     """Looks up a series of keys in a dict"""
@@ -391,3 +402,23 @@ def get_first(mydict, keys):
             pass
     raise KeyError(keys)
 
+def list_dir(logdir, regexp, key=lambda match: match.group(0)):
+	"""List the files in a directory that match a regexp
+	logdir:
+		Directory to list files in.
+	regexp: str
+		The regular expression to match.
+	key: lambda match
+		Key function, called key(match) on matching records.
+		This allows extraction of filename stuff, etc.
+		By default, returns the original filename.
+	returns: [(key, fname)]
+		key: Result of running the key function on the file
+		fname: Full filename (including logdir)"""
+    regexpRE = re.compile(regexp)
+    fnames = []
+    for leaf in os.listdir(logdir):
+        match = regexpRE.match(leaf)
+        if match is not None:
+            fnames.append((key(match), os.path.join(logdir, leaf)))
+    return sorted(fnames)
