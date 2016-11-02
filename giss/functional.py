@@ -11,7 +11,7 @@ import numpy as np
 __all__ = (
     '_arg', 'bind', 'function', 'thunkify', 'Function',
     'wrap_value', 'wrap_combine', 'intersect_dicts', 'none_if_different',
-    'tuplex', 'namedtuplex', 'attrdictx')
+    'xtuple', 'xnamedtuple', 'xdict')
 
 # ---------------------------------------------------------
 # Universal for all Functions...
@@ -21,6 +21,8 @@ class Function(object):
         return lift_once(operator.add, self, other)
     def __mul__(self, other):
         return lift_once(operator.mul, self, other)
+    def __truediv__(self, other):
+        return lift_once(operator.truediv, self, other)
     def __getattr__(self, attr):
         return lift_once(getattr, self, attr)
         
@@ -36,7 +38,7 @@ class lift_once(Function):
             for fn in self.fargs)
         xkwargs = {
             k : v(*args, **kwargs) if isinstance(v,Function) else v
-            for k,v in self.fkwargs}
+            for k,v in self.fkwargs.items()}
 
         return self.lifted_fn(*xargs, **xkwargs)
 
@@ -75,7 +77,7 @@ class lift(Function):
 
 class _arg(object):
     """Tagging class"""
-    def __init__(self, index):
+    def __init__(self, index, name=''):
         self.index = index
     def __repr__(self):
         return '_arg({})'.format(self.index)
@@ -108,7 +110,10 @@ class BoundFunction(Function):
 
         fkwargs = dict(self.bound_kwargs)
         fkwargs.update(gkwargs)    # Overwrite keys
-        return self.fn(*fargs, **fkwargs)
+        # print('BEGIN Calling', self.fn)
+        ret = self.fn(*fargs, **fkwargs)
+        # print('END Calling', self.fn)
+        return ret
 
     hash_version=0
     def hashup(self,hash):
@@ -121,8 +126,8 @@ def bind(fn, *bound_args, **bound_kwargs):
         # (Don't bother with this optimization for now...)
         # Re-work bound args...
         pass
-    elif isinstance(fn, _tuplex):
-        # Bind inside the tuplex, to retain tuple nature of our function
+    elif isinstance(fn, _xtuple):
+        # Bind inside the xtuple, to retain tuple nature of our function
         return fn.construct(bind(x, *bound_args, **bound_kwargs) for x in fn)
     else:
         return BoundFunction(fn, *bound_args, **bound_kwargs)
@@ -198,6 +203,7 @@ class wrap_combine(wrap_value):
         other_value = other() if callable(other) else other
         return wrap_combine(self.combine_fn(self.value, other_value), self.combine_fn)
     __mul__ = __add__
+    __truediv__ = __add__
 
 # -------------------------------------------------------------
 def eq_ndarray(a,b):
@@ -212,6 +218,12 @@ def eq_any(a,b):
         return a==b
 
 # -------------------------------------------------------------
+def intersect_keys(a,b):
+    """Iterator joins the keys of two dicts"""
+    for key in a.keys() & b.keys():
+        if eq_any(a[key], b[key]):
+            yield key
+
 def intersect_dicts(a,b):
     """Combine function: Returns only entries with the same value in both dicts."""
     if not isinstance(a, dict):
@@ -221,7 +233,6 @@ def intersect_dicts(a,b):
 
     ret = type(a)()
     for key in a.keys() & b.keys():
-        print('key',key, type(a[key]))
         if eq_any(a[key], b[key]):
             ret[key] = a[key]
     return ret
@@ -239,7 +250,7 @@ def none_if_different(a,b):
     """Combine function: Keep only if things are the same."""
     return a if a==b else None
 # -------------------------------------------------------------
-class _tuplex(Function):
+class _xtuple(Function):
     """Avoid problems of multiple inheritence and __init__() methods.
     See for another possible soultion:
     http://stackoverflow.com/questions/1565374/subclassing-python-tuple-with-multiple-init-arguments"""
@@ -248,7 +259,7 @@ class _tuplex(Function):
         return self.construct(x(*args, **kwargs) for x in self)
 
     def _map2_(self, fn, other):
-        if isinstance(other, _tuplex):
+        if isinstance(other, _xtuple):
             return self.construct(fn(s,o) for s,o in zip(self,other))
         else:
             return self.construct(fn(s,other) for s in self)
@@ -257,9 +268,11 @@ class _tuplex(Function):
         return self._map2_(operator.add, other)
     def __mul__(self, other):
         return self._map2_(operator.mul, other)
+    def __truediv__(self, other):
+        return self._map2_(operator.truediv, other)
 
 
-class tuplex(_tuplex,tuple):
+class xtuple(_xtuple,tuple):
     def construct(self, args):
         """Construct a new instance of type(self).
         args:
@@ -268,8 +281,8 @@ class tuplex(_tuplex,tuple):
     def __repr__(self):
         return '(x ' + ','.join(repr(x) for x in self) + ')'
 
-class _NamedXtuplexBase(_tuplex,tuple):
-    """For use only with namedtuplex.  Accomodates different constructors
+class _NamedxTupleBase(_xtuple,tuple):
+    """For use only with xnamedtuple.  Accomodates different constructors
     for tuple vs namedtuple."""
     def construct(self, args):
         """Construct a new instance of type(self).
@@ -277,13 +290,10 @@ class _NamedXtuplexBase(_tuplex,tuple):
             A (Python)tuple of the things to construct with."""
         return type(self)(*args)
 
-def namedtuplex(*args, **kwargs):
-    return gicollections.namedtuple(*args, tuple_class=_NamedXtuplexBase, **kwargs)
+def xnamedtuple(*args, **kwargs):
+    return gicollections.namedtuple(*args, tuple_class=_NamedxTupleBase, **kwargs)
 # -----------------------------------------------------------------
-class attrdictx(Function,dict):
-    def __getattr__(self, name):
-        return self[name]
-
+class xdict(Function,dict):
     def _join(self, other):
         """Generator that lists the keys in common"""
         if isinstance(other, dict):
@@ -296,13 +306,40 @@ class attrdictx(Function,dict):
 
 
     def __add__(self, other):
-        return attrdictx({k : s + o for k,s,o in self._join(other)})
+        return xdict({k : s + o for k,s,o in self._join(other)})
 
     def __mul__(self, other):
-        return attrdictx({k : s * o for k,s,o in self._join(other)})
+        return xdict({k : s * o for k,s,o in self._join(other)})
+
+    def __truediv__(self, other):
+        return xdict({k : s / o for k,s,o in self._join(other)})
 
     def __call__(self, *args, **kwargs):
-        return attrdictx({k : v(*args,**kwargs) \
-            for k,v in self.items()})
+        return xdict({k : v(*args,**kwargs) \
+            for k,v in self._items()})
 
-# -----------------------------------------------------------------
+    def __getitem__(self, key):
+        return xdict({k : v[key] \
+            for k,v in self._items()})
+
+    def __getattr__(self, attr):
+        return xdict({k : getattr(v, attr) \
+            for k,v in self._items()})
+
+    def _getitem(self, key):
+        return dict.__getitem__(self, key)
+    def _items(self):
+        return dict.items(self)
+    def _keys(self):
+        return dict.keys(self)
+    def _values(self):
+        return dict.values(self)
+    def _update(self, other):
+        for k,v in other._items():
+            self[k] = v
+
+#class xattrdict(xdict):
+#    def __getattr__(self, name):
+#        return self[name]
+# --------------------------------------------------
+        
