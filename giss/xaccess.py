@@ -1,5 +1,6 @@
 import numpy as np
 import importlib
+from giss import giutil, ncutil
 
 __all__ = ('_ix',)
 
@@ -86,14 +87,14 @@ def _default_plot_boundaries(basemap) :
     basemap.drawmeridians(np.arange(0.,420.,60.))
 
 
-def plot_params(fetch):
+def plot_params(attrs, data):
     """Sets up default plot parameters, based on the result of a fetch.
     Can be modified later by the caller...
     Output to be used directly as kwargs for giss.plot.plot_var()
 
     Args:
-        fetch:
-            Result of a fetch command (eg ncfetch()
+        attrs: Attributes dict
+        data: Data (already fetched, non-lazy)
 
     Returns: Dictionary with the following elements
         plotter (giss.plot.*Plotter):
@@ -117,8 +118,6 @@ def plot_params(fetch):
             Plot map boundaries, coastlines, paralells, meridians, etc.
     """
 
-    attrs = fetch.attrs()
-
     # Transfer attributes
     pp = dict()
     xfer(attrs, ('var', 'units'), pp, 'units')
@@ -136,7 +135,7 @@ def plot_params(fetch):
 
     # Get the data
     # We need this now; plot parameters depend on VALUE of data.
-    pp['val'] = fetch.data()
+    pp['val'] = data
 
     # These could be decent defaults for anything with a colorbar
     cb_args['location'] = 'bottom'
@@ -158,3 +157,33 @@ def plot_params(fetch):
     pp['plot_boundaries'] = _default_plot_boundaries
 
     return pp
+# -----------------------------------------------------------
+
+class DataSet(object):
+    """Stores a bunch of attributes and data by key.  Data are stored
+    lazily, only fetched on demand.  By storing >1 key in the dataset,
+    this allows lazy interaction between data.
+    """
+
+    def __init__(self):
+        self.attrs = dict()
+        self.data = giutil.LazyDict()
+
+    def __setitem__(self, name, fetch1):
+        attrs = fetch1.attrs()
+        self.attrs[name] = attrs
+        self.data.lazy[name] = fetch1.data
+
+    def add(self, fetch1, name=None):
+        attrs = fetch1.attrs()
+        if name is None:
+            name = attrs[('var', 'name')]
+        else:
+            attrs[('var', 'name')] = name
+
+        self.attrs[name] = attrs
+        self.data.lazy[name] = fetch1.data
+
+    def __getitem__(self, key):
+        """Returns the level-0, already fetched stuff"""
+        return ncutil.FetchTuple(self.attrs[key], self.data[key])
