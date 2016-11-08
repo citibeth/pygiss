@@ -401,24 +401,3 @@ def get_first(mydict, keys):
         except:
             pass
     raise KeyError(keys)
-
-def list_dir(logdir, regexp, key=lambda match: match.group(0)):
-    """List the files in a directory that match a regexp
-    logdir:
-        Directory to list files in.
-    regexp: str
-        The regular expression to match.
-    key: lambda match
-        Key function, called key(match) on matching records.
-        This allows extraction of filename stuff, etc.
-        By default, returns the original filename.
-    returns: [(key, fname)]
-        key: Result of running the key function on the file
-        fname: Full filename (including logdir)"""
-    regexpRE = re.compile(regexp)
-    fnames = []
-    for leaf in os.listdir(logdir):
-        match = regexpRE.match(leaf)
-        if match is not None:
-            fnames.append((key(match), os.path.join(logdir, leaf)))
-    return sorted(fnames)
