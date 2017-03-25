@@ -81,9 +81,9 @@ class copy_nc(object):
 
             var = self.nc0.variables[var_name]
             varout = self.ncout.createVariable(ovname, var.dtype, var.dimensions, **kwargs)
-            for aname, aval in var.__dict__.items():
+            for aname in var.ncattrs():
                 if not self.attrib_filter(aname) : continue
-                varout.setncattr(aname, aval)
+                setattr(varout, aname, getattr(var, aname))
 
     def copy_data(self):
         # Copy the variables
