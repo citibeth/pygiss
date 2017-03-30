@@ -86,3 +86,20 @@ class AtomicOverwrite(object):
         """If user calls commit(), THEN we commit."""
         self.__exit__()
         os.rename(self.tmp, self.name)
+
+def needs_regen(ofiles, ifiles):
+    """Determines if any of the ofiles are older than any of the ifiles.
+    This is used, eg in make, to determine if a ruile needs to be run."""
+
+    try:
+        otimes = [os.path.getmtime(x) for x in ofiles]
+    except FileNotFoundError:
+        return True
+
+    # It's an error if the input files don't all exist.
+    itimes = [os.path.getmtime(x) for x in ifiles]
+
+    min_otime = min(otimes)
+    max_itime = max(itimes)
+
+    return max_itime >= min_otime
