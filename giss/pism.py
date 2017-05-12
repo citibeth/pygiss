@@ -21,16 +21,19 @@ import netCDF4
 def _get_landmask(pism_nc) :
     """Converts the Pism land cover numbers into true/false for an ice mask.
 
-    landcover:ice_sheet = 4 ;
-    landcover:land = 2 ;
-    landcover:local_ice_caps_not_connected_to_the_ice_sheet = 3 ;
-    landcover:long_name = "Land Cover" ;
-    landcover:no_data = 0 ;
-    landcover:ocean = 1 ;
-    landcover:standard_name = "land_cover" ;"""
+    See pism/src/base/util/Mask.hh
+    enum MaskValue {
+      MASK_UNKNOWN          = -1,
+      MASK_ICE_FREE_BEDROCK = 0,
+      MASK_GROUNDED         = 2,
+      MASK_FLOATING         = 3,
+      MASK_ICE_FREE_OCEAN   = 4
+    };
+    """
 
     maskI = np.array(pism_nc.variables['mask'][:], dtype=np.int32)[0,:,:]
-    maskI = np.where(maskI==2,np.int32(0),np.int32(1))
+    maskI = np.where(
+        np.or(maskI==2,maskI==3),np.int32(0),np.int32(1))
     return maskI
 # -------------------------------------------------------------
 def read_elevI_maskI(pism_fname) :
