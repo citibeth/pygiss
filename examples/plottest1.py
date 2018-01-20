@@ -18,7 +18,7 @@
 
 import netCDF4
 import giss.basemap
-import giss.modele
+import modele.deprecated_plot_params as plot_params
 import sys
 
 if len(sys.argv) < 2 :
@@ -27,8 +27,8 @@ else :
     var_name = sys.argv[1]
 
 
-nc = netCDF4.Dataset('data/ANN1950.aijhctest45_lr05.nc')
-pp = giss.modele.plot_params(var_name, nc=nc)
+nc = netCDF4.Dataset('data/JAN1950.aijE4F40.R.nc')
+pp = plot_params.plot_params(var_name, nc=nc)
 giss.plot.plot_var(**pp)        # Plot, and show on screen
 
 # Slightly more complex alternatives:

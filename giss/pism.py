@@ -33,7 +33,7 @@ def _get_landmask(pism_nc) :
 
     maskI = np.array(pism_nc.variables['mask'][:], dtype=np.int32)[0,:,:]
     maskI = np.where(
-        np.or(maskI==2,maskI==3),np.int32(0),np.int32(1))
+        np.logical_or(maskI==2,maskI==3),np.int32(0),np.int32(1))
     return maskI
 # -------------------------------------------------------------
 def read_elevI_maskI(pism_fname) :

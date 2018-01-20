@@ -18,6 +18,7 @@ import contextlib
 import sys
 import os
 import re
+import string
 
 # http://stackoverflow.com/questions/13250050/redirecting-the-output-of-a-python-function-from-stdout-to-variable-in-python
 @contextlib.contextmanager
@@ -103,3 +104,18 @@ def needs_regen(ofiles, ifiles):
     max_itime = max(itimes)
 
     return max_itime >= min_otime
+
+# http://code.activestate.com/recipes/52224-find-a-file-given-a-search-path/
+def search_file(filename, search_path):
+     """Given a search path, find file
+     """
+     file_found = 0
+     paths = search_path.split(os.pathsep)
+     for path in paths:
+         if os.path.exists(os.path.join(path, filename)):
+             file_found = 1
+             break
+     if file_found:
+         return os.path.abspath(os.path.join(path, filename))
+     else:
+         return None
