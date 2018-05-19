@@ -20,7 +20,6 @@ import struct
 import numpy
 import re
 import numpy as np
-import giss.util
 import netCDF4
 
 # =========================================================================
@@ -37,7 +36,7 @@ _shapes = {'8x10' : (24,36)}
 
 def _dict2re_frag(dict) :
     ret = []
-    for sdim in dict.iterkeys() :
+    for sdim in dict.keys() :
         ret.append(sdim)
         ret.append('|')
     return ''.join(ret[0:-1])
@@ -56,17 +55,37 @@ _title2RE = re.compile('(.*?)[ :].*')
 # -------------------------------------------------------------
 
 class Record(object):
-    def __init__(self, var, data, comment) :
+    def __init__(self, grid_name, var, data, comment) :
+        self.grid_name = grid_name
         self.var = var
         self.data = data
         self.comment = comment
 
     def __str__(self) :
-        return ''.join(['[var=', self.var, ', data=', str(self.data.dtype), ' ', str(self.data.shape), ']' ])
-        
+        return '[grid={}, var={}, data={}, shape={}]'.format(
+            self.grid_name, self.var, self.data.dtype, self.data.shape)       
 
 # Guess shape of 2D array based on its 1D length
-_len_shapes = { 3312 : (46, 72), 12960 : (90, 144) }
+
+_len_shapes = {
+    xx[1]*xx[2] : (xx[0], (xx[1], xx[2])) for xx in (
+        ('1mx1m_gridreg', 10801, 21600),    # g1mx1m JM1m: 1-minute
+        ('1mx1m', 10800, 21600),    # g1mx1m JM1m: 1-minute
+        ('2mx2m', 5400, 10800),     # g2mx2m JM2: 2-minute
+        ('10mx10m', 1080, 2160),      # g10mx10m JMS: 10-minute
+        ('hxh', 360, 720),        # ghxh JMH: 1/2-degree
+        ('1x1', 180, 360),        # g1x1 JM1: 1-degree
+        ('q1x1', 180, 288),        # g1qx1
+        ('2hx2', 90, 144),         # g2hx2
+        ('5x4', 46, 72),          # g5x4??? (should be 45x72???)
+    )
+}
+
+
+
+
+
+
 # -----------------------------------------------------------------
 def reader(ifname):
     """Read records from a GISS-format file one at a time.
@@ -85,18 +104,25 @@ def reader(ifname):
         while True :
             # Read the record
             slen = fin.read(4)
-            if len(slen) == 0 :
+            if len(slen) == 0:
                 break
-            if len(slen) < 4 :
+            if len(slen) < 4:
                 print('Found %d extra bytes at end of file' % (len(slen)))
                 break
 
             len0 = struct.unpack(">I",slen)[0]
 
-            stitle = fin.read(80)
+            stitle = fin.read(80).decode()
             sdata = fin.read(len0 - 80)
+            print('Read {} bytes'.format(len(sdata)))
 
-            len1 = struct.unpack(">I",fin.read(4))[0]
+            slen = fin.read(4)
+            if (len(slen) == 0):
+                break
+            if len(slen) < 4:
+                print('Found %d extra bytes at end of file' % (len(slen)))
+                break
+            len1 = struct.unpack(">I",slen)[0]
 
             if len0 != len1 :
                 print('Error reading record, %d (len0) != %d (len1)' % (len0,len1))
@@ -121,10 +147,10 @@ def reader(ifname):
 
             # Guess the shape based on length read
             if shape is None :
-                shape = _len_shapes[len(data1d)]
+                grid_name, shape = _len_shapes[len(data1d)]
             data = numpy.reshape(data1d, shape, order='C')
 
-            yield Record(var, data, stitle)
+            yield Record(grid_name, var, data, stitle)
     finally :
         fin.close()
 

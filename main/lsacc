@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 #
 
 import sys
@@ -96,7 +96,7 @@ if len(fnames) == 0 :
 	sys.exit(0)
 elif len(lsflags) == 0 :
 	# Output ourselves (for use in command lines)
-	print '\n'.join(fnames)
+	print('\n'.join(fnames))
 	sys.exit(0)
 else :
 	# Output via ls (for user inspection)

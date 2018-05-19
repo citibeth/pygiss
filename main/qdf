@@ -1,0 +1,13 @@
+#!/usr/bin/env python3
+#
+
+from giss import gissfile
+import sys
+
+if len(sys.argv) < 2 :
+	sys.stderr.write('Usage: %s <giss-file>\n' % sys.argv[0])
+
+fname = sys.argv[1]
+
+for rec in gissfile.reader(fname) :
+	print('{} : {} : {}'.format(rec.grid_name, rec.var,rec.comment))
