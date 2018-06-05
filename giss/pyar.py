@@ -1,4 +1,5 @@
 from __future__ import print_function
+from giss import ioutil
 import mimetypes
 import os
 import errno
@@ -42,7 +43,7 @@ def pack_archive(fout, files, report_fn=nop):
             fout.write(EOF + '\n')
 
 def unpack_archive(fin, dest):
-    fout = None
+    Fout = None
     try:
         state = 0    # 0 = looking for new file; 1 = in file
         for line in fin:
@@ -55,20 +56,23 @@ def unpack_archive(fin, dest):
                     fname = os.path.join(dest, fname)
                     dir = os.path.split(fname)[0]
                     make_sure_path_exists(dir)
-                    print('writing ', fname)
-                    fout = open(fname, 'w')
+                    # print('writing ', fname)
+                    Fout = ioutil.WriteIfDifferent(fname, 'w')
+                    Fout.__enter__()
                     state = 1
                 else:
                     # Comment line between files
                     pass
             else:
                 if line[:EOF_LEN] == EOF:
+                    Fout.__exit__()
+                    Fout = None
                     state = 0
                 else:
-                    fout.write(line)
+                    Fout.out.write(line)
     finally:
-        if fout is not None:
-            fout.close()
+        if Fout is not None:
+            Fout.rollback()
 
 
 def list_archive(fin):
@@ -76,8 +80,9 @@ def list_archive(fin):
     state = 0    # 0 = looking for new file; 1 = in file
     for line in fin:
         if state == 0:
-            if line[0:6] == 'FILE: ':
-                line = line[6:]
+            match = fileRE.match(line)
+            if match is not None:
+                line = match.group(1)
                 parts = line.strip().split(':')
                 fname = parts[0]    # Will be more parts later
                 yield fname

@@ -19,6 +19,9 @@ import sys
 import os
 import re
 import string
+import tempfile
+import filecmp
+import shutil
 
 # http://stackoverflow.com/questions/13250050/redirecting-the-output-of-a-python-function-from-stdout-to-variable-in-python
 @contextlib.contextmanager
@@ -87,6 +90,80 @@ class AtomicOverwrite(object):
         """If user calls commit(), THEN we commit."""
         self.__exit__()
         os.rename(self.tmp, self.name)
+
+
+class WriteIfDifferent(object):
+    """Writes a file, swapping it to overwrite the previous file atomically"""
+    def __init__(self, name, mode='w'):
+        self.name = name    # Filename
+        self.tmp = self.name + '.tmp'
+        self.mode = mode
+        self.out = None
+
+    def __enter__(self):
+        self.out = open(self.tmp, self.mode)
+        return self
+
+    def rollback(self):
+        os.remove(self.tmp)
+
+    def __exit__(self, *args):
+        # Close the file
+        if self.out is not None:
+            self.out.close()
+            self.out = None
+
+        # Compare to
+        if (not os.path.exists(self.name)):
+            # Writing a virgin file
+            os.rename(self.tmp, self.name)
+        else:
+            # Compare contents to what's there
+            with open(self.name, 'rb') as old_file:
+                old_contents = old_file.read()
+            with open(self.tmp, 'rb') as new_file:
+                new_contents = new_file.read()
+
+            if old_contents == new_contents:
+                self.rollback()
+            else:
+                os.remove(self.name)
+                os.rename(self.tmp, self.name)
+
+
+#class WriteIfDifferent(object):
+#    """Allows user to write to a temporary file, then move it
+#    to the destination only if it is different from the destination."""
+#    def __init__(self, ofname, **kwargs):
+#        """ofname: Name we ultimately want to write to."""
+#        self.ofname = ofname
+#        self.out = tempfile.NamedTemporaryFile(delete=False, **kwargs)
+#        self.tfname = self.out.name
+#
+#    def __enter__(self):
+#        pass
+#
+#    def close(self):
+#        self.__exit__()
+#
+#    def rollback(self):
+#        self.out.close()
+#        os.remove(self.tfname)
+#
+#    def __exit__(self, *args):
+#        self.out.close()
+#        try:
+#            if filecmp.cmp(self.tfname, self.ofname):
+#                # Files are equal, we are done!
+#                os.remove(self.tfname)
+#                return
+#        except: pass # Error means the files were NOT equal.
+#
+#        # Files are not equal, so copy the temporary file over.
+#        shutil.copyfile(self.tfname, self.ofname)
+#        os.remove(self.tfname)
+
+
 
 def needs_regen(ofiles, ifiles):
     """Determines if any of the ofiles are older than any of the ifiles.
