@@ -1,0 +1,13 @@
+#!/bin/env python3
+#
+
+import sys
+from giss import pyar
+
+fname_in = sys.argv[1]
+dest = sys.argv[2]
+
+print('dest', dest)
+
+with open(fname_in, 'r') as fin:
+    pyar.unpack_archive(fin, dest)

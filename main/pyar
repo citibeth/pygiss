@@ -1,0 +1,21 @@
+#!/bin/env python3
+#
+
+import sys
+import os
+from giss import pyar
+
+src = sys.argv[1]
+fname_out = sys.argv[2]
+
+files = []
+for root, subFolder, this_files in os.walk(src):
+    for item in this_files:
+        files.append(os.path.join(root,item))
+
+files.sort()
+
+print('\n'.join(files))
+
+with open(fname_out, 'w') as fout:
+    pyar.pack_archive(fout, files)

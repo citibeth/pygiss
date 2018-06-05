@@ -2,12 +2,15 @@ from __future__ import print_function
 import mimetypes
 import os
 import errno
+import re
 
 # Python archiver
 # Like shar, but in Python.  And no running of untrusted scripts!
 
 EOF = '__EOF__'
 EOF_LEN = len(EOF)
+
+fileRE = re.compile(r'=+\sFILE\s(.*)')
 
 # http://stackoverflow.com/questions/273192/how-to-check-if-a-directory-exists-and-create-it-if-necessary
 def make_sure_path_exists(path):
@@ -44,14 +47,15 @@ def unpack_archive(fin, dest):
         state = 0    # 0 = looking for new file; 1 = in file
         for line in fin:
             if state == 0:
-                if line[0:6] == 'FILE: ':
-                    line = line[6:]
+                match = fileRE.match(line)
+                if match is not None:
+                    line = match.group(1)
                     parts = line.strip().split(':')
                     fname = parts[0]    # Will be more parts later
                     fname = os.path.join(dest, fname)
                     dir = os.path.split(fname)[0]
                     make_sure_path_exists(dir)
-                    # print('writing ', fname)
+                    print('writing ', fname)
                     fout = open(fname, 'w')
                     state = 1
                 else:
