@@ -3,11 +3,12 @@
 
 import sys
 import re
-import giss.modele
+import modele.accfile
 import datetime
 import os.path
 import argparse
 import subprocess
+from giss import giutil
 
 # -----------------------------------------------
 _monthnums = {
@@ -82,8 +83,8 @@ for arg in unknown :
 		paths.append(arg)
 
 # ==================== Get the list of files
-acc_files = giss.modele.list_acc_files(
-	giss.util.multiglob_iterator(paths),
+acc_files = modele.accfile.list_acc_files(
+	giutil.multiglob_iterator(paths),
 	rundeckRE=args.rundeck,
 	date0=date0, date1=date1)
 
