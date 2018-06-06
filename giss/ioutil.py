@@ -131,6 +131,8 @@ class WriteIfDifferent(object):
                 os.remove(self.name)
                 os.rename(self.tmp, self.name)
 
+    def close(self):
+        self.__exit__()
 
 #class WriteIfDifferent(object):
 #    """Allows user to write to a temporary file, then move it
