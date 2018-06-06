@@ -32,7 +32,6 @@ def pack_archive(fout, files, report_fn=nop):
         with open(file, 'r') as fin:
             report_fn(file)
             fout.write('======================== FILE %s\n' % file)
-            fout.write('FILE: %s\n' % file)
             for line in fin:
                 if line[:EOF_LEN] == EOF:
                     raise ValueError('Cannot pyar a file with a line starting in __EOF__')
@@ -63,7 +62,13 @@ def unpack_archive(fin, dest):
                 else:
                     # Comment line between files
                     pass
+                first = True
             else:
+                if first:
+                    first = False
+                    if line.startswith('FILE: '):
+                        continue
+
                 if line[:EOF_LEN] == EOF:
                     Fout.__exit__()
                     Fout = None

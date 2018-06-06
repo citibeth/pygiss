@@ -127,6 +127,7 @@ class WriteIfDifferent(object):
             if old_contents == new_contents:
                 self.rollback()
             else:
+                print('Writing {}'.format(self.name))
                 os.remove(self.name)
                 os.rename(self.tmp, self.name)
 
