@@ -35,6 +35,7 @@ class copy_nc(object):
         self.attrib_filter = attrib_filter
         self.avoid_vars = set()
         self.avoid_dims = set()
+        self.vars = []
 
     def createDimension(self, dim_name, *args, **kwargs):
         self.avoid_dims.add(dim_name)
@@ -49,46 +50,59 @@ class copy_nc(object):
         self.avoid_vars.add(var_name)
         return self.ncout.createVariable(var_name, *args, **kwargs)
 
-    def define_vars(self, **kwargs):
-        self.vars = self.nc0.variables.keys()
+    def define_vars(self, _var_pairs, **kwargs):
+        """
+        kwargs:
+            Arguments supplied to NetCDF4 createVariable()
+            Use to compress, etc.
+        """
+
+        # Standardize var_pairs
+        var_pairs = []
+        for vp in _var_pairs:
+            if isinstance(vp, str):
+                var_pairs.append((vp,vp))
+            else:
+                var_pairs.append(vp)
+
+        self.vars += var_pairs
 
         # Figure out which dimensions to copy
         copy_dims = set()
-        for var in self.vars:
-            if not self.var_filter(var) : continue
-            if var in self.avoid_vars : continue
-            for dim in self.nc0.variables[var].dimensions:
-                copy_dims.add(dim)
+        for ivname,ovname in var_pairs:
+            for dimname in self.nc0.variables[ivname].dimensions:
+                copy_dims.add(dimname)
 
         # Copy the dimensions!
-        for dim_pair in self.nc0.dimensions.items():
-            name = dim_pair[0]
-            extent = len(dim_pair[1])
-            if name in copy_dims and name not in self.ncout.dimensions:
-                self.ncout.createDimension(name, extent)
+        for dimname in copy_dims:
+            if dimname not in self.ncout.dimensions:
+                extent = len(self.nc0.dimensions[dimname])
+                self.ncout.createDimension(dimname, extent)
 
         # Define the variables
-        for var_name in self.vars:
-            ovname = self.var_filter(var_name)
-            if ovname is None: continue
-            if var_name in self.avoid_vars : continue
-
-            var = self.nc0.variables[var_name]
+        for ivname,ovname in var_pairs:
+            var = self.nc0.variables[ivname]
             varout = self.ncout.createVariable(ovname, var.dtype, var.dimensions, **kwargs)
             for aname in var.ncattrs():
                 if not self.attrib_filter(aname) : continue
                 setattr(varout, aname, getattr(var, aname))
 
+    def define_all_vars(self, **kwargs):
+        var_pairs = self.nc0.variables.keys()
+        self.define_vars(var_pairs, **kwargs)
+
+    def copy_var(self, ivname, ovname):
+
+        print('Copying {}'.format(ivname))
+        ivar = self.nc0.variables[ivname]
+        ovar = self.ncout.variables[ovname]
+        ovar[:] = ivar[:]
+
     def copy_data(self):
         # Copy the variables
-        for var_name in self.vars:
-            ovname = self.var_filter(var_name)
-            if ovname is None: continue
-            if var_name in self.avoid_vars: continue
+        for ivname,ovname in self.vars:
+            self.copy_var(ivname,ovname)
 
-            ivar = self.nc0.variables[var_name]
-            ovar = self.ncout.variables[ovname]
-            ovar[:] = ivar[:]
 
 def default_diff_fn(var, val0, val1):
     """Called when we see a difference"""
