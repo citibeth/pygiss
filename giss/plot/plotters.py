@@ -94,7 +94,8 @@ class LonLatPlotter(Plotter):
         if boundaries :
             self.lonb = lons
             # TODO: Handle pole stuff properly here
-            self.latb = np.array([-89.999] + list(lats) + [89.999])
+#            self.latb = np.array([-89.999] + list(lats) + [89.999])
+            self.latb = lats
         else :
             # --------- Reprocess lat/lon format for a quadrilateral mesh
             # (Assume latlon grid)
@@ -126,6 +127,7 @@ class LonLatPlotter(Plotter):
 
         self.nlons = len(self.lonb)-1
         self.nlats = len(self.latb)-1
+        print('nlons nlats', self.nlons, self.nlats)
 
     def context(self, basemap, vals):
         context = giutil.LazyDict()

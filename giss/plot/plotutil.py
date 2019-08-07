@@ -269,7 +269,7 @@ def cpt(cpt_name, cpt_path = _CPT_PATH, **kwargs) :
 def read_cpt(fname, **kwargs) :
     """Reads a color map from a .cpt file
 
-    NOTE: This returns a struct, not just the colrmap itself.
+    NOTE: This returns a struct, not just the colormap itself.
 
     Args:
         fname (string):
