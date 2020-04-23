@@ -401,3 +401,13 @@ def get_first(mydict, keys):
         except:
             pass
     raise KeyError(keys)
+# ----------------------------------------------------
+def merge_dicts(*dicts):
+    """Merges a bunch of dicts.  Later dicts take precedence over earlier dicts."""
+    if len(dicts) == 0:
+        return dict()
+
+    mydict = type(dicts[0])(dicts[0].items())
+    for xdict in dicts[1:]:
+        mydict.update(xdict.items())
+    return mydict

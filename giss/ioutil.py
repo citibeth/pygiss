@@ -199,3 +199,28 @@ def search_file(filename, search_path):
          return os.path.abspath(os.path.join(path, filename))
      else:
          return None
+
+class TmpFiles(object):
+    def __init__(self, root):
+        self.root = root
+        self.next_tmp = 0
+
+    def __next__(self):
+        """Get a tmp filename"""
+        ret = '{}_{}'.format(self.root, self.next_tmp)
+        self.next_tmp += 1
+        return ret
+
+    def __enter__(self):
+        return self
+    def __exit__(self, exc_type, exc_value, exc_traceback):
+        for i in range(0,self.next_tmp):
+            try:
+                os.remove('{}_{}'.format(self.root, i))
+            except FileNotFoundError:
+                pass
+
+
+
+
+
