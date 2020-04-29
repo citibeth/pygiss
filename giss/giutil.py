@@ -297,6 +297,16 @@ class LazyDict(collections.abc.Mapping):
     def __len__(self):
         return len(self._entries)
 
+class LambdaDict(LazyDict):
+    """Like LazyDict, but never remember function calls."""
+    def __getitem__(self, key):
+        entry = self._entries[key]  # Could raise a KeyError
+        if entry.isset:
+            return entry.val
+        return entry.lam()
+
+
+
 class Thunk(object):
     """Creates a picklable object with fully bound arguments that
     may be called later.  Additional args and kwargs may be added
@@ -411,3 +421,20 @@ def merge_dicts(*dicts):
     for xdict in dicts[1:]:
         mydict.update(xdict.items())
     return mydict
+# ------------------------------------------------------
+# https://lerner.co.il/2014/01/03/making-init-methods-magical-with-autoinit/
+def autoinit():
+    """Automgagically copy parameters tot __init__() method to self.
+    Eg:
+        class MyClass(object):
+            def __init__(a, b):
+                autoinit()
+            def do_stuff():
+                print(self.a, self.b)
+    """
+    frame = inspect.currentframe(1)
+    params = frame.f_locals
+    self = params['self']
+    paramnames = frame.f_code.co_varnames[1:] # ignore self
+    for name in paramnames:
+        setattr(self, name, params[name])
