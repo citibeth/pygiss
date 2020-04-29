@@ -34,6 +34,9 @@ def hashup_int(hash, x):
 def hashup_float(hash, x):
     hash.update(struct.pack('>f',x))
 
+def hashup_bool(hash, x):
+    bytes = struct.pack('>i',1 if x else 0)
+
 def hashup_str(hash, x):
     hash.update(x.encode())
 
@@ -75,6 +78,7 @@ def hashup_error(hash, x):
 
 hashup_methods = {
     int : (b'int', hashup_int),
+    bool : (b'bool', hashup_bool),
     float : (b'float', hashup_float),
     str : (b'str', hashup_str),
     bytes : (b'bytes', hashup_bytes),
